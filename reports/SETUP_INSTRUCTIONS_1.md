@@ -33,7 +33,7 @@ Read sections 1 and 2 before running anything.
 | **Accounts / roles / grants** | The daemon admits a client by identity. The `admins` listed in `daemon.yaml` hold every grant. Anyone else must be an **account** (`accounts create`) holding **roles** (`roles create`), and each role is a list of **grants** such as `{"agents":["create"]}` or `{"agents":{"actions":["list","get"],"within":"any"}}`. |
 | **Vault / secrets** | `vault insert {key, value}` stores a value. A template names the secrets it needs, and `agents create` binds each name to a vault key: `"secrets": {"OPENROUTER_API_KEY": "my-or-key"}`. Secrets are never arguments or environment variables. |
 | **Events** | The daemon's graph of who sent what to whom. diverge-world draws each one as a line. |
-| **Remote daemons and relay** | Daemon A records daemon B with `daemons add`, which returns a `DaemonId`. A reaches B only **through a provider both are connected to**, where B is listable. Any request may carry `"relay": [<ids>]`: daemon A takes the first ID off and forwards the request to B, which serves it as the account A presents there. diverge-world uses this to open another daemon's board in a tab. |
+| **Remote daemons and relay** | Daemon A records daemon B with `daemons add`, which returns a `DaemonId`. A reaches B only **through a provider both are connected to**, where B announces itself (an `announcement` on B's record of that provider) and accepts other daemons (`accept_daemons`, default `true`). Any request may carry `"relay": [<ids>]`: daemon A takes the first ID off and forwards the request to B, which serves it as the account A presents there. diverge-world uses this to open another daemon's board in a tab. |
 | **diverge-world** | A Tauri + Phaser app (`diverge-world/`). Its Rust side holds one connection to the daemon named by `<root>/viewer.yaml`, and the page speaks the daemon protocol through `@diverge/sdk` (`diverge-sdk-js`). |
 
 ---
@@ -267,7 +267,11 @@ Notes on `daemon.yaml`:
 
 - `idle_seconds` defaults to **10**: a container is stopped 10 s after its last use. A larger value keeps agents
   and tools up while you look at them in the world.
-- `accept_daemons` defaults to `true`, which B needs.
+- `daemon.yaml` holds `port`, `identity`, `admins`, `postgres` and `idle_seconds`, and nothing else. It no
+  longer has `description`, `accept_daemons` or `capacity_poll_seconds`: the document is strict, so a
+  `daemon.yaml` that still holds one of them is refused at start. What the daemon announces itself with, whether
+  it accepts other daemons and whether it hears messages are now set **per provider record** (below); the
+  capacity poll is a fixed ten seconds.
 - `postgres` defaults to `{kind: local, max_connections: 1024}`.
 
 ```bash
@@ -346,13 +350,14 @@ diverge run --daemon b info           # daemon B
 The first daemon start initialises its Postgres cluster under `<root>/daemon/postgres/`.
 
 Providers are records in the daemon's database; there is no `providers` key in `daemon.yaml`. Add the shared
-provider to **both** daemons, `outgoing` (the daemon dials it) and `listable: true`. Listable is what lets each
-daemon find the other on the provider.
+provider to **both** daemons, `outgoing` (the daemon dials it), each with its own `announcement`. The
+announcement is what lets each daemon find the other on the provider.
 
 ```bash
-P='{"identity":{"issuer":"'"$ISS"'","subject":"provider"},"direction":"outgoing","address":"127.0.0.1:14979","listable":true}'
-diverge run providers add "$P"
-diverge run --daemon b providers add "$P"
+PA='{"identity":{"issuer":"'"$ISS"'","subject":"provider"},"direction":"outgoing","address":"127.0.0.1:14979","announcement":"daemon A","messageable":true}'
+PB='{"identity":{"issuer":"'"$ISS"'","subject":"provider"},"direction":"outgoing","address":"127.0.0.1:14979","announcement":"daemon B","messageable":true}'
+diverge run providers add "$PA"
+diverge run --daemon b providers add "$PB"
 diverge run providers list            # items, then "listed"; the record's "status" should be "connected"
 diverge run --daemon b providers list
 ```
@@ -363,6 +368,33 @@ A record that stays `disconnected` usually has one of two causes:
 - The provider is not running.
 
 The daemon redials every 5 s, so fix the cause and list again.
+
+What the three per-provider members of a record do, each independent of the other two:
+
+| Member | Default | Meaning |
+|---|---|---|
+| `announcement` | absent | One line, 1 to 132 characters. Present: the daemon announces itself on that provider with it, and other daemons see it in `providers daemons list`. Absent: it is not listed there. |
+| `accept_daemons` | `true` | The daemon accepts connections from other daemons through that provider (step 10 needs it on B). |
+| `messageable` | `false` | The daemon listens for direct messages on that provider. |
+
+A daemon sends direct messages whatever its own three are. A receiver is found through the listing when sent
+to with `diverge run providers daemons message`, so a receiver that is messageable but has no `announcement`
+answers `not_found` there.
+
+Change them on a running daemon with `providers edit`; nothing is restarted and the provider's connection
+stays up, so no container stops:
+
+```bash
+ID='"identity":{"issuer":"'"$ISS"'","subject":"provider"}'
+diverge run --daemon b providers edit "{$ID,\"announcement\":\"daemon B, staging\",\"messageable\":false}"
+diverge run --daemon b providers edit "{$ID,\"announcement\":null}"       # stop announcing; absent would leave it
+diverge run --daemon b providers edit "{$ID,\"announcement\":\"daemon B\",\"messageable\":true}"
+```
+
+`edit` takes `announcement` and `ips` (absent = leave, `null` = clear, a value = set), `accept_daemons`,
+`messageable` and `description`. It does not take `direction` or `address` (a body naming them is refused):
+the identity, direction and address are fixed for a record's life. The only edit that closes a connection is
+one whose new `ips` no longer admit an incoming provider's source address.
 
 ### Step 7: build the images into the provider's store
 
@@ -552,7 +584,8 @@ What A needs on B:
 - A reaches B **as an account on B**. For relayed daemon connections, B's `admins` do **not** count
   (`diverge-daemon/src/judge/admit.rs`), so B needs an account for the identity A presents.
 - This guide has A present `daemon-a`, which is signed in under root A.
-- B must be listable on a provider A is connected to (step 6), and must have `accept_daemons: true` (the default).
+- B must announce itself on a provider A is connected to (an `announcement` on B's record of it, step 6), and
+  that record must have `accept_daemons: true` (the default).
 
 **On B (as admin):** a role and an account for `daemon-a`. This role is deliberately broad, so that world A's
 relayed board and the tool steps below work. Trim it once things work.
@@ -707,9 +740,10 @@ cleanly at the next start.
 | `daemon stop` targets the wrong daemon or says NotLocal | It uses the default daemon of `<root>/cli.yaml`. Fix that root's `cli.yaml`. |
 | The first message to a fresh agent fails with "connection ended before the channel answered" | Its dependency tools may still be deploying. Send it again. |
 | `providers add` record stays `disconnected` | The daemon identity is missing from `provider.yaml` `incoming`, or either program has no `identity` in its document or that identity is not signed in under its root, or the provider's `identity` is not the one the record names, or the provider is down. |
-| `daemons add` works but relayed requests error | B is not listable (`listable: true` on B's provider record), B has no **account** for the presented identity (admins don't count), `accept_daemons` is false on B, or A and B are not on a common provider. |
+| `daemons add` works but relayed requests error | B is not announced (no `announcement` on B's record of the shared provider), B has no **account** for the presented identity (admins don't count), `accept_daemons` is false on B's record of that provider, or A and B are not on a common provider. |
 | `pnpm tauri dev` page breaks after `pnpm typecheck` / an SDK rebuild | The SDK `dist` was rebuilt under the running Vite. Restart the dev server, or reload the window. |
 | Second `pnpm tauri dev` exits at once | Port 1440 is taken (`strictPort`). Use §5 step 11 (a) or (b). |
+| The daemon fails at start after an upgrade, or `providers add` errors on a database made by an earlier build | The daemon's database has no migrations, so a database made by an earlier build is not carried over: move `<root>/daemon/postgres/` aside (do not delete it) and let the daemon initialise a new one. Also remove `description`, `accept_daemons` and `capacity_poll_seconds` from `daemon.yaml`. |
 | The `diverge-postgres` build fails fetching PostgreSQL | It fetches the bundled archive at build time. Check network access. GitHub rate limiting may need a `GITHUB_TOKEN` (unverified). |
 
 ---
@@ -755,7 +789,7 @@ cleanly at the next start.
 1. **Daemon-to-daemon (step 10) has never been run live.** The remote-daemon records, routes and relay are built
    and checked only by compilation. The request bodies here validate against the CLI's schemas, and the
    requirements come from `diverge-daemon/src/judge/admit.rs`, `diverge-sdk-rs/src/daemon/endpoints/daemons/` and
-   `diverge-daemon/src/daemons/connect.rs`: an account (not an admin) for the presented identity, a listable B, and
+   `diverge-daemon/src/daemons/connect.rs`: an account (not an admin) for the presented identity, an announced and accepting B, and
    a shared provider. Expect to debug.
 2. **Which tool `connected-standalone-tools create` may name.** Its `tool` is "a standalone tool of the caller's"
    as B reads it, i.e. of `daemon-a`'s account. That is why step 10 creates the tool on B *through the relay*. It

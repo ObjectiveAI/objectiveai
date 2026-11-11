@@ -21,13 +21,10 @@ identity:
 admins:
   - issuer: http://127.0.0.1:14981
     subject: admin
-description: build farm, east
 postgres:
   kind: local
   max_connections: 1024
 idle_seconds: 10
-accept_daemons: true
-capacity_poll_seconds: 10
 ```
 
 | Field | Default | Meaning |
@@ -35,11 +32,8 @@ capacity_poll_seconds: 10
 | `port` | `14980` | TCP port the daemon accepts clients on: a WebSocket upgrade at any path, on every interface. |
 | `identity` | none | `{issuer, subject}`: who the daemon is. The one identity whose token it presents on every connection it accepts (to a client, a provider or another daemon, whatever issuer theirs is from) and to every provider it dials. It must be signed in under this root first (`diverge identities login`). **Absent, the daemon has no identity and completes no handshake.** It is not a list of trusted issuers, and there is none: an account, an administrator or a provider from any issuer can connect once a record names it. (To a remote daemon the daemon presents the account that remote-daemon record names, not this.) |
 | `admins` | none | List of `{issuer, subject}`. Each is admitted as a client whether or not it is an account, and holds every grant. This is what makes a fresh daemon, which has no account, reachable: the first account is made by an admin. With no admin and no account, the daemon admits nobody. Admins do **not** count for a connection arriving from another daemon: that needs an account. |
-| `description` | none | One line of plain text, at most 132 characters, that the daemon says of itself to every provider it is listable to. Other daemons see it when they list daemons through that provider. |
 | `postgres` | `{kind: local, max_connections: 1024}` | Which database the daemon keeps its records in and serves to its containers. Never changed while the daemon runs. See below. |
 | `idle_seconds` | `10` | How many seconds a container (agent or tool) may go unused before the daemon stops it. The clock resets on every use and does not run while the container is active. The record stays; the next use starts the container again. Raise it to keep containers warm. |
-| `accept_daemons` | `true` | Whether other daemons may connect to this one through the providers it is connected to. `false`: no daemon reaches it or the tools it serves (no relay into it, no connected tools from it). |
-| `capacity_poll_seconds` | `10` | How long the daemon waits, after caching a provider's capacity answer, before asking again. The daemon's own acts that change capacity ask at once regardless. |
 
 `postgres`, tagged by `kind`:
 
@@ -52,6 +46,20 @@ A key that belongs to the other kind is refused (`max_connections` under `remote
 
 There is no `providers` key: providers are records in the daemon's database, added with
 `diverge run providers add` (skill `diverge-daemons`).
+
+**Removed keys.** `description`, `accept_daemons` and `capacity_poll_seconds` are no longer part of
+`daemon.yaml`. The document is strict, so one written for an earlier build that still holds any of them is
+refused at daemon start: delete them first. What they did is now elsewhere:
+
+| Was in `daemon.yaml` | Now |
+|---|---|
+| `description` | `announcement` on each provider's record: the text the daemon announces itself with **on that provider**. Absent, the daemon is not listed there. |
+| `accept_daemons` | `accept_daemons` on each provider's record (default `true`). |
+| `capacity_poll_seconds` | Not configurable: the daemon asks each connected provider for its capacity every ten seconds. |
+
+Both record fields, and `messageable` (whether the daemon hears direct messages on that provider), are set
+with `diverge run providers add` and changed with `diverge run providers edit` while the daemon runs, with
+no restart (skill `diverge-daemons`).
 
 ---
 

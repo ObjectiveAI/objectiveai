@@ -56,7 +56,7 @@ before changing a field you have not changed before.
 
 | Document | Read | Holds |
 |---|---|---|
-| `daemon.yaml` | at daemon start | `port`, `identity` (`{issuer, subject}`: who the daemon is), `admins`, `description`, `postgres` (`local` or `remote`), `idle_seconds`, `accept_daemons`, `capacity_poll_seconds` |
+| `daemon.yaml` | at daemon start | `port`, `identity` (`{issuer, subject}`: who the daemon is), `admins`, `postgres` (`local` or `remote`), `idle_seconds`. Nothing per provider lives here: whether the daemon announces itself, accepts other daemons and hears messages is on each provider's record (`diverge run providers edit`, skill `diverge-daemons`) |
 | `provider.yaml` | at provider start | `port`, `identity` (who the provider is), `incoming` (who may dial it), `outgoing` (peers it dials, each an `address` and the `identity` that must answer), `containers` (podman: `registries`, `storage_path`, `image_cache_disk`, `container_overlay_disk`, `memory`; `enabled`), `volumes` (`stores`, `fixed`), `images` (the Store: `path`, `capacity`), `messages` (rate) |
 | `issuer.yaml` | at issuer start | `port`, `issuer` (the identifier URL), `access_token_seconds`, `refresh_token_days` |
 | `cli.yaml` | by every CLI command | `default` daemon; `daemons.<name>`: `address`, `default` account, `accounts.<name>`: `issuer`, `subject` |
