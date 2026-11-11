@@ -3,7 +3,3 @@ packages:
   - diverge-sdk-js
   - diverge-viewer
   - diverge-world
-  - objectiveai-sdk-js
-  - objectiveai-web
-  - objectiveai-viewer
-  - tests/objectiveai-sdk-js-tests

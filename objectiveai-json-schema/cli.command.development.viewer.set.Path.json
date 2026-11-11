@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.development.viewer.set.Path",
-  "type": "string",
-  "enum": [
-    "development/viewer/set"
-  ]
-}

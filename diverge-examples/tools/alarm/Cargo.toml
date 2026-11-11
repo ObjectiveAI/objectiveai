@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "An example Diverge tool container: alarms an agent sets to wake itself later, once or on a schedule"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 publish = false
 

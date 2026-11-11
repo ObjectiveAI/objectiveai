@@ -1,8 +1,0 @@
-{
-  "title": "agent.completions.response.streaming.Object",
-  "description": "A agent completion chunk object.",
-  "type": "string",
-  "enum": [
-    "agent.completion.chunk"
-  ]
-}

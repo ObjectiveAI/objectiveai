@@ -1,7 +1,0 @@
-{
-  "title": "functions.expression.ObjectInputSchemaType",
-  "type": "string",
-  "enum": [
-    "object"
-  ]
-}

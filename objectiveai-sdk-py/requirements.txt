@@ -1,3 +1,0 @@
-pydantic==2.12.5
-httpx==0.28.1
-httpx-sse==0.4.3

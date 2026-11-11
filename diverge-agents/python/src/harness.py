@@ -7,7 +7,7 @@
 # `{"eval": <the last expression's value, or null>, "stdout": <what
 # the script printed>}`.
 #
-# The contract is the CLI's (objectiveai-daemon's python harness),
+# The contract is the earlier command line's python harness,
 # with the base64 gone: the source is parsed, and if its last
 # statement is a bare expression that expression is split off, the
 # rest is exec'd and it is eval'd — so `main()` on the last line makes

@@ -1,7 +1,0 @@
-{
-  "title": "functions.expression.VideoInputSchemaType",
-  "type": "string",
-  "enum": [
-    "video"
-  ]
-}

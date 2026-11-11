@@ -1,9 +1,0 @@
-[package]
-name = "hello-plugin"
-version = "2.1.2"
-edition = "2024"
-publish = false
-
-[[bin]]
-name = "hello-plugin"
-path = "src/main.rs"

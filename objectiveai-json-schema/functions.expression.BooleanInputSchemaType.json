@@ -1,7 +1,0 @@
-{
-  "title": "functions.expression.BooleanInputSchemaType",
-  "type": "string",
-  "enum": [
-    "boolean"
-  ]
-}

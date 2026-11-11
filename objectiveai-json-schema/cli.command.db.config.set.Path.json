@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.db.config.set.Path",
-  "type": "string",
-  "enum": [
-    "db/config/set"
-  ]
-}

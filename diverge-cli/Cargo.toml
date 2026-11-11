@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "The Diverge CLI — the daemon's client as a program: its daemons and accounts from one `cli.yaml`, every request of the daemon's wire from the command line"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 publish = false
 

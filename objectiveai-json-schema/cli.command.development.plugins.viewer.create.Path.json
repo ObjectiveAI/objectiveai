@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.development.plugins.viewer.create.Path",
-  "type": "string",
-  "enum": [
-    "development/plugins/viewer/create"
-  ]
-}

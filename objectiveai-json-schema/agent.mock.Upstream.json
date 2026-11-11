@@ -1,8 +1,0 @@
-{
-  "title": "agent.mock.Upstream",
-  "description": "Mock upstream marker.",
-  "type": "string",
-  "enum": [
-    "mock"
-  ]
-}

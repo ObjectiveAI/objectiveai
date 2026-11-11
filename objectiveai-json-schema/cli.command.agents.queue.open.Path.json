@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.queue.open.Path",
-  "type": "string",
-  "enum": [
-    "agents/queue/open"
-  ]
-}

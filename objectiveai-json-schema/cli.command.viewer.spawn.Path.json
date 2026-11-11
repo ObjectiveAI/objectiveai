@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.viewer.spawn.Path",
-  "type": "string",
-  "enum": [
-    "viewer/spawn"
-  ]
-}

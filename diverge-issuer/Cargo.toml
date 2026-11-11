@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "The Diverge issuer: an OpenID Connect provider that signs the access tokens every Diverge server admits callers by"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 publish = false
 

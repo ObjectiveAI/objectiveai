@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.db.config.database.get.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "db/config/database/get/request_schema"
-  ]
-}

@@ -1,8 +1,0 @@
-{
-  "title": "functions.executions.response.unary.Object",
-  "type": "string",
-  "enum": [
-    "scalar.function.execution",
-    "vector.function.execution"
-  ]
-}

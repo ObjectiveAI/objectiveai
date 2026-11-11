@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.development.viewer.delete.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "development/viewer/delete/response_schema"
-  ]
-}

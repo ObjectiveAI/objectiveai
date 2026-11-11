@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.publish.Path",
-  "type": "string",
-  "enum": [
-    "agents/publish"
-  ]
-}

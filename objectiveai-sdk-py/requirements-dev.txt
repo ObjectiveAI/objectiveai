@@ -1,4 +1,0 @@
--r requirements.txt
-pytest==9.0.2
-pytest-asyncio>=0.23
-maturin>=1.12,<2.0

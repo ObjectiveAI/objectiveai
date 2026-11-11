@@ -1,5 +1,0 @@
--r requirements.txt
-# Allow newer point releases — 6.13 caps Python at <3.14 and macOS
-# runners now ship Python 3.14, breaking the pinned install. 6.15+
-# add 3.14 support; let pip pick a compatible version.
-pyinstaller>=6.13,<7

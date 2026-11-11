@@ -3,8 +3,8 @@
 The operating rules for this container's implementation, accumulated
 as they are settled. Each entry is a decision already made. Add to
 this file as more is figured out. The execution contract below is
-the CLI's — `objectiveai-daemon/src/python.rs`, the RustPython-in-
-wasm harness — carried to a real interpreter; nothing here has been
+that of an earlier RustPython-in-wasm harness, carried to a real
+interpreter; nothing here has been
 run in the image, and the harness has been run only on a host
 Python.
 
@@ -131,7 +131,7 @@ the calls run while the answer is read; each response is yielded and
 recorded in completion order. Arguments that are not a JSON object
 go as none; the tool's refusal is a tool response the script reads
 next turn. A transport failure is fatal. No in-process reach back
-into the container (no `objectiveai.execute`): the script calls
+into the container: the script calls
 tools only by emitting chunks, and reads the answers on its next
 run.
 

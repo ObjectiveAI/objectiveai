@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.viewer.kill.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "viewer/kill/request_schema"
-  ]
-}

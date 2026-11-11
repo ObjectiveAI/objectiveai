@@ -1,8 +1,0 @@
-{
-  "title": "agent.completions.message.AssistantToolCallType",
-  "description": "A function call.",
-  "type": "string",
-  "enum": [
-    "function"
-  ]
-}

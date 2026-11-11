@@ -1,7 +1,7 @@
 //! The prefixes an agent's served tools are named under: assigned
 //! once per run, kept while served, never two the same.
 //!
-//! objectiveai's proxy named every server by a prefix free of the
+//! An earlier proxy named every server by a prefix free of the
 //! separator, escalating on collision and never dropping a server;
 //! an earlier agent loop kept names stable across refreshes by giving a
 //! newcomer a name avoiding those in use and freeing a leaver's. This

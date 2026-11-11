@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.logs.open.Path",
-  "type": "string",
-  "enum": [
-    "agents/logs/open"
-  ]
-}

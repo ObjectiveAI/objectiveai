@@ -5,15 +5,12 @@ node_modules
 env
 .claude/
 **/.DS_Store
-objectiveai-cli-old/
 .pytest_cache/
 
 # Ignore markdown files at repository root (Claude working files)
 /*.md
 !README.md
 !CLAUDE.md
-!SDK.md
-!PLUGINS.md
 
 # ignore temp
 temp/
@@ -22,13 +19,7 @@ tmp/
 # audit files (local only)
 audit/
 
-# test harness (local only)
-objectiveai-viewer/__test_harness__/
-
-# unrelated experiments
-objectiveai-claude-agent-sdk-runner-py/
-
-# ignore build tools (repo-root only — .objectiveai/bin is committed)
+# ignore build tools (repo-root only)
 /bin/
 .crates.toml
 .crates2.json
@@ -42,18 +33,6 @@ objectiveai-claude-agent-sdk-runner-py/
 # Playwright MCP
 .playwright-mcp/
 
-# Next.js build output (root level)
-.next/
-
 # ignore embedded binaries
 **/embed/
 target-*/
-
-# rustpython wasm blob cache (built by objectiveai-daemon/build.rs)
-objectiveai-daemon/.cache/
-
-# local staging dir for json schemas; never committed (the crate's
-# cargo publish does not need it staged)
-objectiveai-sdk-rs/schemas/
-
-.objectiveai/

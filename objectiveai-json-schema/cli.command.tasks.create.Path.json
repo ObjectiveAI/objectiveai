@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tasks.create.Path",
-  "type": "string",
-  "enum": [
-    "tasks/create"
-  ]
-}

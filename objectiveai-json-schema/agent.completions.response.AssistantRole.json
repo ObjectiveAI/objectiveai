@@ -1,8 +1,0 @@
-{
-  "title": "agent.completions.response.AssistantRole",
-  "description": "The assistant role.",
-  "type": "string",
-  "enum": [
-    "assistant"
-  ]
-}

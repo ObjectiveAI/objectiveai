@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Diverge <admin@diverge.network>"]
 description = "The proxy inside a Diverge container — one WebSocket to the provider's server, every scope of the container proxy protocol answered, the program's own surfaces on the loopback"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
+repository = "https://github.com/divergenetwork/Diverge"
 homepage = "https://diverge.network"
 publish = false
 

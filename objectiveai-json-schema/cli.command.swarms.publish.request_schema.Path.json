@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.swarms.publish.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "swarms/publish/request_schema"
-  ]
-}

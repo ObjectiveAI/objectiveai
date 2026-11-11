@@ -1,8 +1,0 @@
-{
-  "title": "laboratories.AgentLaboratoryType",
-  "description": "Serializes to `\"agent\"`.",
-  "type": "string",
-  "enum": [
-    "agent"
-  ]
-}

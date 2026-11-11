@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.python.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "python/response_schema"
-  ]
-}

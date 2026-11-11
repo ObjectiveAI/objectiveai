@@ -1,7 +1,0 @@
-{
-  "title": "functions.expression.AudioInputSchemaType",
-  "type": "string",
-  "enum": [
-    "audio"
-  ]
-}

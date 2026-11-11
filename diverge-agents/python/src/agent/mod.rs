@@ -23,8 +23,8 @@
 //!   business, set by whoever runs the container, not the agent's
 //!   vocabulary. (A tool the agent asks for under `dependencies` names
 //!   its own, which are that tool container's.)
-//! - Any in-process reach back into the container — the CLI's
-//!   `objectiveai.execute`: the script calls tools only through the
+//! - Any in-process reach back into the container: the script calls
+//!   tools only through the
 //!   `assistant_tool_call` chunks it emits, and reads the answers on
 //!   its next run.
 

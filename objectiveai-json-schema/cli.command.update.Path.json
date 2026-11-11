@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.update.Path",
-  "type": "string",
-  "enum": [
-    "update"
-  ]
-}

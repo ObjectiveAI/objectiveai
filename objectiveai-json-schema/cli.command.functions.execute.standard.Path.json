@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.functions.execute.standard.Path",
-  "type": "string",
-  "enum": [
-    "functions/execute/standard"
-  ]
-}

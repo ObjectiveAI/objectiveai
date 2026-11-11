@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.publish.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/publish/response_schema"
-  ]
-}

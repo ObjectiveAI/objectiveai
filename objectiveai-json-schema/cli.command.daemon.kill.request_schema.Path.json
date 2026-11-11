@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.daemon.kill.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "daemon/kill/request_schema"
-  ]
-}

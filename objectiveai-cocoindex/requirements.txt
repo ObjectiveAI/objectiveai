@@ -1,2 +1,0 @@
-objectiveai-sdk==2.3.0
-cocoindex

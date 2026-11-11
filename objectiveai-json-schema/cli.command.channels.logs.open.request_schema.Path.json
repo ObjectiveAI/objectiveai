@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.channels.logs.open.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "channels/logs/open/request_schema"
-  ]
-}

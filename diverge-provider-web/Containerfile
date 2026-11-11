@@ -25,10 +25,9 @@ WORKDIR /build
 # lockfile lists every importer, and a frozen install checks them.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY diverge-provider-web/package.json diverge-provider-web/
-COPY objectiveai-sdk-js/package.json objectiveai-sdk-js/
-COPY objectiveai-web/package.json objectiveai-web/
-COPY objectiveai-viewer/package.json objectiveai-viewer/
-COPY tests/objectiveai-sdk-js-tests/package.json tests/objectiveai-sdk-js-tests/
+COPY diverge-sdk-js/package.json diverge-sdk-js/
+COPY diverge-viewer/package.json diverge-viewer/
+COPY diverge-world/package.json diverge-world/
 RUN pnpm install --frozen-lockfile --filter diverge-provider-web
 
 # What the site reads of the crate, and nothing else of it.

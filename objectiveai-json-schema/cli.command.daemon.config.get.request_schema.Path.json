@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.daemon.config.get.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "daemon/config/get/request_schema"
-  ]
-}

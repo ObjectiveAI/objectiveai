@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.swarms.publish.Path",
-  "type": "string",
-  "enum": [
-    "swarms/publish"
-  ]
-}

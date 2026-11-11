@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.queue.list.Path",
-  "type": "string",
-  "enum": [
-    "agents/queue/list"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tasks.delete.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "tasks/delete/request_schema"
-  ]
-}

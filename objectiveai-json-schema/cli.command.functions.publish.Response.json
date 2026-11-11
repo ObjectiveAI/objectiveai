@@ -1,9 +1,0 @@
-{
-  "title": "cli.command.functions.publish.Response",
-  "type": "object",
-  "properties": {
-    "sha": {
-      "type": "string"
-    }
-  }
-}
