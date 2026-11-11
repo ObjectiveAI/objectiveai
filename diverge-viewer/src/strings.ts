@@ -420,7 +420,6 @@ export const t = {
       codex: { title: "Codex", blurb: "OpenAI's coding agent." },
       hermes: { title: "Hermes", blurb: "A general agent: any of 40+ model providers, and toolsets." },
       openrouter: { title: "OpenRouter", blurb: "Any model through OpenRouter, every dial exposed." },
-      eliza: { title: "Eliza", blurb: "A character, with a personality and memory." },
       python: { title: "Python", blurb: "Your own loop, in Python." },
     } as Record<string, { title: string; blurb: string }>,
   },

@@ -1,6 +1,6 @@
-# The agent-loop images: python, openrouter, codex, eliza, cc
+# The agent-loop images: python, openrouter, codex, cc
 
-Reference for five of the six agent-loop images (hermes is in [hermes.md](hermes.md)). For each:
+Reference for four of the five agent-loop images (hermes is in [hermes.md](hermes.md)). For each:
 what it is, its `arguments`, the secrets its program declares and their modes, its dependencies, and
 a minimal working **agent template body** for `diverge run agents templates create`.
 
@@ -210,75 +210,6 @@ Minimal template body (API key):
 
 With a ChatGPT login instead: `"arguments":{"model":"<model>","auth":{"method":"auth_file"}}`,
 `"secrets":["CODEX_AUTH"]`, and the vault value is the `auth.json` content as a JSON object.
-
-## eliza (`diverge-agents/eliza`)
-
-An elizaOS agent: a Node entry over `@elizaos/core`, with the plugins the arguments name. Its memory
-is the agent's own database scope (reached through the proxy); its tools are the caller's MCP
-servers; nothing is pre-wired but the database adapter.
-
-`arguments`:
-
-| member | required | meaning |
-|---|---|---|
-| `character` | yes | who the agent is. `name` is the one required field; optional `system` (the system prompt head), `bio` (lines), `topics`, `adjectives`, `style` (`{"all":[…],"chat":[…],"post":[…]}`), `message_examples` (groups of `{"name","text"}` turns) |
-| `model_provider_plugins` | no | plugins that register **model handlers**, in priority order (first answers, later ones are failovers). **Absent means no model at all**, and the run fails as Eliza's own failure |
-| `plugins` | no | every other plugin (actions, providers, services). A plugin that registers a model handler listed here is refused; one that registers none listed under `model_provider_plugins` is refused too |
-| `memory` | no | switches, each off when absent: `advanced_capabilities`, `advanced_memory`, `relationships`, `documents`, `advanced_planning` |
-| `generate_media` | no | whether the model may generate media; off when absent |
-| `dependencies` | no | see above |
-
-One plugin entry:
-
-```json
-{
-  "package": "@elizaos/plugin-openai",
-  "settings": { "OPENAI_BASE_URL": "https://api.openai.com/v1" },
-  "secrets": ["OPENAI_API_KEY"]
-}
-```
-
-- `package` — an npm spec, with or without a version. The image carries these pre-installed at its
-  pin: `@elizaos/plugin-openai`, `plugin-embeddings`, `plugin-coding-tools`, `plugin-browser`,
-  `plugin-documents`, `plugin-web-search`, `vault`. Any other package is installed at the run's start
-  (so the container needs network), and the version resolved on the conversation's first run is the
-  one every later run installs.
-- `settings` — the plugin's own non-secret setting names, as JSON values.
-- `secrets` — each either a bare string (a **fixed** secret, set as the setting of that name) or an
-  object for a **rotating** one, saying where the plugin leaves the rotated value:
-
-  ```json
-  { "key": "GOOGLE_TOKENS", "rotates": true }
-  { "key": "GOOGLE_TOKENS", "rotates": { "setting": "GOOGLE_TOKENS_NEW" } }
-  { "key": "QWEN_OAUTH",    "rotates": { "file": ["root", ".qwen", "oauth_creds.json"] } }
-  { "key": "WALLET",        "rotates": { "vault": "agent.{agent_id}.wallet.evm" } }
-  ```
-
-  `"rotates": false` is a fixed secret said the long way. A name declared both ways is rotating.
-
-Secrets: **every name on any plugin entry's `secrets`**, each fixed or rotating as written. The
-harness adds none of its own. The template must declare every one of those names.
-
-Minimal template body (one OpenAI-compatible model provider):
-
-```json
-{
-  "type": "agent",
-  "image": { "digest": "<digest>", "references": [{ "registry": "docker.io", "name": "diverge-local/eliza" }] },
-  "memory": 2147483648,
-  "disk": 4294967296,
-  "arguments": {
-    "character": { "name": "Ada", "bio": ["A careful research assistant."] },
-    "model_provider_plugins": [
-      { "package": "@elizaos/plugin-openai", "secrets": ["OPENAI_API_KEY"] }
-    ]
-  },
-  "secrets": ["OPENAI_API_KEY"]
-}
-```
-
-Not available by design: connectors (discord, telegram, slack and the like), local inference,
-sub-agent orchestration, scheduling. An agent that must act on such a service gets an MCP tool for it.
 
 ## cc (`diverge-agents/cc`)
 

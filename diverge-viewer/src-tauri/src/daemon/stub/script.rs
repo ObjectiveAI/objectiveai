@@ -205,10 +205,6 @@ pub fn run(kind: Kind, input: &str, read: &dyn Fn(&str) -> String) -> Vec<Step> 
             s.think(None, &format!("A plain question, no tools needed. Answer directly and keep it short. Ask: {about}"));
             s.say(None, &format!("On “{about}” — short answer: start with the smallest version that someone would actually use this week, and let what they do with it tell you what's missing.\n\nIf you want, give me the constraints and I'll turn that into three concrete options."));
         }
-        Kind::Eliza => {
-            s.notify(json!({ "message": "character loaded", "name": "Iris" }), false);
-            s.say(None, &format!("Oh, I like this one. “{about}” — I'd start by asking who it's for, and then asking them. Want me to draft the three questions?"));
-        }
         Kind::Python => {
             let code = "import pathlib\nfiles = sorted(p for p in pathlib.Path('/projects').rglob('*') if p.is_file())\nprint(len(files), 'files')\nfor f in files: print(f)";
             let id = s.call(None, "python", json!({ "code": code }));

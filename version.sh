@@ -240,7 +240,6 @@ CARGO_TOMLS=(
   objectiveai-mcp-plugin-scaffold-rs/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
   diverge-agents/cc/Cargo.toml
-  diverge-agents/eliza/Cargo.toml
   diverge-agents/hermes/Cargo.toml
   diverge-container-proxy/Cargo.toml
   diverge-agents/openrouter/Cargo.toml

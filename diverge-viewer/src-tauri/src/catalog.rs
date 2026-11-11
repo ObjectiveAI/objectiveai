@@ -1,4 +1,4 @@
-//! The six official agent images, and what each one's settings may be.
+//! The five official agent images, and what each one's settings may be.
 //!
 //! Each image ships `/DIVERGE.md`, whose frontmatter is its name and the JSON
 //! Schema of its `arguments` (`schema_for!` over its loop's `Agent`), and the provider
@@ -16,24 +16,23 @@ use serde_json::Value;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{Image, Reference};
 use diverge_sdk::shared::containers::info::Document;
 
-/// Which of the six. The image name is `diverge-agentic-loop-<key>`.
+/// Which of the five. The image name is `diverge-agentic-loop-<key>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Cc,
     Codex,
-    Eliza,
     Hermes,
     Openrouter,
     Python,
 }
 
-pub const ALL: [Kind; 6] = [Kind::Cc, Kind::Codex, Kind::Hermes, Kind::Openrouter, Kind::Eliza, Kind::Python];
+pub const ALL: [Kind; 5] = [Kind::Cc, Kind::Codex, Kind::Hermes, Kind::Openrouter, Kind::Python];
 
 /// No image has been built or published yet, so there is no digest to name.
 pub const UNBUILT_DIGEST: &str = "unbuilt";
 
 /// Nor a registry to fetch one from: a reference still carries the image's
-/// name, which is how an agent's template says which of the six it is.
+/// name, which is how an agent's template says which of the five it is.
 pub const UNPUBLISHED_REGISTRY: &str = "unpublished";
 
 impl Kind {
@@ -41,7 +40,6 @@ impl Kind {
         match self {
             Kind::Cc => "cc",
             Kind::Codex => "codex",
-            Kind::Eliza => "eliza",
             Kind::Hermes => "hermes",
             Kind::Openrouter => "openrouter",
             Kind::Python => "python",
@@ -57,7 +55,7 @@ impl Kind {
     }
 
     /// Unbuilt, but one image apiece: a template's id leaves the image's
-    /// references out, so two of the six may not share a digest.
+    /// references out, so two of the five may not share a digest.
     pub fn digest(self) -> String {
         format!("{UNBUILT_DIGEST}-{}", self.key())
     }
@@ -68,7 +66,7 @@ impl Kind {
         Image { digest: self.digest(), references: vec![Reference { registry: UNPUBLISHED_REGISTRY.into(), name: self.image_name() }] }
     }
 
-    /// Which of the six an image is, by the name a reference gives it.
+    /// Which of the five an image is, by the name a reference gives it.
     pub fn of_image(image: &Image) -> Option<Kind> {
         image.references.iter().find_map(|r| Kind::from_image_name(&r.name))
     }
@@ -78,7 +76,6 @@ impl Kind {
         match self {
             Kind::Cc => include_str!("../../../diverge-agents/cc/DIVERGE.md"),
             Kind::Codex => include_str!("../../../diverge-agents/codex/DIVERGE.md"),
-            Kind::Eliza => include_str!("../../../diverge-agents/eliza/DIVERGE.md"),
             Kind::Hermes => include_str!("../../../diverge-agents/hermes/DIVERGE.md"),
             Kind::Openrouter => include_str!("../../../diverge-agents/openrouter/DIVERGE.md"),
             Kind::Python => include_str!("../../../diverge-agents/python/DIVERGE.md"),

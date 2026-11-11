@@ -10,7 +10,6 @@ members = [
     "objectiveai-mcp-plugin-framework-rs",
     "diverge-agents/cc",
     "diverge-agents/codex",
-    "diverge-agents/eliza",
     "diverge-agents/hermes",
     "diverge-container-proxy",
     "diverge-agents/openrouter",
