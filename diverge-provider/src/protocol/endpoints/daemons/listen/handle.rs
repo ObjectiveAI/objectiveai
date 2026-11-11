@@ -11,7 +11,6 @@ use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::protocol::listables::Listables;
 use crate::protocol::mailboxes::{Mailboxes, Outcome};
 use crate::protocol::release::Release;
 use crate::protocol::singles::Single;
@@ -20,14 +19,15 @@ use crate::protocol::singles::Single;
 /// to it, one at a time, until the caller cancels. In order:
 ///
 /// 0. [`Unsupported`](response::Frame::Unsupported), then the finish,
-///    on a provider that relays no messages; then
-///    [`NotListed`](response::Frame::NotListed), then the
-///    finish, for a caller whose connection is not listed.
+///    on a provider that relays no messages.
 /// 1. The mailbox, opened under the connection's identity — or not,
 ///    one being open under it on another connection, which is
 ///    [`AlreadyOpen`](response::Frame::AlreadyOpen), then the finish.
 ///    The connection's own claim on its one listen was made before
-///    this was called, and refused there as the same answer.
+///    this was called, and refused there as the same answer. Any
+///    connected identity listens, announced or not: one that holds a
+///    `daemons::announce` open is listed listening for as long as the
+///    mailbox is open, and one that does not is in no listing.
 /// 2. For the scope's life, the oldest message waiting, sent as
 ///    [`Message`](response::Frame::Message); then the scope's room
 ///    waited for — the caller's reader taking it — and its sender
@@ -45,14 +45,9 @@ use crate::protocol::singles::Single;
 ///    closing is a [`Release`], so a scope that panics or is cancelled
 ///    closes it at the drop; the claim is held with the scope, and goes
 ///    before its finish either way — see [`Single`].
-pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, mailboxes: Arc<Mailboxes>, listables: Arc<Listables>, capabilities: &Capabilities) {
+pub async fn handle(scope: Single<ScopeHandle>, client_identity: &Identity, mailboxes: Arc<Mailboxes>, capabilities: &Capabilities) {
     if capabilities.messages.is_none() {
         send(&scope, &response::Frame::Unsupported).await;
-        scope.send_response_finish().await;
-        return;
-    }
-    if !listables.is_listed(client_identity).await {
-        send(&scope, &response::Frame::NotListed).await;
         scope.send_response_finish().await;
         return;
     }

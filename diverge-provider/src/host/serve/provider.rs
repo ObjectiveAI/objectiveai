@@ -10,7 +10,6 @@ use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::listable::Listable;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use crate::protocol::acceptors::Acceptors;
@@ -62,8 +61,8 @@ pub struct Provider {
     /// The daemons accepting connections from other daemons, one map
     /// for the provider.
     acceptors: Arc<Acceptors>,
-    /// The connected identities whose listable flag was `1`, one set
-    /// for the provider.
+    /// The connected identities that hold a `daemons::announce` open,
+    /// one set for the provider.
     listables: Arc<Listables>,
     /// The identities listening for messages, what waits for each, and
     /// every sender's window, one for the provider.
@@ -173,28 +172,21 @@ impl Provider {
     /// another connection holds among the ways — closes the connection
     /// with nothing sent.
     pub async fn accept(&self, connection: Connection, address: IpAddr) {
-        let Ok(Handshook { connection, peer, listable }) = handshake::accept(connection, &self.authenticator.admitting(), address).await else {
+        let Ok(Handshook { connection, peer }) = handshake::accept(connection, &self.authenticator.admitting(), address).await else {
             return;
         };
-        self.held(connection, peer, listable, address, None).await;
+        self.held(connection, peer, address, None).await;
     }
 
     /// A connection past its handshake, under `peer`, whose identity
     /// the handshake took: the connection served, and the identity let
-    /// go. `listable` is the peer's listable flag, honored whichever
-    /// end dialled: when it lists the peer, `peer` is listed to every
-    /// `listable`, with its description, the socket's other end's
-    /// `address`, and the address `dialled` when this provider dialled
-    /// it, for exactly as long as the connection is served.
-    pub async fn held(&self, connection: Connection, peer: Identity, listable: Listable, address: IpAddr, dialled: Option<String>) {
-        let listed = listable.is_listed();
-        if let Listable::Listed(description) = listable {
-            self.listables.enter(&peer, description, address, dialled).await;
-        }
-        self.connection(connection, Arc::new(peer.clone()), address).await;
-        if listed {
-            self.listables.leave(&peer).await;
-        }
+    /// go. `address` is the socket's other end, and `dialled` the
+    /// address this provider dialled it at, when it did: neither lists
+    /// the peer, and both are kept for the connection's life, as what a
+    /// `daemons::announce` the peer opens on it — whichever end dialled
+    /// — is listed with, for as long as that scope is open.
+    pub async fn held(&self, connection: Connection, peer: Identity, address: IpAddr, dialled: Option<String>) {
+        self.connection(connection, Arc::new(peer.clone()), address, dialled).await;
         self.mailboxes.left(&peer).await;
         self.authenticator.release(&peer).await;
     }
@@ -220,13 +212,14 @@ impl Provider {
     /// stop removes every container of this provider by force, and the
     /// provider is dropped after it, so nothing a scope would have
     /// torn down outlives the stop.
-    async fn connection(&self, connection: Connection, client_identity: Arc<Identity>, address: IpAddr) {
+    async fn connection(&self, connection: Connection, client_identity: Arc<Identity>, address: IpAddr, dialled: Option<String>) {
         let session = Session::new(connection);
         let mut stop = self.stop.subscribe();
         let serving = pin!(handle(
             session,
             client_identity,
             address,
+            dialled,
             Arc::clone(&self.deployer),
             Arc::clone(&self.volumes),
             Arc::clone(&self.images),

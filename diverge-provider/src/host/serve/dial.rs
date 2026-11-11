@@ -3,7 +3,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
-use diverge_sdk::shared::listable::Listable;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use tokio::net::TcpStream;
@@ -21,8 +20,9 @@ use crate::protocol::keepalive;
 /// failed or the handshake did, and forever. It ends only when the task
 /// it runs in is ended. The peer that answers must be the identity
 /// `client` names, and no other. The provider
-/// sends the listable flag `0`, and honors the peer's, as it does for a
-/// peer that dialled it. The socket has transport keepalive on — see
+/// announces itself to no peer, and serves the peer's
+/// `daemons::announce` as it does for a peer that dialled it, listing
+/// it with the address dialled here. The socket has transport keepalive on — see
 /// [`keepalive`] — so a peer that vanished without a close is a
 /// connection that ends, and a dial again.
 pub async fn dial(provider: Arc<Provider>, client: Outgoing) {
@@ -30,9 +30,9 @@ pub async fn dial(provider: Arc<Provider>, client: Outgoing) {
     loop {
         if let Ok(socket) = keepalive::connect(url.as_str()).await {
             let address = peer_ip(&socket);
-            let made = handshake::connect(Connection::Outgoing(socket), Listable::Hidden, &provider.authenticator.dialling(&client.identity), address).await;
-            if let Ok(Handshook { connection, peer, listable }) = made {
-                provider.held(connection, peer, listable, address, Some(client.address.clone())).await;
+            let made = handshake::connect(Connection::Outgoing(socket), &provider.authenticator.dialling(&client.identity), address).await;
+            if let Ok(Handshook { connection, peer }) = made {
+                provider.held(connection, peer, address, Some(client.address.clone())).await;
             }
         }
         // Five seconds: long enough that a peer that is down is not

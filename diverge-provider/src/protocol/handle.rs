@@ -42,8 +42,12 @@ use diverge_sdk::shared::error::Error;
 /// connection's handshake verified it — made before the session, in
 /// the host's accept or dial — and every handler receives it. `address`
 /// is the peer the socket came from: it rides the announcement of a
-/// daemon connection to its acceptor. It is a signal rather than an
-/// identity.
+/// daemon connection to its acceptor, and is the `ip` a
+/// `daemons::announce` on this connection is listed with. It is a
+/// signal rather than an identity. `dialled` is the address the
+/// provider dialled this connection at — as its configuration writes
+/// it — and absent on a connection the peer dialled: the `address` an
+/// announce on this connection is listed with.
 ///
 /// The rest are what the provider supplies, shared because scopes run
 /// concurrently and the traits — returning `impl Future` — cannot be
@@ -59,14 +63,15 @@ use diverge_sdk::shared::error::Error;
 /// connection hears of a change made on any other; and the
 /// [`Acceptors`], one per provider likewise, through which a daemon
 /// connecting on this connection finds one accepting on any other; and
-/// the [`Listables`], one per provider likewise, which a `daemons::list`
+/// the [`Listables`], one per provider likewise, which a
+/// `daemons::announce` on this connection enters and a `daemons::list`
 /// on this connection lists; and the [`Mailboxes`], one per provider
 /// likewise, through which a `daemons::message` on this connection reaches a
 /// `daemons::listen` on any other.
 ///
 /// # One open at a time
 ///
-/// Six scopes are held at most one of each per connection — see
+/// Seven scopes are held at most one of each per connection — see
 /// [the endpoints](diverge_sdk::provider::endpoints#one-open-at-a-time)
 /// — and this is where they are claimed: the connection's own
 /// [`Singles`], made here and never shared, claimed in the arm that
@@ -87,6 +92,7 @@ pub async fn handle<D, V, M, O, C>(
     mut session: Session,
     client_identity: Arc<Identity>,
     address: IpAddr,
+    dialled: Option<String>,
     deployer: Arc<D>,
     volume_manager: Arc<V>,
     image_manager: Arc<M>,
@@ -119,7 +125,7 @@ where
     // same teardown below, which is why this is a variable rather than
     // two exits.
     let mut outcome = Ok(());
-    // This connection's four slots, and only its: see "One open at a
+    // This connection's seven slots, and only its: see "One open at a
     // time" above.
     let singles = Singles::default();
 
@@ -444,10 +450,9 @@ where
                 };
                 let identity = Arc::clone(&client_identity);
                 let mailboxes = Arc::clone(&mailboxes);
-                let listables = Arc::clone(&listables);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::daemons::listen::handle(scope, &identity, mailboxes, listables, &capabilities).await;
+                    endpoints::daemons::listen::handle(scope, &identity, mailboxes, &capabilities).await;
                 });
             }
             ClientRequest::DaemonsMessage(frame) => {
@@ -464,10 +469,25 @@ where
                 let to = frame.to;
                 let identity = Arc::clone(&client_identity);
                 let mailboxes = Arc::clone(&mailboxes);
-                let listables = Arc::clone(&listables);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::daemons::message::handle(scope, &identity, to, body, mailboxes, listables, &capabilities).await;
+                    endpoints::daemons::message::handle(scope, &identity, to, body, mailboxes, &capabilities).await;
+                });
+            }
+            ClientRequest::DaemonsAnnounce(frame) => {
+                let scope = match singles.daemons_announce.claim(scope) {
+                    Ok(single) => single,
+                    Err(scope) => {
+                        scopes.spawn(endpoints::daemons::announce::refuse(scope));
+                        continue;
+                    }
+                };
+                let identity = Arc::clone(&client_identity);
+                let dialled = dialled.clone();
+                let mailboxes = Arc::clone(&mailboxes);
+                let listables = Arc::clone(&listables);
+                scopes.spawn(async move {
+                    endpoints::daemons::announce::handle(scope, frame, &identity, address, dialled, mailboxes, listables).await;
                 });
             }
             ClientRequest::Invalid(_) => scope.send_response_finish().await,

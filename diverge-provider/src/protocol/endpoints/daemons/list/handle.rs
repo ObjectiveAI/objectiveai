@@ -1,4 +1,4 @@
-//! Answering a daemons list, from a scope and the listables
+//! Answering a daemons list, from a scope and the announced
 //! identities, and keeping it.
 
 use std::collections::BTreeMap;
@@ -18,22 +18,23 @@ use crate::protocol::listables::Listables;
 use crate::protocol::singles::Single;
 
 /// List every identity `listables` holds — every connected identity
-/// whose listable flag was `1` or `2`, with its description, its IP and
-/// the address it was dialled at — and keep
-/// listing, as an image listing
-/// keeps its images. The rules:
+/// that holds a `daemons::announce` open, for exactly as long as it
+/// holds it, with its announcement, its IP and the address it was
+/// dialled at — and keep listing, as an image listing keeps its
+/// images. The rules:
 ///
 /// 1. **Subscribed first.** The nudges are subscribed before the
-///    snapshot is read, so a connection opening or ending between the
+///    snapshot is read, so an announce opening or ending between the
 ///    two is told after.
 /// 2. **The snapshot.** Every identity held, as `Added`, then exactly
 ///    one `Listed`.
 /// 3. **Kept.** On every nudge — and on a lag, which may have skipped
 ///    some — the identities are read again and what differs is told:
 ///    each gone as `Removed`, then each new one as `Added`. An identity
-///    held still as another item — another description, IP or address:
-///    its connection ended and another opened between two reads — is
-///    told as `Removed` as it was, then `Added` as it is.
+///    held still as another item — another announcement, IP or address:
+///    its announce ended and another opened between two reads, on the
+///    same connection or on a new one — is told as `Removed` as it was,
+///    then `Added` as it is.
 /// 3a. **Listening, by the key.** An identity held still as the same
 ///    item but for `listening` is told `Listening` or `NotListening`,
 ///    the identity alone, after the removals and before the additions.
@@ -46,9 +47,9 @@ use crate::protocol::singles::Single;
 ///    listing is held with the scope, and goes before the finish — see
 ///    [`Single`].
 ///
-/// Every connected peer may ask, and the asking identity is listed when
-/// it is itself listables. Nothing fails: a provider always knows
-/// what is connected to it.
+/// Every connected peer may ask, announced or not, and the asking
+/// identity is listed when it is itself announced. Nothing fails: a
+/// provider always knows what is announced to it.
 pub async fn handle(scope: Single<ScopeHandle>, listables: Arc<Listables>) {
     let mut nudges = listables.subscribe();
     let mut known = listables.list().await;
@@ -98,9 +99,9 @@ pub async fn refuse(scope: ScopeHandle) {
 /// or listed anew as added, after every identity gone or listed anew as
 /// removed — and `now` kept as what is known (rule 3).
 async fn tell(scope: &ScopeHandle, known: &mut BTreeMap<Identity, response::Listed>, now: BTreeMap<Identity, response::Listed>) {
-    // The same connection's item, but for `listening` (rule 3a).
+    // The same announce's item, but for `listening` (rule 3a).
     let same = |was: &response::Listed, is: &response::Listed| {
-        was.description == is.description && was.ip == is.ip && was.address == is.address
+        was.announcement == is.announcement && was.ip == is.ip && was.address == is.address
     };
     for (identity, listed) in known.iter() {
         if !now.get(identity).is_some_and(|is| same(listed, is)) {

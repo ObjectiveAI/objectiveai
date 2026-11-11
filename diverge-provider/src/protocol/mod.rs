@@ -133,8 +133,8 @@
 //! [`acceptors`] is its twin for daemons: every daemon accepting
 //! connections through the provider, by identity, which a
 //! `daemons::connect` on any connection finds. [`listables`] is
-//! one more: every connected identity whose listable flag was `1`,
-//! which a `daemons::list` on any connection lists. [`changes`] is the
+//! one more: every connected identity that holds a `daemons::announce`
+//! open, which a `daemons::list` on any connection lists. [`changes`] is the
 //! third, twice over: the word that a caller's volume, or image,
 //! changed, which the listings open on any connection hear.
 //!

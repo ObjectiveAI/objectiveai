@@ -2,6 +2,7 @@
 //! for each, and every sender's window.
 
 use std::collections::{HashMap, VecDeque};
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -10,6 +11,7 @@ use tokio::sync::{Mutex, Notify, oneshot};
 
 use diverge_sdk::provider::endpoints::info::server::response::MessagesCapabilities;
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::description::Description;
 
 use super::listables::Listables;
 
@@ -34,19 +36,27 @@ use super::listables::Listables;
 ///    begins at the first send it counts and lasts the provider's
 ///    `seconds`, and holds at most `messages` sends; a send after it
 ///    begins another. [`admit`](Self::admit) counts.
-/// 6. **Listening is the listables'.** A mailbox opened marks its identity
-///    listening in the [`Listables`], and one closed marks it not,
-///    each under the mailboxes' lock, so the listing says listening
-///    exactly while a mailbox is open.
 /// 5. **Stale windows go.** An expired window is replaced at its
 ///    identity's next send. An identity that disconnects has its window
 ///    removed at its end — never before, so a sender does not begin
 ///    again by reconnecting.
+/// 6. **Listening is the listables'.** A mailbox opened marks its
+///    identity listening in the [`Listables`], and one closed marks it
+///    not, each under the mailboxes' lock; and an identity that
+///    announces is entered there by [`announce`](Self::announce), under
+///    the same lock, listening exactly when its mailbox is open then.
+///    So the listing says listening exactly while a mailbox is open,
+///    whichever of the listen and the announce opened first, and
+///    however often either ends and opens again. An identity that
+///    listens and does not announce is in no listing, and its marks
+///    are nothing.
+/// 7. **Any identity.** A mailbox is opened for, and a message posted
+///    by, any connected identity: neither needs its identity announced.
 #[derive(Debug)]
 pub struct Mailboxes {
     /// The rate: `None` on a provider that relays no messages.
     rate: Option<MessagesCapabilities>,
-    /// The listables, told who listens (rule 6).
+    /// The listables, told who listens, and who announces (rule 6).
     listables: Arc<Listables>,
     /// The open mailboxes, by their listening identity.
     boxes: Mutex<HashMap<Identity, Arc<Mailbox>>>,
@@ -115,7 +125,8 @@ struct Window {
 }
 
 impl Mailboxes {
-    /// Empty, relaying at `rate`, telling `listables` who listens.
+    /// Empty, relaying at `rate`, telling `listables` who listens and
+    /// who announces.
     pub fn new(rate: Option<MessagesCapabilities>, listables: Arc<Listables>) -> Self {
         Mailboxes {
             rate,
@@ -157,6 +168,17 @@ impl Mailboxes {
         for waiting in queue.waiting.drain(..) {
             let _ = waiting.answer.send(Outcome::NotListening);
         }
+    }
+
+    /// Enter `identity` in the listables (rule 6) — connected from
+    /// `ip`, dialled at `address` when this provider dialled it, with
+    /// `announcement` — listening exactly when its mailbox is open now.
+    /// The mailboxes' lock is held from the reading to the entry, so an
+    /// [`open`](Self::open) or a [`close`](Self::close) is wholly
+    /// before it, and seen, or wholly after, and marks the entry made.
+    pub async fn announce(&self, identity: &Identity, announcement: Description, ip: IpAddr, address: Option<String>) {
+        let boxes = self.boxes.lock().await;
+        self.listables.enter(identity, announcement, ip, address, boxes.contains_key(identity)).await;
     }
 
     /// Count one send of `from` against its window (rule 4): `Err` with
