@@ -15,7 +15,7 @@
 //! 3. **Admitting.** A peer that dialled the provider is admitted
 //!    exactly when its `(issuer, subject)` is in `incoming`; a peer
 //!    the provider dialled, exactly when it is the identity that
-//!    `clients` entry names. Neither list has a say over the other's
+//!    `outgoing` entry names. Neither list has a say over the other's
 //!    connections. Either way, no connection may hold the identity
 //!    now.
 //! 4. **Holding.** Accepting a peer takes its identity, [`Peers`], for

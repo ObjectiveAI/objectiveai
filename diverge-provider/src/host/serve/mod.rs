@@ -10,7 +10,7 @@
 //! handshake the provider answers as the connectee — one connection
 //! per identity, [`Peers`](crate::host::authenticator::Peers), a
 //! second being refused in the handshake; [`dial`] connects
-//! to one peer of `clients`, makes the handshake as the connector from
+//! to one peer of `outgoing`, makes the handshake as the connector from
 //! the peer's issuer, serves the connection for as long as it lasts,
 //! and dials
 //! again five seconds after it ends or fails, for the provider's

@@ -5,7 +5,7 @@ use diverge_sdk::container_proxy::outside::OUTSIDE_PORT;
 use diverge_sdk::shared::Identity;
 use serde::{Deserialize, Serialize};
 
-use super::clients::Client;
+use super::outgoing::Outgoing;
 use super::containers::Containers;
 use super::images::Images;
 use super::messages::Messages;
@@ -39,7 +39,7 @@ pub struct Config {
     /// whatever issuer the peer's is from. It is an identity of the
     /// root's [`identities`](diverge_sdk::identities), signed in
     /// beforehand. It lists no issuer the provider trusts: whom the
-    /// provider serves is `incoming`'s and `clients`' to say, from
+    /// provider serves is `incoming`'s and `outgoing`'s to say, from
     /// whatever issuer each is. Absent, the provider has no identity, and completes no
     /// handshake.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -51,9 +51,9 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub incoming: Vec<Identity>,
     /// The peers the provider dials, each with the identity that must
-    /// answer: see [`Client`]. Absent, it dials no one.
+    /// answer: see [`Outgoing`]. Absent, it dials no one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub clients: Vec<Client>,
+    pub outgoing: Vec<Outgoing>,
     /// The runtime the provider runs containers with, and what it
     /// gives it. Absent from the file means its [`Default`]: a
     /// provider runs containers before it has configured anything.
@@ -88,7 +88,7 @@ impl Default for Config {
             port: proxy_port(),
             identity: None,
             incoming: Vec::new(),
-            clients: Vec::new(),
+            outgoing: Vec::new(),
             containers: Containers::default(),
             volumes: None,
             images: None,

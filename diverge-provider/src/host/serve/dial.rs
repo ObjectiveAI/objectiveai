@@ -11,7 +11,7 @@ use tokio::time::{Duration, sleep};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 use super::Provider;
-use crate::config::clients::Client;
+use crate::config::outgoing::Outgoing;
 use crate::protocol::keepalive;
 
 /// Dial `client` — at its address, as `ws://<address>/` when it carries
@@ -25,7 +25,7 @@ use crate::protocol::keepalive;
 /// peer that dialled it. The socket has transport keepalive on — see
 /// [`keepalive`] — so a peer that vanished without a close is a
 /// connection that ends, and a dial again.
-pub async fn dial(provider: Arc<Provider>, client: Client) {
+pub async fn dial(provider: Arc<Provider>, client: Outgoing) {
     let url = if client.address.contains("://") { client.address.clone() } else { format!("ws://{}/", client.address) };
     loop {
         if let Ok(socket) = keepalive::connect(url.as_str()).await {

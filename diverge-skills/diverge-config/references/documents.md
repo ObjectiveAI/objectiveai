@@ -68,7 +68,7 @@ identity:
 incoming:
   - issuer: http://127.0.0.1:14981
     subject: daemon-a
-clients:
+outgoing:
   - address: hub.example.com:7000
     identity:
       issuer: https://auth.example.com
@@ -110,8 +110,8 @@ messages:
 |---|---|---|
 | `port` | `14979` | TCP port the provider accepts peers on: a WebSocket upgrade at any path, on every interface. |
 | `identity` | none | `{issuer, subject}`: who the provider is. The one identity whose token it presents in every handshake, those it answers and those it makes, whatever issuer the peer's is from. It must be signed in under this root. **Absent, the provider has no identity and completes no handshake.** It is not a list of trusted issuers, and there is none: whom the provider serves is `incoming`, from whatever issuer each is. |
-| `incoming` | none | List of `{issuer, subject}`: the identities that may dial the provider. A peer that dials in and whose verified identity is not listed is closed in the handshake. **Absent, nobody dials in.** A daemon that dials this provider must be here. It has no say over the peers in `clients`. One connection per identity: two daemons need two subjects. |
-| `clients` | none | Peers the provider dials itself (and redials whenever the connection ends), for a provider that cannot be dialled. Each has two members: `address` (`host:port`, dialled as `ws://<address>/`, or a URL with its own scheme) and `identity` (`{issuer, subject}`), the one identity that must answer there; any other answer is closed. The provider presents its `identity` to the peer. `incoming` has no say over it. |
+| `incoming` | none | List of `{issuer, subject}`: the identities that may dial the provider. A peer that dials in and whose verified identity is not listed is closed in the handshake. **Absent, nobody dials in.** A daemon that dials this provider must be here. It has no say over the peers in `outgoing`. One connection per identity: two daemons need two subjects. |
+| `outgoing` | none | Peers the provider dials itself (and redials whenever the connection ends), for a provider that cannot be dialled. Each has two members: `address` (`host:port`, dialled as `ws://<address>/`, or a URL with its own scheme) and `identity` (`{issuer, subject}`), the one identity that must answer there; any other answer is closed. The provider presents its `identity` to the peer. `incoming` has no say over it. |
 | `containers` | the defaults below | The container runtime. |
 | `volumes` | none | Where volumes may be created and which exist already. Absent: no volume can be created and none exists. |
 | `images` | none | The image Store: where images clients build or push on the provider are kept. Absent: a build or push is refused, a listing is empty, and an image comes only from the provider's podman cache, a listed registry, or the caller. |

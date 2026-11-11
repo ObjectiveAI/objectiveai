@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// one `identity` to it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Client {
+pub struct Outgoing {
     /// Where the peer listens: `host:port`, dialled as
     /// `ws://<address>/`, or a URL with its own scheme.
     pub address: String,

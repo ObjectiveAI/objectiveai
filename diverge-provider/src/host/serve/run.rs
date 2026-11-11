@@ -32,7 +32,7 @@ const KEY_SETS: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 /// identities, and an issuer's keys are cached for every handshake.
 /// The stop is made, and the pieces are built around it by
 /// [`Provider::start`]; one task per
-/// peer of `clients` dials; the port is listened on until
+/// peer of `outgoing` dials; the port is listened on until
 /// the signal or the route sends the stop, and then, in order: the
 /// listener drains; every session, accepted or dialled, is dropped on
 /// the same stop, so every socket closes; every dial task is ended;
@@ -52,7 +52,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
     held.write(std::process::id().to_string().into_bytes()).await.map_err(Error::Lock)?;
     let dir = root.join("provider");
     let port = config.port;
-    let peers = config.clients.clone();
+    let peers = config.outgoing.clone();
     let key_sets = KeySets::new(KEY_SETS).map_err(Error::KeySets)?;
     let own = Own::new(&root, config.identity.clone(), key_sets).await.map_err(Error::Identities)?;
     let authenticator = Arc::new(ProviderAuthenticator::new(own, config.incoming.clone()));
