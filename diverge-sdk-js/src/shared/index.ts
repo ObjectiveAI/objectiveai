@@ -4,7 +4,8 @@
 // is a live filesystem view, and the fold that keeps one current.
 // `listing` is a list stream's vocabulary and the list a consumer
 // keeps from it, with its fold. `identity` is who a party is, the
-// `(issuer, subject)` its token establishes. `relay` is the member
+// `(issuer, subject)` its token establishes. `description` is one
+// short line of plain text, a daemon's announcement. `relay` is the member
 // every daemon request may carry; `canonical` the one form a value is hashed in;
 // `permission` the grants that name nothing and the actions every
 // grant is made of; `containers` the image and the dependencies a
@@ -16,6 +17,7 @@
 
 export * as canonical from "./canonical/index.js";
 export * as containers from "./containers/index.js";
+export * as description from "./description.js";
 export * as error from "./error.js";
 export * as filetree from "./filetree/index.js";
 export * as identity from "./identity.js";

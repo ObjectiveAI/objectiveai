@@ -9,11 +9,12 @@ import { Listed } from "./listed.js";
 /**
  * A list's answer: an identity added, changed or removed, the word
  * that the listing is whole, forbidden, or a failure. First every
- * identity listable when the scope opened, in order, the first
- * `count` of them, each as `added`; then exactly one `listed`; then,
- * for the scope's life, an identity come to be listable as
- * `added`, one whose providers grew or shrank as `changed`, one
- * listable on no connected provider any more as `removed`. The
+ * identity announced on a connected provider when the scope opened,
+ * in order, the first `count` of them, each as `added`; then exactly
+ * one `listed`; then, for the scope's life, an identity come to be
+ * announced as `added`, one whose providers or announcements grew or
+ * shrank as `changed`, one announced on no connected provider any
+ * more as `removed`. The
  * finish follows the client's cancel or exactly one `error`; or the
  * scope is exactly one `forbidden`.
  */
@@ -22,9 +23,9 @@ export const Frame = z.union([
   z.strictObject({ added: Listed }),
   /** One identity listed already, its providers as they are now, differing from what was last sent. Tag `1`. */
   z.strictObject({ changed: Listed }),
-  /** One identity listed already, listable on no connected provider any more: as it was last sent. Tag `2`. */
+  /** One identity listed already, announced on no connected provider any more: as it was last sent. Tag `2`. */
   z.strictObject({ removed: Listed }),
-  /** Every identity listable when the scope opened has been sent. A client that wants the listing once cancels here; one that watches reads on. Tag `3`. */
+  /** Every identity announced when the scope opened has been sent. A client that wants the listing once cancels here; one that watches reads on. Tag `3`. */
   z.literal("listed"),
   /** The account the request is served for holds no grant allowing it; nothing was sent. Tag `4`. */
   z.literal("forbidden"),

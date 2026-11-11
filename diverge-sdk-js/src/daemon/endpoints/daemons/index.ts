@@ -5,7 +5,7 @@
 // ID. Several records may name the same remote. A remote is reached
 // through any connected provider whose `daemons.list` listing holds it by a
 // route its record's `Routes` let through, one chosen at random, so it
-// is reachable while it is listable so.
+// is reachable while it is announced so.
 
 export * as add from "./add/index.js";
 export * as delete from "./delete/index.js";

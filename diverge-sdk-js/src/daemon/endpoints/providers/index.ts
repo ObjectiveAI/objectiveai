@@ -2,10 +2,20 @@
 //
 // A provider is a record, by the identity its token establishes in the
 // handshake — the `(issuer, subject)` — with the `Direction` its
-// connection is made in, whether the daemon is listable to it, and
+// connection is made in, what the daemon announces itself with there,
+// whether it accepts other daemons and hears messages through it, and
 // whether it is enabled. `add`, `edit`, `delete`, `enable`, `disable`,
 // `tag` and `untag` change the records, each change taking effect at
 // once; a delete forgets only a disabled provider nothing is pinned to.
+// An edit changes what the daemon holds open on the connection as it
+// stands, and closes the connection only when the record's `ips` no
+// longer admit its source address. While a provider is connected the
+// daemon holds open on it exactly what its record says, each
+// independent of the other two: the provider's `daemons::announce`,
+// with the record's `announcement`, when the record has one; its
+// `daemons::accept` when `accept_daemons` is `true`; its
+// `daemons::listen` when `messageable` is `true`. The daemon sends a
+// message through a provider whatever the three are.
 // A list or a get reports the daemon's `Status` with each and its latest
 // capacity. `daemons` holds the requests over the daemons reached
 // through them: list, listen and message.

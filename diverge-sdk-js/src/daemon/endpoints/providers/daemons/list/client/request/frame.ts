@@ -6,7 +6,7 @@ import { json, tagged } from "../../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../../shared/relay.js";
 
 /**
- * Ask the daemon for every identity listable through its connected
+ * Ask the daemon for every identity announced on its connected
  * providers, each with the providers it was seen on. Everything is
  * optional, and a request with none of it — `{}` on the wire — is
  * every one.

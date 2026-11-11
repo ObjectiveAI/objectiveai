@@ -2,7 +2,7 @@
 // provider.
 //
 // In the shape `permission` states for actions over what exists:
-// `Over`, the actions — listing the listable identities, listening for
+// `Over`, the actions — listing the announced identities, listening for
 // messages, sending one — reaching the providers by their tags, as a
 // grant over `providers` does; and `Permission`, one grant's worth of
 // them. Nothing is made and nothing is tagged here: the records are the

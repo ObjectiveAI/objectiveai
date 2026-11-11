@@ -1,16 +1,18 @@
 // One identity listed, and the routes it was seen on.
 
 import { z } from "zod";
+import { Description } from "../../../../../../../shared/description.js";
 import type { Keyed } from "../../../../../../../shared/listing/keyed.js";
 import { Via } from "./via.js";
 
 /**
- * One identity listable through the daemon's connected providers,
- * a route for every connected provider it is listable on — the
+ * One identity announced on the daemon's connected providers,
+ * a route for every connected provider it is announced on — the
  * provider, the IP, and the address when the provider dialled it — in
- * order of provider, never empty, and every distinct description
- * those providers list it with, in order: equal descriptions are one
- * entry, and none is the empty array. A `daemons.connect` remote
+ * order of provider, never empty, and every distinct announcement
+ * those providers list it with, in order: equal announcements are one
+ * entry, and the array is never empty, since every provider that
+ * lists it lists it with one. A `daemons.connect` remote
  * reaching it is `issuer` as its `issuer`, and one link per provider:
  * `provider` that provider, `daemon` this identity.
  */
@@ -21,8 +23,8 @@ export const Listed = z.object({
   subject: z.string(),
   /** Every route to it, in order of provider. */
   providers: z.array(Via),
-  /** Every distinct description it is listed with, in order: one trimmed line of 1 to 132 characters each. */
-  descriptions: z.array(z.string().min(1).max(132)),
+  /** Every distinct announcement it is listed with, in order. */
+  announcements: z.array(Description),
 });
 export type Listed = z.infer<typeof Listed>;
 
