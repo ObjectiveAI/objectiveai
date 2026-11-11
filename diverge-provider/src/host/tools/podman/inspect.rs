@@ -8,7 +8,7 @@ use serde::Deserialize;
 use tokio::process::Command;
 
 #[cfg(not(target_os = "linux"))]
-use super::MACHINE;
+use super::{MACHINE, described};
 use super::{command, podman};
 use crate::host::tools::{Error, capture};
 
@@ -187,7 +187,9 @@ pub async fn containers(label: &str) -> Result<Vec<String>, Error> {
     Ok(answer.lines().map(str::trim).filter(|id| !id.is_empty()).map(str::to_string).collect())
 }
 
-/// The podman machine, as `podman machine inspect` describes it.
+/// The podman machine, as `podman machine inspect` describes it —
+/// and, for what it mounts, as the description podman keeps of it
+/// does: see [`described`].
 #[cfg(not(target_os = "linux"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Machine {
@@ -199,7 +201,9 @@ pub struct Machine {
     /// Its memory, in MiB, as podman counts it.
     pub memory: u64,
     /// The host directories it was made seeing, each at the same
-    /// path inside; empty where podman lists none.
+    /// path inside, on macOS; empty where its description lists
+    /// none, and on Windows, where a machine takes no share and none
+    /// is read.
     pub mounts: Vec<std::path::PathBuf>,
     /// How it is reached over SSH.
     pub ssh: MachineSsh,
@@ -221,8 +225,9 @@ pub struct MachineSsh {
 }
 
 /// One machine of `podman machine inspect`, whose answer is a JSON
-/// array of one. The disk is not reported, so none is read; the
-/// mounts are reported where there are any.
+/// array of one. The disk is not reported, so none is read; neither
+/// are the mounts, so `ConfigDir` is read for where the machine's
+/// description, which lists them, is kept.
 #[cfg(not(target_os = "linux"))]
 #[derive(Deserialize)]
 struct MachineRow {
@@ -232,18 +237,19 @@ struct MachineRow {
     rootful: bool,
     #[serde(rename = "Resources")]
     resources: ResourcesRow,
-    #[serde(rename = "Mounts", default)]
-    mounts: Vec<MountRow>,
+    #[serde(rename = "ConfigDir", default)]
+    config: Option<ConfigRow>,
     #[serde(rename = "SSHConfig")]
     ssh: SshRow,
 }
 
-/// One host directory a machine mounts.
+/// The `ConfigDir` of one machine: the directory podman keeps the
+/// machine's description in.
 #[cfg(not(target_os = "linux"))]
 #[derive(Deserialize)]
-struct MountRow {
-    #[serde(rename = "Source")]
-    source: std::path::PathBuf,
+struct ConfigRow {
+    #[serde(rename = "Path")]
+    path: std::path::PathBuf,
 }
 
 /// The `Resources` of one machine.
@@ -284,6 +290,11 @@ struct ListRow {
 /// `--format`: its plain answer is JSON, and `--format json`, which
 /// the listing takes, is to the inspection a template that prints
 /// the word.
+///
+/// The inspection does not say what the machine mounts. On macOS,
+/// where the provider must know, they are read from the machine's
+/// description — see [`described`] — and an inspection that does not
+/// say where that is kept is an answer that cannot be read.
 #[cfg(not(target_os = "linux"))]
 pub async fn machine() -> Result<Option<Machine>, Error> {
     let listed = capture("podman", command(["machine", "list", "--format", "json"])).await?;
@@ -300,11 +311,19 @@ pub async fn machine() -> Result<Option<Machine>, Error> {
     let row = rows.pop().ok_or_else(|| Error::Output {
         program: "podman".to_string(),
     })?;
+    let mounts = if cfg!(target_os = "macos") {
+        let config = row.config.ok_or_else(|| Error::Output {
+            program: "podman".to_string(),
+        })?;
+        described(&config.path).await?
+    } else {
+        Vec::new()
+    };
     Ok(Some(Machine {
         state: row.state.to_lowercase(),
         rootful: row.rootful,
         memory: row.resources.memory,
-        mounts: row.mounts.into_iter().map(|mount| mount.source).collect(),
+        mounts,
         ssh: MachineSsh {
             port: row.ssh.port,
             user: row.ssh.user,
