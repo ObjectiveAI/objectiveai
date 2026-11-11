@@ -20,7 +20,8 @@ pub enum Error {
     /// The install lock could not be taken.
     Lock(file_lock::Error),
     /// The archive could not be extracted, or the `initdb` that proves
-    /// an extraction failed, every time it was tried.
+    /// an extraction failed, every time it was tried — or the
+    /// extractor that makes its hard links could not be registered.
     Extract(postgresql_embedded::Error),
 }
 

@@ -19,6 +19,13 @@
 //! afresh; [`discard`] is how the cluster's partial initialization is
 //! thrown away too.
 //!
+//! # The archive's hard links are made here
+//!
+//! The archive names some of its files twice — every time zone that
+//! is another's alias, `UTC` among them — the second name a hard
+//! link, and the crate that extracts it passes those over. [`links`]
+//! has every extraction make them.
+//!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
@@ -26,8 +33,10 @@ mod binaries;
 mod discard;
 mod ensure;
 mod error;
+mod links;
 
 pub use binaries::*;
 pub use discard::*;
 pub use ensure::*;
 pub use error::*;
+pub use links::*;

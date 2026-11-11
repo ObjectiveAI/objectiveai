@@ -6,7 +6,7 @@ use std::time::Duration;
 use diverge_sdk::file_lock;
 use postgresql_embedded::{PostgreSQL, Settings};
 
-use super::{Binaries, Error, discard};
+use super::{Binaries, Error, discard, links};
 
 /// The file in `bin/<version>/` that says the extraction finished.
 const COMPLETE: &str = "complete";
@@ -27,9 +27,10 @@ const ATTEMPTS: u32 = 3;
 /// any other start that holds it, the marker is looked for again —
 /// the other start may have finished the work — and if it is still
 /// absent whatever is at `bin/<version>/` is thrown away and the
-/// archive extracted there, proven by a throwaway `initdb` into a
-/// scratch directory that is deleted afterwards, and the marker
-/// written. The lock is let go when this returns.
+/// archive extracted there, its hard links with it — see [`links`] —
+/// proven by a throwaway `initdb` into a scratch directory that is
+/// deleted afterwards, and the marker written. The lock is let go
+/// when this returns.
 pub async fn ensure(bin: &Path) -> Result<Binaries, Error> {
     let locks = bin.join("locks");
     tokio::fs::create_dir_all(&locks).await.map_err(|source| Error::Io {
@@ -45,6 +46,7 @@ pub async fn ensure(bin: &Path) -> Result<Binaries, Error> {
     if tokio::fs::try_exists(&marker).await.unwrap_or(false) {
         return Ok(Binaries::new(home));
     }
+    links().map_err(|error| Error::Extract(error.into()))?;
     let mut attempt = 1;
     loop {
         discard(&home).await.map_err(|source| Error::Io {

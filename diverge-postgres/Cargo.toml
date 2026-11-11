@@ -28,6 +28,19 @@ diverge-sdk = { path = "../diverge-sdk-rs" }
 # the extraction's commands, `rustls` because that is the TLS the
 # workspace builds with; the default native TLS is left off.
 postgresql_embedded = { version = "0.20", default-features = false, features = ["bundled", "theseus", "tokio", "rustls"] }
+# The crate `postgresql_embedded` extracts the archive with, named for
+# its extractor registry: 0.20 passes over the archive's hard links —
+# every time zone that is another's alias, `UTC` among them — and the
+# extractor registered here makes them. `theseus` for the extractor
+# of the theseus builds, which this one is registered ahead of and
+# calls; its default native TLS is left off, as above. The same
+# version as `postgresql_embedded`'s, so the one registry; 0.22 makes
+# the links itself, and this goes with a move to it.
+postgresql_archive = { version = "0.20", default-features = false, features = ["theseus"] }
+# The archive read a second time, for its links: the gzip, and the tar
+# inside it, each by the crate `postgresql_archive` reads it with.
+flate2 = "1.1.9"
+tar = "0.4.46"
 # The two lines that cross stdio — the SDK's `postgres_supervisor`
 # types — are JSON, one object each.
 serde = { version = "1.0.229", features = ["derive"] }
