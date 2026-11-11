@@ -46,9 +46,9 @@ use crate::daemon::{Daemon, Kind};
 ///    identity held by a whole listing, with a route for every provider
 ///    whose listing holds it — the provider, the IP of the identity's
 ///    connection to it, and the address it dialled the identity at when
-///    it did — and every distinct description those listings give it,
+///    it did — and every distinct announcement those listings give it,
 ///    the daemon's own identity at each provider left out: see
-///    [`own_at`](crate::judge::DaemonAuthenticator::own_at).
+///    [`own`](crate::judge::DaemonAuthenticator::own).
 /// 7. **The routes to an identity.** [`routes`](Self::routes) is a route
 ///    for every provider whose whole listing holds an identity: what a
 ///    remote daemon is reached through, as its record's filters let it.
@@ -74,7 +74,7 @@ pub struct Listings {
 }
 
 /// One provider's listing as it stands: each identity, as its item
-/// lists it — its description, its IP, and the address the provider
+/// lists it — its announcement, its IP, and the address the provider
 /// dialled it at when it did.
 type Held = BTreeMap<Identity, response::Listed>;
 
@@ -105,7 +105,7 @@ impl Default for Inner {
 /// One provider's listing, as its task keeps it.
 #[derive(Debug)]
 struct Upstream {
-    /// The identities it holds now, each with its description.
+    /// The identities it holds now, each with its announcement.
     held: Arc<Mutex<Held>>,
     /// Whether it has said it is whole, or ended.
     whole: watch::Receiver<bool>,
@@ -239,9 +239,9 @@ impl Listings {
     }
 
     /// The merge (rule 6) of the listings of the providers in `reached`
-    /// alone — what a reader's grant reaches, so neither a route nor a
-    /// description of another provider's is in it — in order of identity,
-    /// each identity's providers in order, and its descriptions in
+    /// alone — what a reader's grant reaches, so neither a route nor an
+    /// announcement of another provider's is in it — in order of identity,
+    /// each identity's providers in order, and its announcements in
     /// order, each once.
     pub async fn read(&self, daemon: &Daemon, reached: &HashSet<Identity>) -> Vec<(Identity, Listed)> {
         let whole: Vec<(Identity, Arc<Mutex<Held>>)> = {
@@ -260,19 +260,19 @@ impl Listings {
                 if own == Some(identity) {
                     continue;
                 }
-                let (providers, descriptions) = merged.entry(identity.clone()).or_default();
+                let (providers, announcements) = merged.entry(identity.clone()).or_default();
                 providers.insert(via(&provider, listed));
-                descriptions.extend(listed.description.iter().cloned());
+                announcements.insert(listed.announcement.clone());
             }
         }
         merged
             .into_iter()
-            .map(|(identity, (providers, descriptions))| {
+            .map(|(identity, (providers, announcements))| {
                 let item = Listed {
                     issuer: identity.issuer.clone(),
                     subject: identity.subject.clone(),
                     providers: providers.into_iter().collect(),
-                    descriptions: descriptions.into_iter().collect(),
+                    announcements: announcements.into_iter().collect(),
                 };
                 (identity, item)
             })
@@ -292,7 +292,7 @@ fn open(inner: &mut Inner, daemon: &Arc<Daemon>, identity: Identity, handle: Han
 }
 
 /// Keep one provider's listing until it ends or is let go: each
-/// identity added, with its description, or removed, the word said
+/// identity added, with its announcement, or removed, the word said
 /// after each; whole at its
 /// `listed`, and at its end however it ends. Let go — its upstream
 /// dropped — the listing is stopped, so the provider's scope ends too,

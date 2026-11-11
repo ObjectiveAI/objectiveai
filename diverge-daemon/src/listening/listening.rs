@@ -1,16 +1,16 @@
-//! The providers' message listens, held while listened to, and merged
-//! into one ring.
+//! The providers' message listens, held for each messageable
+//! provider's connection, and merged into one ring.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_sdk::provider::endpoints::info::server::response::Frame as Info;
 use diverge_sdk::provider::endpoints::daemons::listen::client::{execute, request};
 use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::client::handle::Handle;
 use futures_util::StreamExt as _;
 use tokio::sync::{Mutex, watch};
+use tokio::task::JoinHandle;
 
 use crate::daemon::{CHANGES_BEHIND, Daemon};
 
@@ -19,43 +19,39 @@ use crate::daemon::{CHANGES_BEHIND, Daemon};
 /// source of the daemon's keeps.
 const KEPT: usize = CHANGES_BEHIND;
 
-/// Every connected provider's message listen while anything listens,
-/// and the ring they feed. One per daemon, in its live state. The
-/// rules:
+/// The ring every messageable provider's listen feeds. One per daemon,
+/// in its live state. The rules:
 ///
-/// 1. **Held exactly while listened to.** The first listener in
-///    ([`enter`](Self::enter)) opens one listen on every connected
-///    provider whose capabilities hold out `messages`; the last out
-///    ([`leave`](Self::leave)) drops them all. There is no idle time: a
-///    listen held with nobody reading would take messages, and tell
-///    their senders they were delivered, for nobody.
-/// 2. **One per provider.** While listened to, a provider that
-///    connects is given its listen ([`connected`](Self::connected)),
-///    and one that disconnects has it dropped, and its lane with it
-///    ([`disconnected`](Self::disconnected)).
-/// 3. **Lanes.** A provider refuses a second listen on one connection
-///    while one is open, so a listen is opened on a provider only once
-///    the one before it there has finished: each holds its provider's
-///    lane from before its request until its finish is read, and a
-///    listen let go cancels and reads to its finish first.
-/// 4. **Taken at once.** A listen takes each message the moment it
-///    arrives, into the ring, whether or not any listener has read the
-///    one before: no listener ever holds a provider back, and the
-///    provider tells the sender delivered as the daemon takes it.
-/// 5. **The ring.** Every message taken is numbered, from `1`, and
+/// 1. **Held by the record, not by the listeners.** A provider's
+///    listen is opened ([`listen`]) for a connected provider whose
+///    record says `messageable` and whose capabilities hold out
+///    `messages`, and held for the connection's life or until the
+///    record says otherwise — see [`sync`](crate::providers::sync),
+///    which alone opens and ends it. No client listening opens one,
+///    and none leaving ends one.
+/// 2. **One per provider.** A provider refuses a second listen on one
+///    connection while one is open, so the next is opened only once
+///    the one before it there has finished: a listen let go
+///    ([`Listen::end`]) is cancelled and read to its finish first, and
+///    the sync that ends it opens nothing in its place until then.
+/// 3. **Taken at once.** A listen takes each message the moment it
+///    arrives, into the ring, whether or not any listener reads: no
+///    listener ever holds a provider back, and the provider tells the
+///    sender delivered as the daemon takes it — with a client of the
+///    daemon's listening then, or with none.
+/// 4. **The ring.** Every message taken is numbered, from `1`, and
 ///    kept; past [`KEPT`] the oldest goes. [`latest`](Self::latest) is
 ///    the newest number, `0` before any.
-/// 6. **Each listener at its own pace.** A listener reads the messages
+/// 5. **Each listener at its own pace.** A listener reads the messages
 ///    after its own number ([`after`](Self::after)), as many as it can
 ///    send; one whose number fell out of the ring is told how many it
 ///    missed, and goes on from the oldest kept.
-/// 7. **Ends.** A listen refused — the provider relays no messages, or
+/// 6. **Ends.** A listen refused — the provider relays no messages, or
 ///    one is open under the daemon's identity already — failed, or
-///    finished ends, and is not opened again until it is let go and
-///    the next listener's arrives: nothing is retried.
+///    finished ends, and is not opened again while its record's word
+///    stands: nothing is retried.
 #[derive(Debug)]
 pub struct Listening {
-    inner: Mutex<Inner>,
     ring: Mutex<Ring>,
     latest: watch::Sender<u64>,
 }
@@ -63,32 +59,13 @@ pub struct Listening {
 impl Default for Listening {
     fn default() -> Self {
         Listening {
-            inner: Mutex::new(Inner::default()),
             ring: Mutex::new(Ring::default()),
             latest: watch::channel(0).0,
         }
     }
 }
 
-/// What is held, under the one lock.
-#[derive(Debug, Default)]
-struct Inner {
-    /// How many listen now.
-    listeners: usize,
-    /// One listen per provider, by the provider's identity.
-    upstreams: HashMap<Identity, Upstream>,
-    /// Each connected provider's lane (rule 3).
-    lanes: HashMap<Identity, Arc<Mutex<()>>>,
-}
-
-/// One provider's listen, as its task keeps it.
-#[derive(Debug)]
-struct Upstream {
-    /// Dropped, the task cancels the listen and ends.
-    _end: watch::Sender<()>,
-}
-
-/// The messages kept (rule 5).
+/// The messages kept (rule 4).
 #[derive(Debug, Default)]
 struct Ring {
     /// The newest number given.
@@ -109,78 +86,36 @@ pub struct Kept {
     pub body: Bytes,
 }
 
-/// One listener of the daemon's messages, from
-/// [`enter`](Listening::enter): dropped, it [`leave`](Listening::leave)s.
-/// A drop cannot wait on the lock, so the leave is a task of its own.
-pub struct Listener {
-    /// The daemon whose messages it hears.
-    daemon: Arc<Daemon>,
-    /// The newest number when it entered: it hears the messages after.
-    pub cursor: u64,
+/// One provider's listen, held open: what [`listen`] hands back, for
+/// [`sync`](crate::providers::sync) to keep with the connection.
+/// Dropped, nothing is sent: the listen goes on to the connection's
+/// end, which is the one drop there is.
+#[derive(Debug)]
+pub struct Listen {
+    /// Its cancel.
+    cancel: execute::Cancel,
+    /// The task taking its messages: done once the provider has
+    /// finished the scope, or the connection has gone.
+    taking: JoinHandle<()>,
 }
 
-impl Drop for Listener {
-    fn drop(&mut self) {
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            let daemon = Arc::clone(&self.daemon);
-            runtime.spawn(async move { daemon.live.listening.leave().await });
-        }
+impl Listen {
+    /// Let the listen go (rule 2): cancelled, and waited on until it
+    /// has been read to its finish, every message still arriving taken
+    /// all the same.
+    pub async fn end(self) {
+        self.cancel.cancel().await;
+        let _ = self.taking.await;
     }
 }
 
 impl Listening {
-    /// One listener more (rule 1): the providers' listens opened when
-    /// it is the first. Its number is the newest as it entered: it hears
-    /// what is taken after.
-    pub async fn enter(&self, daemon: &Arc<Daemon>) -> Listener {
-        let mut inner = self.inner.lock().await;
-        if inner.listeners == 0 {
-            for identity in daemon.live.connected_providers().await {
-                let (Some(handle), Some(info)) = (daemon.live.provider(&identity).await, daemon.live.capabilities(&identity).await) else {
-                    continue;
-                };
-                open(&mut inner, daemon, identity, handle, &info);
-            }
-        }
-        inner.listeners += 1;
-        // Read under the lock, so a listener counted is never handed a
-        // number older than one a message it could miss was taken under.
-        let cursor = *self.latest.borrow();
-        Listener { daemon: Arc::clone(daemon), cursor }
-    }
-
-    /// One listener fewer (rule 1): the providers' listens dropped when
-    /// it was the last.
-    pub async fn leave(&self) {
-        let mut inner = self.inner.lock().await;
-        inner.listeners = inner.listeners.saturating_sub(1);
-        if inner.listeners == 0 {
-            inner.upstreams.clear();
-        }
-    }
-
-    /// A provider connected (rule 2): its listen opened when anything
-    /// listens, it holds out `messages`, and none is open on it yet.
-    pub async fn connected(&self, daemon: &Arc<Daemon>, identity: Identity, handle: Handle, info: &Info) {
-        let mut inner = self.inner.lock().await;
-        if inner.listeners > 0 && !inner.upstreams.contains_key(&identity) {
-            open(&mut inner, daemon, identity, handle, info);
-        }
-    }
-
-    /// A provider disconnected (rule 2): its listen and its lane dropped.
-    pub async fn disconnected(&self, identity: &Identity) {
-        let mut inner = self.inner.lock().await;
-        inner.lanes.remove(identity);
-        inner.upstreams.remove(identity);
-    }
-
-    /// The newest number, to wait on (rule 5).
+    /// The newest number, to wait on (rule 4).
     pub fn latest(&self) -> watch::Receiver<u64> {
         self.latest.subscribe()
     }
 
-    /// The messages after `cursor` (rule 6): how many it missed, out of
+    /// The messages after `cursor` (rule 5): how many it missed, out of
     /// the ring, and every one kept after it, in order.
     pub async fn after(&self, cursor: u64) -> (u64, Vec<(u64, Arc<Kept>)>) {
         let ring = self.ring.lock().await;
@@ -192,7 +127,7 @@ impl Listening {
         (skipped, messages)
     }
 
-    /// One message taken (rules 4 and 5): numbered, kept, the oldest
+    /// One message taken (rules 3 and 4): numbered, kept, the oldest
     /// let go past [`KEPT`], and the newest number told.
     async fn take(&self, kept: Kept) {
         let newest = {
@@ -209,48 +144,18 @@ impl Listening {
     }
 }
 
-/// The provider's listen opened on `handle`, its task spawned, and held
-/// under `inner`, behind the provider's lane (rule 3) — when the
-/// provider holds out `messages`, and nothing otherwise.
-fn open(inner: &mut Inner, daemon: &Arc<Daemon>, identity: Identity, handle: Handle, info: &Info) {
-    if info.capabilities.messages.is_none() {
-        return;
-    }
-    let (end, ended) = watch::channel(());
-    let lane = Arc::clone(inner.lanes.entry(identity.clone()).or_default());
-    tokio::spawn(keep(Arc::clone(daemon), identity.clone(), handle, lane, ended));
-    inner.upstreams.insert(identity, Upstream { _end: end });
-}
-
-/// Keep one provider's listen until it ends or is let go: every message
-/// taken into the ring as it arrives (rule 4). Let go — its upstream
-/// dropped — the listen is cancelled and read to its finish, every
-/// message still arriving taken all the same, before the lane is free
-/// (rule 3); let go before the lane was taken, nothing is opened.
-async fn keep(daemon: Arc<Daemon>, provider: Identity, handle: Handle, lane: Arc<Mutex<()>>, mut ended: watch::Receiver<()>) {
-    let _lane = tokio::select! {
-        lane = lane.lock_owned() => lane,
-        _ = ended.changed() => return,
-    };
-    // Rule 7: a listen that does not open ends here.
-    let Ok((mut listen, cancel)) = execute::execute(&handle, &request::Frame).await else {
-        return;
-    };
-    let listening = &daemon.live.listening;
-    loop {
-        tokio::select! {
-            item = listen.next() => match item {
-                Some(Ok(message)) => listening.take(Kept { provider: provider.clone(), from: message.from, body: message.body }).await,
-                // Rule 7: refused, failed, or finished.
-                Some(Err(_)) | None => return,
-            },
-            _ = ended.changed() => {
-                cancel.cancel().await;
-                while let Some(Ok(message)) = listen.next().await {
-                    listening.take(Kept { provider: provider.clone(), from: message.from, body: message.body }).await;
-                }
-                return;
-            }
+/// Open `provider`'s listen on `handle` (rule 1), its task spawned:
+/// every message taken into the daemon's ring as it arrives (rule 3),
+/// until the listen is refused, fails or finishes (rule 6). `None`
+/// when the request does not go out.
+pub async fn listen(daemon: &Arc<Daemon>, provider: Identity, handle: &Handle) -> Option<Listen> {
+    let (mut listen, cancel) = execute::execute(handle, &request::Frame).await.ok()?;
+    let daemon = Arc::clone(daemon);
+    let taking = tokio::spawn(async move {
+        // Rule 6: refused, failed, or finished is the end.
+        while let Some(Ok(message)) = listen.next().await {
+            daemon.live.listening.take(Kept { provider: provider.clone(), from: message.from, body: message.body }).await;
         }
-    }
+    });
+    Some(Listen { cancel, taking })
 }

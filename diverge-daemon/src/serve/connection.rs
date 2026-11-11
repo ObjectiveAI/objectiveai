@@ -45,7 +45,7 @@ pub async fn connection(connection: Connection, address: IpAddr, daemon: Arc<Dae
     let hold = (*took.borrow()).then(|| Hold::new(&daemon.authenticator, Expected::Admitted, peer.clone()));
     match (daemon.authenticator.admit(&peer).await, hold) {
         (Ok(Some(Admitted::Provider(identity))), Some(hold)) => {
-            if let Ok(attached) = providers::attach(connection, identity, &daemon, hold).await {
+            if let Ok(attached) = providers::attach(connection, identity, &daemon, hold, providers::Source::Accepted(address)).await {
                 attached.serve().await;
             }
         }

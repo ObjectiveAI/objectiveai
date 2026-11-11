@@ -12,7 +12,7 @@ use diverge_sdk::wire::connection::Connection;
 use futures_util::future::{self, Either};
 use tokio::sync::watch;
 
-use super::Error;
+use super::{Error, Source};
 use crate::daemon::Daemon;
 use crate::judge::Hold;
 
@@ -48,29 +48,60 @@ pub struct Attached {
     hold: Hold,
 }
 
-/// Hold `connection`, already past its handshake, as the connection
-/// to the provider `identity`.
+/// Hold `connection`, already past its handshake and made as `source`
+/// says, as the connection to the provider `identity`. The rules:
 ///
-/// The handshake holds the identity already, so no second connection
-/// under it reaches here. The slot is reserved first, and a reserved
-/// slot reads as no connection until it is filled. Then the socket is split into the SDK's client
-/// router and handle; the provider is asked its info, with the router
-/// driven meanwhile, and one that does not answer is not a provider,
-/// [`Error::Info`], the slot given back and the socket dropped. A
-/// provider that answers the daemon's own `VERSION` fills the slot
-/// as connected, with the handle and the answer cached for the
-/// connection's life: the provider's capacity is asked, and asked
-/// again for the connection's life; the daemon's accept of other
-/// daemons is opened on the connection when the configuration says
-/// so; and the provider's volumes listing is opened and kept, when
-/// its capabilities keep volumes at all. A provider that answers another
-/// version fills the slot as a different version — the handle kept so
-/// the socket stays open, and nothing opened on it, ever. Either way
-/// what comes back is the rest of the connection's life, to be
-/// served.
-pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Daemon>, hold: Hold) -> Result<Attached, Error> {
+/// 1. **The slot.** The handshake holds the identity already, so no
+///    second connection under it reaches here. The slot is reserved
+///    first, and a reserved slot reads as no connection until it is
+///    filled; the connection's closer and its `source` are kept from
+///    then to its end.
+/// 2. **Still admitted.** The record is read again once the closer is
+///    kept: one that no longer admits this connection — disabled or
+///    gone, or an incoming one whose `ips` no longer contain the
+///    source — is [`Error::Unadmitted`], the slot given back and the
+///    socket dropped. A change of the record reads the book first and
+///    then closes the connection it finds here, and the attach keeps
+///    its closer first and then reads the book: one of the two sees
+///    the other, so no connection a record stopped admitting between
+///    its handshake and here goes on.
+/// 3. **The info.** The socket is split into the SDK's client router
+///    and handle; the provider is asked its info, with the router
+///    driven meanwhile, and one that does not answer is not a
+///    provider, [`Error::Info`], the slot given back and the socket
+///    dropped.
+/// 4. **Connected.** A provider that answers the daemon's own
+///    `VERSION` fills the slot as connected, with the handle and the
+///    answer cached for the connection's life: the provider's capacity
+///    is asked, and asked again for the connection's life; what its
+///    record says the daemon holds open on it — its announce, its
+///    accept, its listen — is opened by a [`sync`](super::sync), on a
+///    task of its own, since the provider's answers to it are read by
+///    the router, which is driven only once the connection is served;
+///    and the provider's volumes listing is opened and kept, when its
+///    capabilities keep volumes at all.
+/// 5. **Another version.** A provider that answers another version
+///    fills the slot as a different version — the handle kept so the
+///    socket stays open, and nothing opened on it, ever: no announce,
+///    no accept, no listen.
+///
+/// Either way what comes back is the rest of the connection's life, to
+/// be served.
+pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Daemon>, hold: Hold, source: Source) -> Result<Attached, Error> {
+    // Rule 1.
     daemon.live.reserve_provider(identity.clone()).await;
-    let closed = daemon.live.open_provider(identity.clone()).await;
+    let closed = daemon.live.open_provider(identity.clone(), source).await;
+    // Rule 2.
+    let admitted = match source {
+        Source::Accepted(ip) => daemon.providers.admits(&identity, ip),
+        Source::Dialled(_) => daemon.providers.dials(&identity).is_some(),
+    };
+    if !admitted {
+        daemon.live.forget_provider(&identity).await;
+        daemon.live.disconnect_provider(&identity).await;
+        hold.release().await;
+        return Err(Error::Unadmitted);
+    }
     let (handle, router) = Handle::open(connection);
     let mut reading: Pin<Box<dyn Future<Output = Result<(), InvalidAuthorize>> + Send>> = Box::pin(router.run());
     let answered = {
@@ -93,11 +124,13 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
     if answer.version == VERSION {
         let (info, capacity) = daemon.live.connect_provider(&identity, handle.clone(), answer).await;
         tokio::spawn(super::poll_capacity(Arc::clone(daemon), handle.clone(), capacity));
-        if daemon.accept_daemons {
-            tokio::spawn(super::accept(Arc::clone(daemon), handle.clone()));
-        }
+        // Rule 4: spawned, not awaited — nothing reads the provider's
+        // answers until the connection is served.
+        tokio::spawn({
+            let (daemon, identity) = (Arc::clone(daemon), identity.clone());
+            async move { super::sync(&daemon, &identity).await }
+        });
         daemon.live.listings.connected(daemon, identity.clone(), handle.clone()).await;
-        daemon.live.listening.connected(daemon, identity.clone(), handle.clone(), &info).await;
         if info.capabilities.volumes() {
             // The mirror kept here, before the connection is served:
             // its end, which forgets the mirror, comes after.

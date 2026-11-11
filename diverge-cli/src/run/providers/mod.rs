@@ -34,8 +34,10 @@ pub enum Providers {
     /// Adding a provider's record: dialled at once when it is outgoing
     /// and enabled.
     Add(add::Arguments),
-    /// Editing a provider's record: a change to its direction or its
-    /// listable flag closes its connection.
+    /// Editing a provider's record — its announcement, whether the
+    /// daemon accepts daemons and hears messages through it, an
+    /// incoming one's ips, its description — on its connection as it
+    /// stands: only ips that no longer admit it close it.
     Edit(edit::Arguments),
     /// Deleting a disabled provider's record that nothing is pinned to.
     Delete(delete::Arguments),

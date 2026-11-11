@@ -4,7 +4,6 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use diverge_sdk::shared::listable::Listable;
 use diverge_sdk::wire::connection::Connection;
 use diverge_sdk::wire::handshake::{self, Handshook};
 use tokio::net::TcpStream;
@@ -12,7 +11,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 use diverge_sdk::shared::Identity;
 
-use super::{attach, url};
+use super::{Source, attach, url};
 use crate::containers::lifecycle::End;
 use crate::daemon::Daemon;
 use crate::judge::{Expected, Hold};
@@ -30,7 +29,7 @@ const PAUSE: Duration = Duration::from_secs(5);
 /// connector — the daemon's own token presented, the provider's
 /// verified against its own issuer, and required to be exactly
 /// `identity`, which no other connection holds and which it then holds
-/// — sends the listable flag the record says, and [`attach`]es: a
+/// — and nothing but the token — and [`attach`]es: a
 /// provider that answers its info is held and served until the
 /// connection ends, or the daemon closes it. A handshake that fails is
 /// a round not attached, the socket dropped. Then the pause, and again.
@@ -53,15 +52,14 @@ async fn rounds(daemon: &Arc<Daemon>, identity: &Identity, number: u64) {
             return;
         };
         if let Ok((socket, _)) = connect_async(url(&address)).await {
-            let peer = peer_ip(&socket);
+            let ip = peer_ip(&socket);
             let expecting = daemon.authenticator.dialling(identity);
-            let listable = if daemon.providers.listable(identity) { daemon.authenticator.listed() } else { Listable::Hidden };
-            let made = handshake::connect(Connection::Outgoing(socket), listable, &expecting, peer).await;
+            let made = handshake::connect(Connection::Outgoing(socket), &expecting, ip).await;
             if let Ok(Handshook { connection, peer, .. }) = made {
                 // A dial that answers holds the identity: the hold goes
                 // with the connection, however it ends.
                 let hold = Hold::new(&daemon.authenticator, Expected::Provider, peer.clone());
-                if let Ok(attached) = attach(connection, peer, daemon, hold).await {
+                if let Ok(attached) = attach(connection, peer, daemon, hold, Source::Dialled(ip)).await {
                     attached.serve().await;
                 }
             }
@@ -89,8 +87,10 @@ pub async fn dial_all(daemon: &Arc<Daemon>) {
 }
 
 /// A change to `identity`'s record, committed and read into the
-/// [`ProviderBook`](super::ProviderBook), taking effect: the one place
-/// it does. The rules:
+/// [`ProviderBook`](super::ProviderBook), taking effect on its
+/// connection and its dial: the one place a connection is closed for
+/// its record. What is held open on a connection that stays is
+/// [`sync`](super::sync)'s. The rules:
 ///
 /// 1. **A close.** When `end` is given, every run on the provider is
 ///    told it is ending so — its log's `undeployed` carries the reason —

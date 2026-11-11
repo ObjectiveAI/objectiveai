@@ -7,8 +7,6 @@ use std::sync::Arc;
 
 use diverge_sdk::identities::{Identities, Own};
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::description::Description;
-use diverge_sdk::shared::listable::Listable;
 use diverge_sdk::wire::handshake::{Authenticator, Peer};
 use futures_util::future::BoxFuture;
 use tokio::sync::{Mutex, watch};
@@ -50,7 +48,10 @@ pub enum Expected {
 ///    `identity` — see [`Own`] — on every socket it accepts, to every
 ///    daemon that reaches it, and to every provider it dials, whatever
 ///    issuer the other end's token is from. Only [`Toward`] presents
-///    another: the account of ours a remote daemon's record names.
+///    another: the account of ours a remote daemon's record names. The
+///    token is all a handshake carries: what the daemon announces
+///    itself with on a provider is a scope it opens after — see
+///    [`sync`](crate::providers::sync).
 /// 2. **Verifying.** There is no list of issuers. The other end's
 ///    token is read for whom it claims to be, unsigned; that identity
 ///    is judged by rules 3 and 5; and only one that passes has its
@@ -91,7 +92,6 @@ pub enum Expected {
 pub struct DaemonAuthenticator {
     own: Own,
     providers: Arc<ProviderBook>,
-    description: Option<Description>,
     admins: HashSet<Identity>,
     store: Store,
     held_providers: Mutex<HashSet<Identity>>,
@@ -100,25 +100,17 @@ pub struct DaemonAuthenticator {
 
 impl DaemonAuthenticator {
     /// The daemon as `own` presents it, its providers' records
-    /// `providers`, the `description` it is listed with by the providers
-    /// it is listable to, its `admins`, admitting the accounts of
-    /// `store`; nothing held.
-    pub fn new(own: Own, providers: Arc<ProviderBook>, description: Option<Description>, admins: impl IntoIterator<Item = Identity>, store: Store) -> DaemonAuthenticator {
+    /// `providers`, its `admins`, admitting the accounts of `store`;
+    /// nothing held.
+    pub fn new(own: Own, providers: Arc<ProviderBook>, admins: impl IntoIterator<Item = Identity>, store: Store) -> DaemonAuthenticator {
         DaemonAuthenticator {
             own,
             providers,
-            description,
             admins: admins.into_iter().collect(),
             store,
             held_providers: Mutex::new(HashSet::new()),
             held_accounts: Mutex::new(HashSet::new()),
         }
-    }
-
-    /// The listable flag the daemon sends a provider it is listable
-    /// to: listed, with its description, if it has one.
-    pub fn listed(&self) -> Listable {
-        Listable::Listed(self.description.clone())
     }
 
     /// The authenticator for one handshake for `expected` — see rule
@@ -352,21 +344,6 @@ impl Authenticator for Judging<'_> {
     fn abandon<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, ()> {
         Box::pin(self.authenticator.release(self.expected, peer))
     }
-
-    /// The listable flag the daemon answers with, as the connectee:
-    /// [`listed`](DaemonAuthenticator::listed), with its description,
-    /// only on a socket it accepted, to a provider whose record says
-    /// `listable`; hidden to every client, and to a daemon reaching this
-    /// one.
-    fn listable<'a>(&'a self, peer: &'a Peer) -> BoxFuture<'a, Listable> {
-        Box::pin(async move {
-            if self.expected == Expected::Admitted && self.authenticator.providers.listable(peer) {
-                self.authenticator.listed()
-            } else {
-                Listable::Hidden
-            }
-        })
-    }
 }
 
 /// The daemon's authenticator for reaching one remote daemon as one
@@ -408,9 +385,5 @@ impl Authenticator for Toward<'_> {
 
     fn abandon<'a>(&'a self, _peer: &'a Peer) -> BoxFuture<'a, ()> {
         Box::pin(async {})
-    }
-
-    fn listable<'a>(&'a self, _peer: &'a Peer) -> BoxFuture<'a, Listable> {
-        Box::pin(async { Listable::Hidden })
     }
 }

@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::daemon::endpoints::providers::Direction;
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::description::Description;
 use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
@@ -16,11 +17,19 @@ pub struct Record {
     pub identity: Identity,
     /// How its connection is made.
     pub direction: Direction,
-    /// Whether the daemon is listable to it.
-    pub listable: bool,
+    /// What the daemon announces itself with on it: present, the
+    /// daemon holds its `daemons::announce` open with this text while
+    /// connected; absent, it does not announce itself there.
+    pub announcement: Option<Description>,
+    /// Whether the daemon accepts other daemons through it: holds its
+    /// `daemons::accept` open while connected.
+    pub accept_daemons: bool,
+    /// Whether the daemon listens for messages on it: holds its
+    /// `daemons::listen` open while connected.
+    pub messageable: bool,
     /// Whether the daemon works with it.
     pub enabled: bool,
-    /// What it is.
+    /// What it is, in the operator's words: the provider never sees it.
     pub description: String,
     /// Its tags, sorted.
     pub tags: Vec<String>,
@@ -31,16 +40,22 @@ pub struct Record {
 }
 
 /// The columns a record is read from.
-const COLUMNS: &str = "issuer, subject, direction, listable, enabled, description, tags, created, creator";
+const COLUMNS: &str = "issuer, subject, direction, announcement, accept_daemons, messageable, enabled, description, tags, created, creator";
 
-/// A record out of its row.
+/// A record out of its row. An announcement kept that is no
+/// [`Description`] — which only a hand on the table makes — is the
+/// row's failure, as a direction that does not parse is.
 fn record(row: &sqlx::postgres::PgRow) -> Result<Record, Error> {
     let Json(direction): Json<Direction> = row.try_get("direction")?;
     let Json(creator): Json<Creator> = row.try_get("creator")?;
+    let announcement: Option<String> = row.try_get("announcement")?;
+    let announcement = announcement.map(Description::new).transpose().map_err(|error| sqlx::Error::Decode(Box::new(error)))?;
     Ok(Record {
         identity: Identity { issuer: row.try_get("issuer")?, subject: row.try_get("subject")? },
         direction,
-        listable: row.try_get("listable")?,
+        announcement,
+        accept_daemons: row.try_get("accept_daemons")?,
+        messageable: row.try_get("messageable")?,
         enabled: row.try_get("enabled")?,
         description: row.try_get("description")?,
         tags: row.try_get("tags")?,
@@ -53,13 +68,15 @@ fn record(row: &sqlx::postgres::PgRow) -> Result<Record, Error> {
 /// record's already.
 pub async fn create(conn: &mut PgConnection, record: &Record) -> Result<bool, Error> {
     let added = sqlx::query(
-        "INSERT INTO diverge.providers (issuer, subject, direction, listable, enabled, description, tags, created, creator) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (issuer, subject) DO NOTHING",
+        "INSERT INTO diverge.providers (issuer, subject, direction, announcement, accept_daemons, messageable, enabled, description, tags, created, creator) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (issuer, subject) DO NOTHING",
     )
     .bind(&record.identity.issuer)
     .bind(&record.identity.subject)
     .bind(Json(&record.direction))
-    .bind(record.listable)
+    .bind(record.announcement.as_ref().map(Description::as_str))
+    .bind(record.accept_daemons)
+    .bind(record.messageable)
     .bind(record.enabled)
     .bind(&record.description)
     .bind(&record.tags)
@@ -104,14 +121,18 @@ pub async fn all(conn: &mut PgConnection) -> Result<Vec<Record>, Error> {
     rows.iter().map(record).collect()
 }
 
-/// Write `record`'s direction, listable flag and description over the
+/// Write `record`'s direction — of which an edit changes only an
+/// incoming one's `ips` — its announcement, whether it accepts
+/// daemons, whether it is messageable, and its description over the
 /// kept one of its identity.
 pub async fn edit(conn: &mut PgConnection, record: &Record) -> Result<(), Error> {
-    sqlx::query("UPDATE diverge.providers SET direction = $3, listable = $4, description = $5 WHERE issuer = $1 AND subject = $2")
+    sqlx::query("UPDATE diverge.providers SET direction = $3, announcement = $4, accept_daemons = $5, messageable = $6, description = $7 WHERE issuer = $1 AND subject = $2")
         .bind(&record.identity.issuer)
         .bind(&record.identity.subject)
         .bind(Json(&record.direction))
-        .bind(record.listable)
+        .bind(record.announcement.as_ref().map(Description::as_str))
+        .bind(record.accept_daemons)
+        .bind(record.messageable)
         .bind(&record.description)
         .execute(&mut *conn)
         .await?;

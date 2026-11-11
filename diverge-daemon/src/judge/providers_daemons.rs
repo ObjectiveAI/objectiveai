@@ -2,7 +2,7 @@
 //! them.
 //!
 //! The shape of [`providers`](super::providers)'s actions over records:
-//! an action — listing the listable identities, listening for messages,
+//! an action — listing the announced identities, listening for messages,
 //! sending one — is allowed through a provider by a grant that holds it
 //! and whose `within` reaches the provider's record — `any`, or the
 //! shared [`Tags`](diverge_sdk::shared::permission::Tags) test over the

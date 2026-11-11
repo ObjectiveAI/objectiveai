@@ -31,12 +31,14 @@ use crate::store::{self, AccountId, AgentId, Store};
 use crate::listings::Listings;
 use crate::listening::Listening;
 use crate::messaging::Messaging;
+use crate::providers::{Features, Source};
 use crate::volumes::Mirror;
 
 /// The live state of the daemon: which accounts have a client
 /// connected as them, and how many; which providers the daemon holds
 /// a connection to, the handle it speaks to each on, the info each
-/// answered and the capacity each last answered; and the dial
+/// answered and the capacity each last answered, how each connection
+/// was made and what the daemon holds open on it; and the dial
 /// tasks keeping the ones it dials connected; which remote daemons it
 /// holds a connection to through them; which providers hold which image,
 /// and the pull scope held on each; every agent's log as
@@ -80,9 +82,15 @@ pub struct Live {
     /// next dial's, and gone with the dial's end or the task's.
     dial_tasks: Mutex<HashMap<Identity, AbortHandle>>,
     /// The closer of every provider connection held now, by the
-    /// provider's identity: what [`close_provider`](Self::close_provider)
-    /// tells.
-    provider_closers: Mutex<HashMap<Identity, watch::Sender<bool>>>,
+    /// provider's identity — what [`close_provider`](Self::close_provider)
+    /// tells — and how that connection was made, with the IP at its
+    /// other end: what an edit of the record's `ips` judges it by.
+    provider_closers: Mutex<HashMap<Identity, (watch::Sender<bool>, Source)>>,
+    /// What the daemon holds open on each connected provider's
+    /// connection as its record says — its announce, its accept and its
+    /// listen: there from the provider's standing as connected to the
+    /// connection's end. See [`Features`].
+    features: Mutex<HashMap<Identity, Arc<Features>>>,
     /// Every agent's log that has been appended to or watched since
     /// the start, by agent, while the agent is on record: see [`kept`].
     logs: Mutex<HashMap<AgentId, Arc<RunLog>>>,
@@ -136,8 +144,8 @@ pub struct Live {
     /// Each connected provider's daemons list, while something
     /// watches: see [`Listings`].
     pub listings: Listings,
-    /// Each connected provider's message listen, while anything
-    /// listens, and the ring they feed: see [`Listening`].
+    /// The ring every messageable provider's listen feeds: see
+    /// [`Listening`].
     pub listening: Listening,
     /// Each provider's send lane and rate window, for the daemon's own
     /// direct messages: see [`Messaging`].
@@ -353,17 +361,19 @@ impl Live {
 
     /// The provider answered its info with the daemon's version: its
     /// slot filled with the handle every request to it rides and the
-    /// answer, cached for the connection's life, and the word said
-    /// that the provider is connected. The answer, shared, for the
-    /// attach's own reading.
+    /// answer, cached for the connection's life, its [`Features`] kept
+    /// with nothing held yet, and the word said that the provider is
+    /// connected. The answer, shared, for the attach's own reading.
     pub async fn connect_provider(&self, identity: &Identity, handle: Handle, info: Info) -> (Arc<Info>, Arc<Capacity>) {
         let info = Arc::new(info);
+        let features = Arc::new(Features::new(handle.clone(), Arc::clone(&info)));
         let standing = Standing::Connected {
             handle,
             info: Arc::clone(&info),
         };
         let cell = Arc::new(Capacity::new());
         if self.providers.lock().await.fill(identity, standing) {
+            self.features.lock().await.insert(identity.clone(), features);
             self.capacities.rcu(|map| {
                 let mut map = HashMap::clone(map);
                 map.insert(identity.clone(), Arc::clone(&cell));
@@ -388,10 +398,13 @@ impl Live {
         }
     }
 
-    /// The provider's connection ended: its slot given back, and its
+    /// The provider's connection ended: its slot given back, what was
+    /// held open on it forgotten — every scope on it ended with the
+    /// socket — and its
     /// capacity cell dropped from the map and nudged, so a poller asleep on its interval wakes, finds the
     /// connection gone and ends.
     pub async fn disconnect_provider(&self, identity: &Identity) {
+        self.features.lock().await.remove(identity);
         if self.providers.lock().await.release(identity) {
             let cell = self.capacity_cell(identity);
             self.capacities.rcu(|map| {
@@ -410,8 +423,14 @@ impl Live {
         if self.listings.disconnected(identity).await {
             self.changes.changed(Kind::Listings);
         }
-        self.listening.disconnected(identity).await;
         self.messaging.disconnected(identity).await;
+    }
+
+    /// What the daemon holds open on the provider's connection, if the
+    /// daemon uses the provider now: what a
+    /// [`sync`](crate::providers::sync) reads.
+    pub async fn features(&self, identity: &Identity) -> Option<Arc<Features>> {
+        self.features.lock().await.get(identity).cloned()
     }
 
     /// A fresh mirror for the provider's volumes, kept for its
@@ -567,12 +586,19 @@ impl Live {
         }
     }
 
-    /// A closer for the connection to the provider `identity`: what its
-    /// serving waits on beside the socket.
-    pub async fn open_provider(&self, identity: Identity) -> watch::Receiver<bool> {
+    /// A closer for the connection to the provider `identity`, made as
+    /// `source` says: what its serving waits on beside the socket.
+    pub async fn open_provider(&self, identity: Identity, source: Source) -> watch::Receiver<bool> {
         let (closer, closed) = watch::channel(false);
-        self.provider_closers.lock().await.insert(identity, closer);
+        self.provider_closers.lock().await.insert(identity, (closer, source));
         closed
+    }
+
+    /// How the connection to the provider `identity` was made, and the
+    /// IP at its other end, if one is held — whatever the provider's
+    /// standing on it.
+    pub async fn provider_source(&self, identity: &Identity) -> Option<Source> {
+        self.provider_closers.lock().await.get(identity).map(|(_, source)| *source)
     }
 
     /// The connection to `identity` is over: its closer forgotten.
@@ -583,7 +609,7 @@ impl Live {
     /// Close the connection to the provider `identity`, whichever end
     /// dialled, if one is held; it ends as the socket ending does.
     pub async fn close_provider(&self, identity: &Identity) {
-        if let Some(closer) = self.provider_closers.lock().await.get(identity) {
+        if let Some((closer, _)) = self.provider_closers.lock().await.get(identity) {
             closer.send_replace(true);
         }
     }

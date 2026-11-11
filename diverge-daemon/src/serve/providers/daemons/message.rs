@@ -40,8 +40,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 enum Excluded {
     /// The identity stopped listening there before it took the message.
     NotListening,
-    /// The provider would not take the daemon's send: the daemon is not
-    /// in its listing, or it relays no messages.
+    /// The provider would not take the daemon's send: it relays no
+    /// messages, a send is open on the connection already, or the
+    /// connection to it is gone.
     Refused,
 }
 
@@ -211,7 +212,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
                 messaging.uncount(&provider).await;
                 messaging.full(&provider, retry_after).await;
             }
-            Ok(Some(sent::Frame::NotListed | sent::Frame::Unsupported | sent::Frame::AlreadyOpen)) => {
+            Ok(Some(sent::Frame::Unsupported | sent::Frame::AlreadyOpen)) => {
                 messaging.uncount(&provider).await;
                 excluded.push((provider, Excluded::Refused));
             }

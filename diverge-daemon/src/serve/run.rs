@@ -89,7 +89,7 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
             return Err(Error::Store(error));
         }
     };
-    let authenticator = Arc::new(DaemonAuthenticator::new(own, Arc::clone(&book), config.description.clone(), config.admins.clone(), store.clone()));
+    let authenticator = Arc::new(DaemonAuthenticator::new(own, Arc::clone(&book), config.admins.clone(), store.clone()));
     let daemon = Arc::new(Daemon::new(
         store,
         authenticator,
@@ -97,8 +97,6 @@ pub async fn run(config: Config, root: PathBuf) -> Result<(), Error> {
         logs,
         std::time::Duration::from_secs(config.idle_seconds),
         database,
-        config.accept_daemons,
-        std::time::Duration::from_secs(config.capacity_poll_seconds),
         stop,
     ));
     if let Err(error) = clear_holders(&daemon).await {

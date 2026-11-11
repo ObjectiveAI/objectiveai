@@ -7,7 +7,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Fail {
     /// No connected provider's daemons list holds the remote: it is
-    /// not listable on any provider this daemon is connected to.
+    /// not announced on any provider this daemon is connected to.
     NoProvider,
     /// The provider chosen did not open a connection: its refusal, in the
     /// provider's or the wire's words.
@@ -17,7 +17,7 @@ pub enum Fail {
 impl fmt::Display for Fail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Fail::NoProvider => f.write_str("the daemon is listable on no provider this daemon is connected to"),
+            Fail::NoProvider => f.write_str("the daemon is announced on no provider this daemon is connected to"),
             Fail::Refused(error) => write!(f, "the provider did not open a connection to the daemon: {error}"),
         }
     }

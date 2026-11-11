@@ -44,7 +44,9 @@
 //! one `identity`, whatever issuer the other end's is from. The
 //! providers are records in
 //! the daemon's database, each by its identity, incoming or outgoing,
-//! enabled or not, changed through the daemon's own `providers`
+//! enabled or not, each saying what the daemon announces itself with
+//! there and whether it accepts other daemons and hears messages
+//! through it, changed through the daemon's own `providers`
 //! endpoints — and a provider is served the same whichever end
 //! dialled; an outgoing one is dialled again while its record says so;
 //! on either
@@ -55,8 +57,8 @@
 //! to, as a client of it, [`daemons`] — this daemon's identity one of
 //! its accounts — and a tool it holds is served over that connection
 //! by its `tools::connect`; a daemon that reaches this one comes the
-//! same way, admitted as any client is, through every provider this
-//! daemon accepts on. The records live in the one Postgres
+//! same way, admitted as any client is, through every provider whose
+//! record says this daemon accepts on it. The records live in the one Postgres
 //! the daemon runs on — its own, started beside it, or a remote one,
 //! as its `daemon.yaml` says, [`config`] — in a schema of the daemon's,
 //! [`store`]; who a

@@ -2,7 +2,8 @@
 //! as the caller on each.
 //!
 //! A provider is a record: its identity, the direction its connection
-//! is made in, whether it is enabled — read by every connection from
+//! is made in, whether it is enabled, and what the daemon holds open on
+//! its connection — read by every connection from
 //! the [`ProviderBook`]. Once connected, a provider is served the same
 //! whichever end dialled. An enabled, outgoing one is dialled: [`dial`]
 //! is one task while its record says so, connecting to its address,
@@ -11,7 +12,7 @@
 //! seconds after the connection ends or the dial fails — as the
 //! provider's own dial does; [`dial_all`] starts one per such record
 //! at start, and [`reconcile`] is how a change to a record takes
-//! effect. An enabled, incoming one that dials the daemon is admitted
+//! effect on its connection and its dial. An enabled, incoming one that dials the daemon is admitted
 //! at the handshake by its identity and its source address, in
 //! [`serve::connection`](crate::serve::connection). On either,
 //! [`attach`] is the one shape: the socket split into the SDK's
@@ -27,13 +28,23 @@
 //! the socket ends, and the slot given back. One connection per
 //! identity: the slot is reserved before the info is asked, reading
 //! as no connection until the answer fills it, and a newcomer that
-//! collides is dropped without a word. On every connection used, when
-//! the configuration says so, the daemon [`accept`]s other daemons
-//! through the provider: one `daemons::accept` scope for the
-//! connection's life, each connection the provider announces opened
-//! by its own handshake and served by the [`DaemonAcceptor`] as the
-//! account it admits. [`url`] is the one rule for a dialled address as
-//! a URL. [`Error`] is why an attach did not happen.
+//! collides is dropped without a word. On every connection used, the
+//! daemon holds three scopes open as the provider's record says, each
+//! independent of the other two — its [`Features`], made what the
+//! record says by [`sync`] when the provider connects and after every
+//! edit of the record, with the connection left as it stands: the
+//! provider's `daemons::announce`, by which the daemon is in the
+//! provider's list with the record's `announcement`; its
+//! `daemons::accept`, when the record says `accept_daemons` — the
+//! daemon [`accept`]s other daemons through the provider, each
+//! connection the provider announces opened by its own handshake and
+//! served by the [`DaemonAcceptor`] as the account it admits; and its
+//! `daemons::listen`, when the record says `messageable` — see
+//! [`listening`](crate::listening). A connection is closed for its
+//! record only when the record is disabled, or edited so that its `ips`
+//! no longer admit the connection's [`Source`]. [`url`] is the one rule
+//! for a dialled address as a URL. [`Error`] is why an attach did not
+//! happen.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -45,6 +56,7 @@ mod book;
 mod capacity;
 mod dial;
 mod error;
+mod features;
 mod url;
 
 pub use accept::*;
@@ -54,4 +66,5 @@ pub use book::*;
 pub use capacity::*;
 pub use dial::*;
 pub use error::*;
+pub use features::*;
 pub use url::*;

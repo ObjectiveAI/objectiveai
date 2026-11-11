@@ -50,7 +50,9 @@ pub async fn report(daemon: &Daemon, record: &store::providers::Record) -> Provi
     Provider {
         identity: record.identity.clone(),
         direction: record.direction.clone(),
-        listable: record.listable,
+        announcement: record.announcement.clone(),
+        accept_daemons: record.accept_daemons,
+        messageable: record.messageable,
         enabled: record.enabled,
         description: record.description.clone(),
         tags: record.tags.clone(),

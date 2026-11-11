@@ -1,9 +1,9 @@
-//! Listings: the identities listable through the daemon's
+//! Listings: the identities announced on the daemon's
 //! connected providers, merged.
 //!
 //! Each provider answers its own `daemons::list`: the identities
-//! connected to it whose authorization frame carried the listable flag
-//! `1`. The daemon holds exactly one such listing per connected
+//! connected to it that hold its `daemons::announce` open, each with
+//! its announcement. The daemon holds exactly one such listing per connected
 //! provider while anything watches — opened at the first watcher,
 //! stopped after the last — shared by every watcher, and merges them
 //! into one item per identity, the providers it was seen on listed

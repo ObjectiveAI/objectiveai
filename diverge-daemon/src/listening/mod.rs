@@ -3,10 +3,11 @@
 //!
 //! Each provider answers its own `daemons::listen`: the messages sent
 //! to the daemon's identity there. The daemon holds exactly one such
-//! listen per connected provider while any client listens — opened at
-//! the first listener, cancelled after the last — and takes every
+//! listen on every connected provider whose record says `messageable`
+//! — opened and ended by [`sync`](crate::providers::sync), as the
+//! record says, whether or not any client listens — and takes every
 //! message into one ring that every listener reads at its own pace:
-//! [`Listening`], read by
+//! [`Listening`], fed by [`listen`] and read by
 //! [`providers::daemons::listen`](crate::serve::providers::daemons::listen).
 //!
 //! Its own files are flattened into it, so everything is named

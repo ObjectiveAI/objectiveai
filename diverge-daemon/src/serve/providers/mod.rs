@@ -3,7 +3,9 @@
 //! The providers are records: [`add`], [`edit`], [`delete`],
 //! [`enable`], [`disable`], [`tag`] and [`untag`] change them, each
 //! change read into the [`ProviderBook`](crate::providers::ProviderBook)
-//! and taking effect through [`reconcile`](crate::providers::reconcile);
+//! and taking effect through [`reconcile`](crate::providers::reconcile)
+//! — and an edit's, on the connection as it stands, through
+//! [`sync`](crate::providers::sync);
 //! [`get`] and [`list`] report them, each with where the daemon stands
 //! with it now; [`daemons`] serves the requests over the daemons
 //! reached through them: list, listen and message.

@@ -24,8 +24,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `add` grant; `Exists` for an identity a record
-/// has; else the record kept, its tags sorted, the book read again, an
-/// enabled outgoing one dialled, and the lists told.
+/// has; else the record kept — `accept_daemons` absent kept as `true` —
+/// its tags sorted, the book read again, an enabled outgoing one
+/// dialled, and the lists told. No connection is the provider's yet:
+/// what the record says is held open on it is opened when it connects,
+/// by [`sync`](providers::sync).
 async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut conn = daemon.store.acquire().await?;
     let Some(standing) = Standing::of(&mut conn, who).await? else {
@@ -37,7 +40,9 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     let record = store::providers::Record {
         identity: frame.identity,
         direction: frame.direction,
-        listable: frame.listable,
+        announcement: frame.announcement,
+        accept_daemons: frame.accept_daemons.unwrap_or(true),
+        messageable: frame.messageable,
         enabled: frame.enabled.unwrap_or(true),
         description: frame.description.unwrap_or_default(),
         tags: store::tags::with(&[], &frame.tags),

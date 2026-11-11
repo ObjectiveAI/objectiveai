@@ -22,7 +22,7 @@ use crate::store::daemons::Record;
 ///    routes to the record's remote that its
 ///    [`Routes`](diverge_sdk::daemon::endpoints::daemons::Routes) let
 ///    through are its candidates: none is [`Fail::NoProvider`], since a
-///    remote is reached only while it is listable on a connected
+///    remote is reached only while it is announced on a connected
 ///    provider by a route its record allows, and no route the filters
 ///    refuse is ever a fallback.
 /// 3. **One at random.** One candidate is chosen at random — what a

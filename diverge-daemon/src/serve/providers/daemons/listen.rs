@@ -1,5 +1,5 @@
 //! Listening for the messages sent to the daemon, through every
-//! connected provider.
+//! connected provider it is messageable on.
 
 use std::sync::Arc;
 
@@ -28,12 +28,15 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 ///
 /// 1. **Judged.** One `Forbidden` with no providers `listen` grant
 ///    over any provider.
-/// 2. **Listening.** The scope is a listener of the daemon's
-///    [`Listening`](crate::listening::Listening) from before its first
-///    read to its end, however it ends: every connected provider's
-///    listen open while it is in.
+/// 2. **Listening.** The scope reads the daemon's
+///    [`Listening`](crate::listening::Listening): the ring fed by the
+///    listen the daemon holds on every connected provider whose record
+///    says `messageable`. The scope opens no provider's listen and ends
+///    none; a daemon messageable on no connected provider is one whose
+///    listeners hear nothing.
 /// 3. **From its entering.** It hears the messages taken after it
-///    entered, and none before.
+///    entered — after the newest number as it began — and none before,
+///    though the ring keeps them.
 /// 4. **At its own pace.** At every newer number it sends the messages
 ///    after the last it sent, in order, each as the client takes the
 ///    one before; one that fell out of the ring meanwhile is first told
@@ -60,16 +63,15 @@ async fn serve(scope: &ScopeHandle, who: Who, daemon: &Arc<Daemon>) -> Result<()
         reply::reply(scope, &Frame::Forbidden).await;
         return Ok(());
     }
-    // Rules 2 and 3: the newest number subscribed to before the
-    // listener enters, so nothing taken after its number is unheard.
+    // Rules 2 and 3: the newest number read as it is subscribed to, so
+    // nothing taken after its number is unheard.
     let listening = &daemon.live.listening;
     // Rule 6: subscribed to the words before the reach is read, so no
     // change after the read goes unheard.
     let mut words = daemon.live.changes();
     let mut reached = judge::providers_daemons::reached(&standing, Over::Listen, &daemon.providers.all());
     let mut latest = listening.latest();
-    let listener = listening.enter(daemon).await;
-    let mut cursor = listener.cursor;
+    let mut cursor = *latest.borrow_and_update();
     loop {
         // Rule 4.
         let (skipped, messages) = listening.after(cursor).await;

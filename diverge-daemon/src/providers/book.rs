@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use diverge_sdk::shared::Identity;
+use diverge_sdk::shared::description::Description;
 
 use crate::store::{self, Store, providers};
 
@@ -20,6 +21,12 @@ use crate::store::{self, Store, providers};
 /// 2. **Enabled and in its direction.** A connection is admitted only
 ///    for an enabled record, in the record's direction — see
 ///    [`admits`](Self::admits) and [`dials`](Self::dials).
+/// 3. **Enabled, for what is held open.** What the daemon holds open
+///    on a provider's connection — see [`sync`](super::sync) — is an
+///    enabled record's word alone: [`announcement`](Self::announcement),
+///    [`accepts_daemons`](Self::accepts_daemons) and
+///    [`messageable`](Self::messageable) each read as nothing wanted
+///    for a record that is disabled, or gone.
 #[derive(Debug)]
 pub struct ProviderBook {
     records: ArcSwap<Vec<providers::Record>>,
@@ -77,8 +84,23 @@ impl ProviderBook {
         record.direction.dialled().map(str::to_string)
     }
 
-    /// Whether the daemon is listable to `identity`.
-    pub fn listable(&self, identity: &Identity) -> bool {
-        self.records.load().iter().any(|record| &record.identity == identity && record.enabled && record.listable)
+    /// What the daemon announces itself with on `identity`, when its
+    /// record is enabled and has an announcement — rule 3.
+    pub fn announcement(&self, identity: &Identity) -> Option<Description> {
+        let records = self.records.load();
+        let record = records.iter().find(|record| &record.identity == identity && record.enabled)?;
+        record.announcement.clone()
+    }
+
+    /// Whether the daemon accepts other daemons through `identity`:
+    /// its record enabled, and saying so — rule 3.
+    pub fn accepts_daemons(&self, identity: &Identity) -> bool {
+        self.records.load().iter().any(|record| &record.identity == identity && record.enabled && record.accept_daemons)
+    }
+
+    /// Whether the daemon listens for messages on `identity`: its
+    /// record enabled, and saying so — rule 3.
+    pub fn messageable(&self, identity: &Identity) -> bool {
+        self.records.load().iter().any(|record| &record.identity == identity && record.enabled && record.messageable)
     }
 }
