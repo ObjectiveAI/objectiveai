@@ -24,7 +24,7 @@ pub enum Command {
     #[command(subcommand)]
     Identities(Identities),
     /// Work on this host's accounts at `identity.diverge.network`,
-    /// Diverge's own OpenID Connect provider: see
+    /// Diverge's own OpenID Connect provider, and ask it as one: see
     /// [`identity_diverge_network`](crate::cli::identity_diverge_network).
     #[command(name = "identity.diverge.network", subcommand)]
     IdentityDivergeNetwork(IdentityDivergeNetwork),

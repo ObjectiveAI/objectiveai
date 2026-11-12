@@ -37,7 +37,8 @@ pub enum Error {
     /// ended before it left.
     Detach(detach::Error),
     /// The root's accounts at `identity.diverge.network` could not be
-    /// opened or listed, or a login could not begin.
+    /// opened or listed, a login could not begin, or a request made as
+    /// one was refused.
     Accounts(identity_diverge_network::Error),
 }
 

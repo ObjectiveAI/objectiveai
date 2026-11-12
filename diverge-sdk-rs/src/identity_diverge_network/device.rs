@@ -1,4 +1,4 @@
-//! A request to a provider's device or token endpoint, and its answer.
+//! A request to an issuer's device or token endpoint, and its answer.
 
 use reqwest::header::ACCEPT;
 use serde::de::DeserializeOwned;
@@ -10,7 +10,7 @@ use super::Error;
 pub(super) enum Answer<T> {
     /// The answer asked for.
     Answered(T),
-    /// The refusal: its error code, and what the provider said of it.
+    /// The refusal: its error code, and what the issuer said of it.
     Refused {
         /// The error code.
         code: String,
