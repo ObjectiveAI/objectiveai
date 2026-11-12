@@ -1,6 +1,6 @@
 ---
 name: diverge-config
-description: Configuring and operating a Diverge installation's root. Load it to find or choose the config root (`--config`, `DIVERGE_CONFIG`, `./.diverge`, `~/.diverge`); to read or change `daemon.yaml`, `provider.yaml`, `issuer.yaml`, `cli.yaml` or `viewer.yaml` with `diverge <program> config get|set|patch`; to add a daemon or an account to the CLI; to sign an identity in, list or remove one (`diverge identities login --password-stdin`, `diverge run identities …` on the daemon's host); to manage the issuer's subjects, passwords and signing key (`diverge issuer identities add|list|remove|password`, `diverge issuer rotate`); to start or stop the daemon, provider or issuer; to look up ports, admins, `idle_seconds`, registries, volume stores; or to work out what must be restarted after a change and why a connection or handshake is refused.
+description: Configuring and operating a Diverge installation's root. Load it to find or choose the config root (`--config`, `DIVERGE_CONFIG`, `./.diverge`, `~/.diverge`); to read or change `daemon.yaml`, `provider.yaml`, `issuer.yaml`, `cli.yaml` or `viewer.yaml` with `diverge <program> config get|set|patch`; to add a daemon or an account to the CLI; to sign an identity in, list or remove one (`diverge identities login`, by device code, `diverge run identities …` on the daemon's host); to manage the issuer's subjects, passwords and signing key (`diverge issuer identities add|list|remove|password`, `diverge issuer rotate`); to start or stop the daemon, provider or issuer; to look up ports, admins, `idle_seconds`, registries, volume stores; or to work out what must be restarted after a change and why a connection or handshake is refused.
 ---
 
 # Diverge: the root, the documents, identities, start and stop
@@ -147,35 +147,37 @@ on a root share `<root>/identities/`. No command prints a token.
 ### login
 
 ```bash
-# How an agent signs in at Diverge's own issuer: no browser, password on stdin.
-printf '%s' "$PASSWORD" | diverge identities login \
-  --issuer http://127.0.0.1:14981 --subject admin --client-id diverge --password-stdin
-# → {"issuer":"http://127.0.0.1:14981","subject":"admin"}
+diverge identities login --issuer https://identity.diverge.network --subject github.12345.admin --client-id diverge
+# → {"user_code":"…","verification_uri":"…","verification_uri_complete":"…","expires_in":…}   then the command ends
 ```
+
+The login is the device authorization grant (RFC 8628), and it is the only login there is.
 
 | Flag | Meaning |
 |---|---|
-| `--issuer` (required) | The issuer, exactly as its discovery document names it. `https`, or `http` on loopback. |
-| `--subject` (required) | The subject to sign in as. A grant as any other subject writes nothing and fails. |
-| `--client-id` (required) | The public client to sign in as. At Diverge's own issuer it is always `diverge`. |
-| `--password-stdin` | Read the password from stdin (to its end, trailing newline dropped; empty is refused) and sign in with no browser. This is the mode for an agent, and it is specific to issuers that accept the password as Basic credentials at the authorization endpoint, as Diverge's does. |
-| *(neither mode flag)* | OpenID Connect Authorization Code flow: prints `{"authorization_uri":…}`, opens the browser there, and waits for the redirect on a loopback port of this host. Needs a person. |
-| `--device` | Device authorization grant: prints `{"user_code","verification_uri","verification_uri_complete","expires_in"}` and waits for a person to approve it in any browser. For external issuers that offer it; Diverge's own issuer has no device flow. |
-| `--no-browser` | Do not open a browser; the printed line names the page. |
+| `--issuer` (required) | The issuer, exactly as its discovery document names it. `https`, or `http` on loopback. It must offer a device authorization endpoint. |
+| `--subject` (required) | The subject to sign in as. An approval as any other subject writes nothing. |
+| `--client-id` (required) | The public client to sign in as. |
 | `--scope` | Space-separated; `openid` and `offline_access` are added if missing. Absent, those two. |
 | `--resource` | RFC 8707 `resource` for the access token. Rarely needed. |
 
 Facts and pitfalls:
 
+- **The command ends as soon as the code is printed.** It does not wait for the approval. A background
+  process of the CLI keeps polling the issuer until the code is approved, denied or expires, and prints
+  nothing.
+- **Check the outcome with `diverge identities list`.** The identity appears once the login was approved as
+  the subject named. If the code was denied or expired, or approved as another subject, nothing is written
+  and nothing is reported: run `login` again.
+- No browser is opened. Approve the printed code at the issuer.
 - A login replaces an identity already there, signed out or not. Logging in again is how a signed-out identity
   is repaired.
-- The interactive modes block until a person acts. Do not run them unattended; use `--password-stdin`, or run
-  with `--no-browser` and give the printed URL to the user.
-- Pass the password by stdin from a variable or file. Never put it on the command line or in a document.
-- The issuer must be reachable (its discovery document is fetched): start the issuer first.
-- An identity unused for longer than the issuer's refresh-token lifetime (30 days by default at Diverge's
-  issuer), or whose refresh tokens were revoked, is *signed out*: its file stays, handshakes fail, and a new
-  login fixes it.
+- A second `login` of the same identity while one is still waiting waits its turn behind the first.
+- The issuer must be reachable (its discovery document is fetched).
+- An identity whose refresh token was ended, or went unused past the issuer's refresh-token lifetime, is
+  *signed out*: its file stays, handshakes fail, and a new login fixes it.
+- Diverge's own local issuer (`diverge issuer …`) has no device authorization endpoint, so nothing can be
+  signed in at it any more.
 
 ### list, remove
 
@@ -200,22 +202,22 @@ diverge run identities list                                   # {"listed":[{"iss
 diverge run identities list --issuer http://127.0.0.1:14981   # also --subject; body: issuers, subjects, all_tags, any_tags
 diverge run identities tag   '{"identity":{"issuer":"http://127.0.0.1:14981","subject":"daemon-a"},"tags":["prod"]}'   # "tagged" | "not_found"
 diverge run identities untag '{"identity":{"issuer":"http://127.0.0.1:14981","subject":"daemon-a"},"tags":["prod"]}'   # "untagged" | "not_found"
-printf '%s' "$PASSWORD" | diverge run identities login \
-  --issuer http://127.0.0.1:14981 --subject daemon-a --client-id diverge --password-stdin    # {"signed_in":{…}}
+diverge run identities login --issuer https://identity.diverge.network --subject github.12345.daemon-a --client-id diverge
+# {"pending":{"user_code":…,"verification_uri":…,"expires_in":…}}   then the command ends
 ```
 
 - `list` is one snapshot (`{"listed":[…]}`), not a stream; there is no `--watch`. Tags exist only so grants can
   reach some identities and not others (skill `diverge-access`).
-- `login` takes `--issuer --subject --client-id [--scope --resource --no-browser --password-stdin]`, or the same
-  members in a BODY (`issuer`, `subject`, `client_id`, `scope`, `resource`, `password`). With a password the
-  daemon signs in on its own host and answers the outcome. Without one it starts a device login and prints
-  `{"pending":{"user_code",…}}`, then the outcome when a person approves. There is no browser-redirect login
-  here.
-- Outcomes: `{"signed_in":{…}}`; `"rejected"` (the issuer refused the subject and password); `"denied"` and
-  `"expired"` (device login not approved); `{"other_subject":{…}}` (approved as someone else; nothing written);
-  `"held"` (another login or reader holds that identity's lock right now; try again); `"forbidden"`;
-  `{"error":…}` (issuer unreachable, or the identity could not be written). Ending the
-  command ends the login and writes nothing.
+- `login` takes `--issuer --subject --client-id [--scope --resource]`, or the same members in a BODY
+  (`issuer`, `subject`, `client_id`, `scope`, `resource`). The daemon starts a device login on its own host
+  and the command prints `{"pending":{"user_code",…}}` and ends. A background process of the CLI keeps the
+  login alive until the code is approved, denied or expires. Check the outcome with
+  `diverge run identities list`.
+- What the command can print before it ends: `{"pending":{…}}` (the code); or, where the login could not
+  begin, `"held"` (another login or reader holds that identity's lock right now; try again), `"forbidden"`,
+  or `{"error":…}` (issuer unreachable, or it has no device authorization endpoint).
+- What is never printed: how the login ended. Approved as the subject named, the identity is written;
+  denied, expired or approved as someone else, nothing is written.
 - Signing an identity in does not make the daemon present it: which identity the daemon presents is
   still `daemon.yaml` `identity`, read at start.
 

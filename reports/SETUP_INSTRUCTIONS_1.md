@@ -197,18 +197,19 @@ Every program uses identities from **its own root**:
 - root A needs `admin` (for the CLI and world A), `provider`, and `daemon-a`
 - root B needs `daemon-b` and `admin` (for world B)
 
-```bash
-login() {  # login <root> <subject>
-  printf '%s' "pw-$2-CHANGE-ME" | diverge --config "$1" identities login \
-    --issuer "$ISS" --subject "$2" --client-id diverge --password-stdin
-}
-login "$A" admin; login "$A" provider; login "$A" daemon-a
-login "$B" daemon-b; login "$B" admin
-diverge --config "$A" identities list   # admin, daemon-a, provider
-diverge --config "$B" identities list   # admin, daemon-b
-```
+> **This step does not work at this revision.** The CLI and the daemon now sign in by device code only
+> (`diverge identities login` prints a code and ends; the wait goes on in the background). The local issuer
+> this guide sets up in step 2 has no device authorization endpoint and takes passwords only, so nothing can
+> be signed in at it. Until `identity.diverge.network` serves, or the local issuer gains a device endpoint,
+> the identities this guide needs cannot be made, and the steps after this one cannot be followed.
 
-Without `--password-stdin`, `login` opens a browser instead; `--device` uses the device-code flow.
+The command, for an issuer that offers the device flow:
+
+```bash
+diverge --config "$A" identities login --issuer "$ISS" --subject admin --client-id diverge
+# {"user_code":…,"verification_uri":…,"expires_in":…}   then the command ends; approve the code at the issuer
+diverge --config "$A" identities list   # the identity is listed once the login was approved
+```
 
 ### Step 4: write the documents
 

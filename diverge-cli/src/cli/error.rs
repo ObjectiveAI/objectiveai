@@ -7,6 +7,7 @@ use diverge_issuer::{password, signing};
 use diverge_sdk::identities;
 
 use crate::config;
+use crate::detach;
 use crate::document;
 use crate::lifecycle;
 use crate::run;
@@ -44,6 +45,9 @@ pub enum Error {
     Password(password::Error),
     /// The signing key could not be rotated: why.
     Rotate(String),
+    /// A command that leaves its wait behind could not be relayed, or
+    /// ended before it left.
+    Detach(detach::Error),
 }
 
 impl fmt::Display for Error {
@@ -62,6 +66,7 @@ impl fmt::Display for Error {
             Error::Signing(error) => write!(f, "{error}"),
             Error::Password(error) => write!(f, "{error}"),
             Error::Rotate(why) => write!(f, "the signing key was not rotated: {why}"),
+            Error::Detach(error) => write!(f, "{error}"),
         }
     }
 }
@@ -87,6 +92,7 @@ impl std::error::Error for Error {
             Error::Signing(error) => Some(error),
             Error::Password(error) => Some(error),
             Error::Rotate(_) => None,
+            Error::Detach(error) => Some(error),
         }
     }
 }
@@ -94,6 +100,12 @@ impl std::error::Error for Error {
 impl From<config::Error> for Error {
     fn from(error: config::Error) -> Self {
         Error::Config(error)
+    }
+}
+
+impl From<detach::Error> for Error {
+    fn from(error: detach::Error) -> Self {
+        Error::Detach(error)
     }
 }
 

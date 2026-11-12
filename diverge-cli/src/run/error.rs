@@ -4,6 +4,7 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+use crate::detach;
 use crate::jq;
 
 /// What [`run`](super::run) fails with. What a request takes and
@@ -44,10 +45,9 @@ pub enum Error {
     Jq(jq::Error),
     /// Stdout could not be written.
     Stdout(io::Error),
-    /// Stdin could not be read.
-    Stdin(io::Error),
-    /// The password on stdin was empty.
-    EmptyPassword,
+    /// A command that leaves its wait behind could not be relayed, or
+    /// ended before it left.
+    Detach(detach::Error),
     /// The request was not complete within the seconds given, and
     /// was abandoned.
     Timeout(u64),
@@ -77,8 +77,7 @@ impl fmt::Display for Error {
             Error::Json(error) => write!(f, "a frame could not be written as JSON: {error}"),
             Error::Jq(error) => write!(f, "{error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
-            Error::Stdin(error) => write!(f, "stdin could not be read: {error}"),
-            Error::EmptyPassword => f.write_str("the password on stdin was empty"),
+            Error::Detach(error) => write!(f, "{error}"),
             Error::Timeout(seconds) => {
                 write!(f, "the request was not complete within {seconds} seconds")
             }
@@ -94,9 +93,9 @@ impl std::error::Error for Error {
             Error::Json(error) => Some(error),
             Error::Io { source, .. } => Some(source),
             Error::Jq(error) => Some(error),
-            Error::Stdout(error) | Error::Stdin(error) => Some(error),
+            Error::Stdout(error) => Some(error),
+            Error::Detach(error) => Some(error),
             Error::Rejected
-            | Error::EmptyPassword
             | Error::Identities(_)
             | Error::Dial(_)
             | Error::Handshake(_)

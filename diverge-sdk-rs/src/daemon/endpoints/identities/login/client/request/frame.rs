@@ -7,10 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 
 /// Ask the daemon to sign an identity in on its host, as `diverge
-/// identities login` signs one in on the host it runs on: by its
-/// password where one is given — OpenID Connect's Authorization Code
-/// login, the password sent as Basic credentials and the redirect read,
-/// no browser — else by the device authorization grant.
+/// identities login` signs one in on the host it runs on: by the
+/// device authorization grant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
@@ -29,12 +27,6 @@ pub struct Frame {
     /// issuer's own choice.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource: Option<String>,
-    /// The identity's password: the login is the Authorization Code
-    /// login with no browser, the password the authorization request's
-    /// Basic credentials. Absent, the device authorization grant.
-    /// The daemon's command log keeps it redacted.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,

@@ -14,8 +14,8 @@
 //! `local` on this host at the daemon's own default port, with no
 //! account. No token is in the document: every identity is under the
 //! root's `identities/`, which the command `identities` signs in — by
-//! OpenID Connect's Authorization Code flow, the browser opened at the
-//! issuer, or by a device code, or a password — lists and removes, and no
+//! a device code, the command ended once the code is printed and its
+//! wait left behind, see [`detach`] — lists and removes, and no
 //! command prints a token.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
@@ -41,6 +41,7 @@
 pub mod arguments;
 pub mod cli;
 pub mod config;
+pub mod detach;
 pub mod document;
 pub mod jq;
 pub mod lifecycle;

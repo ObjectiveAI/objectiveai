@@ -228,22 +228,24 @@ diverge run identities list '{"issuers":["http://127.0.0.1:14981"],"any_tags":["
 diverge run identities tag   '{"identity":{"issuer":"…","subject":"daemon-a"},"tags":["peer"]}'   # "tagged" | "not_found"
 diverge run identities untag '{"identity":{"issuer":"…","subject":"daemon-a"},"tags":["peer"]}'   # "untagged"
 
-# Sign an identity in on the daemon's host, by password (no browser; how an agent does it):
-printf '%s' "$PASSWORD" | diverge run identities login --password-stdin \
-  --issuer http://127.0.0.1:14981 --subject daemon-a --client-id diverge
-# -> {"signed_in":{"issuer":…,"subject":…}} | "rejected" | {"other_subject":{…}} | "held" | "forbidden" | {"error":…}
-
-# Or by device code: prints {"pending":{"user_code":…,"verification_uri":…,"expires_in":…}} and waits
-diverge run identities login --no-browser --issuer http://127.0.0.1:14981 --subject daemon-a --client-id diverge
-# -> then {"signed_in":…} | "denied" | "expired" | {"other_subject":…} | {"error":…}
+# Sign an identity in on the daemon's host, by device code. The command prints the code and ends;
+# the wait for its approval goes on in the background.
+diverge run identities login --issuer https://identity.diverge.network --subject github.12345.daemon-a --client-id diverge
+# -> {"pending":{"user_code":…,"verification_uri":…,"expires_in":…}}   then the command ends
+# -> or, refused before it had a code: "held" | "forbidden" | {"error":…}
+# Approve the code at the issuer, then check that it worked:
+diverge run identities list
 ```
 
 - `identities list` is a snapshot: one `listed` answer holding the array, then the end (no `--watch`).
 - `login` flags stand in for body members (`--issuer`, `--subject`, `--client-id`, `--scope`, `--resource`);
-  a JSON body with the same members works too. `--password-stdin` reads the password from stdin; the
-  daemon's command log keeps it redacted. The built-in public client of Diverge's own issuer is `diverge`.
+  a JSON body with the same members works too. The device code is the only login there is: no password,
+  and no browser is opened.
+- The command ends once `pending` is printed. A background process of the CLI keeps the connection the
+  login lives on until the code is approved, denied or expires, and prints nothing. The outcome is read
+  from `identities list`: the identity is there once the login was approved as the subject named.
 - A login replaces an identity already on the host. `held` means another login or a reader holds the
-  identity's lock; nothing was asked of the issuer. Ending the command ends the login and writes nothing.
+  identity's lock; nothing was asked of the issuer.
 - Signing an identity in does not make the daemon present it: which identity the daemon presents
   stays `daemon.yaml`'s `identity`.
 - Grants: `{"identities":["login"]}` for an identity not yet on the host;
