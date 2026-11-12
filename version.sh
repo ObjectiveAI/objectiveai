@@ -109,7 +109,6 @@ CARGO_TOMLS=(
   diverge-provider/Cargo.toml
   diverge-postgres/Cargo.toml
   diverge-daemon/Cargo.toml
-  diverge-issuer/Cargo.toml
   diverge-cli/Cargo.toml
 )
 

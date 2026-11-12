@@ -41,7 +41,7 @@ done
 [[ -n "$config" && -n "$profile" ]] || usage
 
 workspace="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for crate in diverge-postgres diverge-container-proxy diverge-daemon diverge-provider diverge-issuer diverge-cli; do
+for crate in diverge-postgres diverge-container-proxy diverge-daemon diverge-provider diverge-cli; do
     echo "== $crate"
     "$workspace/$crate/install.sh" "$config" "$profile"
 done

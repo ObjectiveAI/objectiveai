@@ -1,9 +1,9 @@
-//! The `daemon`, `provider` and `issuer` commands: the program on
-//! this host started, or stopped.
+//! The `daemon` and `provider` commands: the program on this host
+//! started, or stopped.
 //!
-//! `diverge daemon start|stop`, `diverge provider start|stop`,
-//! `diverge issuer start|stop`: the [`Program`] is the daemon's, the
-//! provider's or the issuer's own binary beside this one, and the root is the CLI's, handed to the program as
+//! `diverge daemon start|stop`, `diverge provider start|stop`: the
+//! [`Program`] is the daemon's or the provider's own binary beside
+//! this one, and the root is the CLI's, handed to the program as
 //! `--config <root>` so that both run on the one root this command
 //! found.
 //!
@@ -15,16 +15,16 @@
 //!   with the holder's id; a program that exits first is reported
 //!   with its log.
 //! - [`stop`] puts `POST /stop` to the program's own port over a
-//!   loopback socket — hand written over a TCP stream, as the
-//!   issuer's `POST /rotate` is too, see [`http::post`], the one file
-//!   here not flattened, since its `stop` is not [`stop`] — and ends
+//!   loopback socket — hand written over a TCP stream, see
+//!   [`http::post`], the one file here not flattened, since its
+//!   `stop` is not [`stop`] — and ends
 //!   once the root's lock is free, polling it every 200 ms: the
 //!   server's close is the accept and the lock let go is the
 //!   completion, the whole of the program's teardown. The daemon's
 //!   port is the default daemon's in `cli.yaml`, which must be on
 //!   this host; the provider's is `provider.yaml`'s, read as the
-//!   provider reads it, and the issuer's `issuer.yaml`'s — see
-//!   [`port`]. `daemon.yaml` is never consulted.
+//!   provider reads it — see [`port`]. `daemon.yaml` is never
+//!   consulted.
 //!
 //! Neither command takes an account or an identity: the route is
 //! honoured by the program for any loopback peer, and the lock file
