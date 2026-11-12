@@ -7,7 +7,7 @@ use serde_json::json;
 
 use super::Error;
 use super::print::print;
-use crate::arguments::{Accounts, IdentityDivergeNetwork, Logins, RefreshTokens, Subjects};
+use crate::arguments::{Accounts, IdentityDivergeNetwork, RefreshTokens, Subjects};
 use crate::detach;
 
 /// Do `command`, printing one JSON line per answer. The rules:
@@ -42,11 +42,11 @@ use crate::detach;
 ///    account of whoever approved — replacing one already there — and
 ///    `accounts list` shows it; any other ending writes nothing, and
 ///    there is nothing to show.
-/// 7. **The requests of `identity.diverge.network`** — `logins show`,
-///    `subjects list`, `refresh-tokens list` and `end` — are each one
-///    request made as the account named, and print what it answers:
-///    one line for a login, one a subject, one a refresh token, and
-///    `{"ended":…}` for one ended. A refusal is the error, with its
+/// 7. **The requests of `identity.diverge.network`** — `subjects
+///    list`, `refresh-tokens list` and `end` — are each one request
+///    made as the account named, and print what it answers: one line
+///    a subject, one a refresh token, and `{"ended":…}` for one
+///    ended. A refusal is the error, with its
 ///    status, its code and what it said.
 /// 8. **An account that cannot ask** — not on the host, or one its
 ///    issuer no longer answers for — is the error, and names what to
@@ -92,10 +92,6 @@ pub async fn run(root: &Path, command: IdentityDivergeNetwork) -> Result<(), Err
             Ok(())
         }
         // Rule 7.
-        IdentityDivergeNetwork::Logins(Logins::Show { issuer, id, user_code }) => {
-            let login = accounts.waiting(&Account { issuer, id }, &user_code).await?;
-            print(&[json!(login)]).await
-        }
         IdentityDivergeNetwork::Subjects(Subjects::List { issuer, id }) => {
             let lines: Vec<_> = accounts.subjects(&Account { issuer, id }).await?.into_iter().map(|subject| json!(subject)).collect();
             print(&lines).await

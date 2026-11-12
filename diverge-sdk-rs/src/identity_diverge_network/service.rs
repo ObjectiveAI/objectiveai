@@ -12,24 +12,6 @@ use super::{Account, Accounts, Error};
 /// The header that names the issuer the account's token is from.
 pub const ISSUER_HEADER: &str = "diverge-issuer";
 
-/// A device's login at `identity.diverge.network` that waits to be
-/// decided: what its owner is shown of it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Login {
-    /// The login's user code.
-    pub user_code: String,
-    /// The address the device asked from.
-    pub ip: String,
-    /// The `User-Agent` the device asked with, where it sent one.
-    pub user_agent: Option<String>,
-    /// The scope the login grants.
-    pub scope: String,
-    /// When the device asked, in seconds since the Unix epoch.
-    pub created: i64,
-    /// When the login expires.
-    pub expires: i64,
-}
-
 /// One subject of an account's.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Subject {
@@ -74,13 +56,6 @@ struct RefreshTokens {
 }
 
 impl Accounts {
-    /// The login whose user code is `user_code`, as it waits: `GET
-    /// /device/{user_code}`. One that does not wait — no login's,
-    /// decided, expired — is [`Error::Service`], `404 not_found`.
-    pub async fn waiting(&self, account: &Account, user_code: &str) -> Result<Login, Error> {
-        self.ask(account, Method::GET, &["device", user_code]).await
-    }
-
     /// Every subject of `account`'s that is signed in somewhere, by
     /// name: `GET /subjects`.
     pub async fn subjects(&self, account: &Account) -> Result<Vec<Subject>, Error> {
@@ -114,7 +89,7 @@ impl Accounts {
     /// URL asked, the status, and the body of a success. The rules:
     ///
     /// 1. **The path** is `segments`, each one part: what a caller
-    ///    gives — a user code, a name, an id — is escaped as a part,
+    ///    gives — a name, an id — is escaped as a part,
     ///    so none of it can name another route.
     /// 2. **As the account.** `Authorization: Bearer` carries the
     ///    token the account's issuer has `identity.diverge.network`

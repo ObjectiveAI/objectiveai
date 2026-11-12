@@ -15,9 +15,6 @@ pub enum IdentityDivergeNetwork {
     /// and its id.
     #[command(subcommand)]
     Accounts(Accounts),
-    /// The devices' logins that wait to be decided.
-    #[command(subcommand)]
-    Logins(Logins),
     /// An account's subjects.
     #[command(subcommand)]
     Subjects(Subjects),
@@ -58,22 +55,6 @@ pub enum Accounts {
         /// person to open.
         #[arg(long)]
         no_browser: bool,
-    },
-}
-
-/// The devices' logins at `identity.diverge.network`.
-#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
-pub enum Logins {
-    /// A login that waits, by its user code: one JSON line,
-    /// `{"user_code","ip","user_agent","scope","created","expires"}`
-    /// — where the device asked from, and when the login expires.
-    Show {
-        /// The asking account's issuer.
-        issuer: String,
-        /// The asking account's id.
-        id: String,
-        /// The login's user code, as the device printed it.
-        user_code: String,
     },
 }
 
