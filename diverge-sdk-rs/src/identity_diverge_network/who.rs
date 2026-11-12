@@ -6,7 +6,7 @@ use reqwest::header::ACCEPT;
 use serde_json::Value;
 
 use super::account::usable;
-use super::pending::Tokens;
+use super::pending::Answered;
 use super::{Error, Who};
 
 /// The claims of `jwt`, its payload read and nothing checked; `None`
@@ -29,7 +29,7 @@ pub(super) fn claims(jwt: &str) -> Option<Value> {
 ///    `sub` is the user's. No ID token, and one with no `sub`, are
 ///    [`Error::Id`].
 /// 3. An id that cannot name a file is [`Error::Id`].
-pub(super) async fn who(http: &reqwest::Client, who: Who, tokens: &Tokens) -> Result<String, Error> {
+pub(super) async fn who(http: &reqwest::Client, who: Who, tokens: &Answered) -> Result<String, Error> {
     let id = match who {
         // Rule 1.
         Who::Asked(url) => {

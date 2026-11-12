@@ -16,6 +16,10 @@ pub const ISSUER: &str = "https://identity.diverge.network";
 /// Where `identity.diverge.network` is: at its issuer identifier.
 pub const SERVICE: &str = ISSUER;
 
+/// The one client `identity.diverge.network` has: what a login there
+/// signs in as.
+pub const CLIENT_ID: &str = "diverge";
+
 /// The environment variable that says where `identity.diverge.network`
 /// is asked instead: another deployment of it, or one at a desk.
 pub const SERVICE_VARIABLE: &str = "DIVERGE_IDENTITY_URL";

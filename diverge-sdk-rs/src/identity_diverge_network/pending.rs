@@ -8,7 +8,7 @@ use super::device::{Answer, post};
 use super::login::now;
 use super::record::{Record, write};
 use super::who::who;
-use super::{Account, Accounts, Error, Issuer};
+use super::{Account, Accounts, Error, Issuer, Tokens};
 use crate::file_lock;
 
 /// The seconds a `slow_down` adds to the interval, as RFC 8628 §3.5
@@ -20,7 +20,7 @@ const GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
 
 /// A token endpoint's answer, RFC 6749 §5.1.
 #[derive(Debug, Clone, Deserialize)]
-pub(super) struct Tokens {
+pub(super) struct Answered {
     /// The access token.
     pub(super) access_token: Option<String>,
     /// The seconds it is good for, where it expires.
@@ -71,8 +71,8 @@ impl Pending {
             if let Some(secret) = self.issuer.client_secret {
                 form.push(("client_secret", secret));
             }
-            match post::<Tokens>(&self.accounts.http, self.issuer.token_endpoint, &form).await? {
-                Answer::Answered(tokens) => return self.keep(tokens).await,
+            match post::<Answered>(&self.accounts.http, self.issuer.token_endpoint, &form).await? {
+                Answer::Answered(answered) => return self.keep(answered).await,
                 Answer::Refused { code, description } => match code.as_str() {
                     "authorization_pending" => {}
                     "slow_down" => interval = interval.saturating_add(SLOWER),
@@ -84,19 +84,21 @@ impl Pending {
         }
     }
 
-    /// The account `tokens` are, written under its lock — see the
+    /// The account `answered` is, written under its lock — see the
     /// [rules](super), rule 6: taken here, once the account is known,
     /// and let go once the file is written.
-    async fn keep(&self, tokens: Tokens) -> Result<Account, Error> {
-        let id = who(&self.accounts.http, self.issuer.who, &tokens).await?;
+    async fn keep(&self, answered: Answered) -> Result<Account, Error> {
+        let id = who(&self.accounts.http, self.issuer.who, &answered).await?;
         let account = Account { issuer: self.issuer.name.to_string(), id: id.clone() };
         let record = Record {
             issuer: account.issuer.clone(),
             id,
-            access_token: tokens.access_token,
-            access_expires: tokens.expires_in.map(|seconds| now().saturating_add(i64::try_from(seconds).unwrap_or(i64::MAX))),
-            refresh_token: tokens.refresh_token,
-            id_token: tokens.id_token,
+            tokens: Tokens {
+                access_token: answered.access_token,
+                access_expires: answered.expires_in.map(|seconds| now().saturating_add(i64::try_from(seconds).unwrap_or(i64::MAX))),
+                refresh_token: answered.refresh_token,
+                id_token: answered.id_token,
+            },
         };
         let paths = self.accounts.paths(&account);
         let held = file_lock::wait_exclusive(&paths.lock).await.map_err(Error::Lock)?;

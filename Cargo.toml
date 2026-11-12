@@ -13,6 +13,7 @@ members = [
     "diverge-daemon",
     "diverge-cli",
     "diverge-viewer/config",
+    "diverge-tools/identity-diverge-network",
     "diverge-examples/tools/courier",
     "diverge-examples/tools/memory",
     "diverge-examples/tools/taskboard",

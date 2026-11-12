@@ -56,16 +56,23 @@
 //!    [`list`](Accounts::list) reads names and no file, and takes no
 //!    lock.
 //! 7. **A token, good now** — see [`token`](Accounts::token), the one
-//!    way a token is had. One that has expired — Google's, in an hour
-//!    — is renewed by the account's refresh token, and the file
-//!    rewritten. An account its issuer no longer answers for is
+//!    way a token is had from a file. One that has expired — Google's,
+//!    in an hour — is renewed by the account's refresh token, and the
+//!    file rewritten. An account its issuer no longer answers for is
 //!    [`Error::SignedOut`]: its file is kept, and a new login replaces
 //!    it.
-//! 8. **No token is answered** by anything public here:
+//! 8. **No token is answered** by the [`Accounts`]:
 //!    [`list`](Accounts::list) reads names, [`info`](Accounts::info)
 //!    answers what the issuer says of the user, and the requests of
 //!    `identity.diverge.network` — see [`service`](mod@service) —
 //!    answer what it does, none of which holds one.
+//! 9. **A store of one's own.** A program that keeps its accounts
+//!    elsewhere — a tool, in its database — holds each account's
+//!    [`Tokens`] itself, keeps them good with
+//!    [`Tokens::good`] and [`Tokens::renew`] under its store's own
+//!    lock, and asks `identity.diverge.network` with the free
+//!    functions of [`service`](mod@service). What a file's account is
+//!    held to here, such an account is held to there.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -83,6 +90,7 @@ mod record;
 mod service;
 mod subject;
 mod token;
+mod tokens;
 mod who;
 
 pub use account::*;
@@ -92,3 +100,4 @@ pub use issuer::*;
 pub use pending::*;
 pub use service::*;
 pub use subject::*;
+pub use tokens::*;

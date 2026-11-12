@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::issuer::issuer;
-use super::{Account, Accounts, Error};
+use super::{Account, Accounts, Error, Issuer};
 
 /// The header that names the issuer the account's token is from.
 pub const ISSUER_HEADER: &str = "diverge-issuer";
@@ -61,20 +61,76 @@ struct RefreshTokens {
     refresh_tokens: Vec<RefreshToken>,
 }
 
+/// Approve the device's login whose user code is `user_code`, as the
+/// subject named `name` of the account `token` is — a token of
+/// `issuer`'s, the one `identity.diverge.network` takes, see
+/// [`Issuer::presents`](super::Issuer) — at `service`, where
+/// `identity.diverge.network` is: `POST /device/{user_code}/approve`.
+/// The answer is the subject the device is signed in as, whole. A
+/// code that is no waiting login's is [`Error::Service`], `404
+/// not_found`.
+///
+/// The token is the caller's to have: from this module's own files,
+/// by [`Accounts::approve`], or from a store of its own.
+///
+/// Approving a code signs its device in as the subject, whoever's
+/// device it is: this is for a code the caller began itself, a moment
+/// before, and for no other.
+pub async fn approve(http: &reqwest::Client, service: &str, issuer: &Issuer, token: &str, user_code: &str, name: &str) -> Result<String, Error> {
+    let (url, status, body) = request(http, service, issuer, token, Method::POST, &["device", user_code, "approve"], Some(&json!({ "name": name }))).await?;
+    let approved: Approved = serde_json::from_slice(&body).map_err(|_| Error::Answer { url, status, body: String::from_utf8_lossy(&body).into_owned() })?;
+    Ok(approved.subject)
+}
+
+/// One request of `identity.diverge.network`, at `service`, as the
+/// account `token` is, with `json` as its body where there is one:
+/// the URL asked, the status, and the body of a success. The rules:
+///
+/// 1. **The path** is `segments`, each one part: what a caller gives
+///    — a user code, a name, an id — is escaped as a part, so none of
+///    it can name another route.
+/// 2. **As the account.** `Authorization: Bearer` carries `token`,
+///    and [`ISSUER_HEADER`] names the issuer it is from.
+/// 3. **A refusal** is any status that is no success, read as
+///    `identity.diverge.network` writes every one,
+///    `{"error","error_description"}`: [`Error::Service`]. A body that
+///    is not that is [`Error::Answer`].
+/// 4. **Nowhere else.** A client that follows no redirect sends the
+///    token to the address asked and to no other; this module's own
+///    is such a client, and a caller's own should be.
+async fn request(http: &reqwest::Client, service: &str, issuer: &Issuer, token: &str, method: Method, segments: &[&str], json: Option<&Value>) -> Result<(String, u16, Vec<u8>), Error> {
+    // Rule 1.
+    let mut url = reqwest::Url::parse(service).map_err(|_| Error::Address(service.to_string()))?;
+    url.path_segments_mut().map_err(|()| Error::Address(service.to_string()))?.pop_if_empty().extend(segments);
+    // Rule 2.
+    let mut request = http.request(method, url.clone()).bearer_auth(token).header(ISSUER_HEADER, issuer.name).header(ACCEPT, "application/json");
+    if let Some(json) = json {
+        request = request.json(json);
+    }
+    let response = request.send().await.map_err(Error::Http)?;
+    let status = response.status();
+    let body = response.bytes().await.map_err(Error::Http)?.to_vec();
+    if status.is_success() {
+        return Ok((url.to_string(), status.as_u16(), body));
+    }
+    // Rule 3.
+    let refusal: Option<Value> = serde_json::from_slice(&body).ok();
+    match refusal.as_ref().and_then(|refusal| refusal.get("error")).and_then(Value::as_str) {
+        Some(code) => Err(Error::Service {
+            status: status.as_u16(),
+            code: code.to_string(),
+            description: refusal.as_ref().and_then(|refusal| refusal.get("error_description")).and_then(Value::as_str).map(str::to_string),
+        }),
+        None => Err(Error::Answer { url: url.to_string(), status: status.as_u16(), body: String::from_utf8_lossy(&body).into_owned() }),
+    }
+}
+
 impl Accounts {
-    /// Approve the device's login whose user code is `user_code`, as
-    /// `account`'s subject named `name`: `POST
-    /// /device/{user_code}/approve`. The answer is the subject the
-    /// device is signed in as, whole. A code that is no waiting
-    /// login's is [`Error::Service`], `404 not_found`.
-    ///
-    /// Approving a code signs its device in as the subject, whoever's
-    /// device it is: this is for a code the caller began itself, a
-    /// moment before, and for no other.
+    /// [`approve`], as `account`: its token had from its file.
     pub async fn approve(&self, account: &Account, user_code: &str, name: &str) -> Result<String, Error> {
-        let (url, status, body) = self.send(account, Method::POST, &["device", user_code, "approve"], Some(&json!({ "name": name }))).await?;
-        let approved: Approved = serde_json::from_slice(&body).map_err(|_| Error::Answer { url, status, body: String::from_utf8_lossy(&body).into_owned() })?;
-        Ok(approved.subject)
+        let issuer = issuer(&account.issuer)?;
+        let token = self.token(account, issuer.presents).await?;
+        approve(&self.http, &self.service, issuer, &token, user_code, name).await
     }
 
     /// Every subject of `account`'s that is signed in somewhere, by
@@ -106,52 +162,15 @@ impl Accounts {
         serde_json::from_slice(&body).map_err(|_| Error::Answer { url, status, body: String::from_utf8_lossy(&body).into_owned() })
     }
 
-    /// One request of `identity.diverge.network`, as `account`, with
-    /// `json` as its body where there is one: the URL asked, the
-    /// status, and the body of a success. The rules:
-    ///
-    /// 1. **The path** is `segments`, each one part: what a caller
-    ///    gives — a user code, a name, an id — is escaped as a part,
-    ///    so none of it can name another route.
-    /// 2. **As the account.** `Authorization: Bearer` carries the
-    ///    token the account's issuer has `identity.diverge.network`
-    ///    take — see [`Issuer::presents`](super::Issuer) — had as
-    ///    every token is, see [`token`](Self::token): under the
-    ///    account's lock, renewed first where it has expired, the lock
-    ///    let go before this request is made. [`ISSUER_HEADER`] names
-    ///    the issuer.
-    /// 3. **A refusal** is any status that is no success, read as
-    ///    `identity.diverge.network` writes every one,
-    ///    `{"error","error_description"}`: [`Error::Service`]. A body
-    ///    that is not that is [`Error::Answer`].
-    /// 4. **Nowhere else.** The client follows no redirect, so the
-    ///    token goes to the address asked and to no other.
+    /// One [`request`] of `identity.diverge.network`, as `account`:
+    /// the token its issuer has `identity.diverge.network` take — see
+    /// [`Issuer::presents`](super::Issuer) — had as every token is,
+    /// see [`token`](Self::token): under the account's lock, renewed
+    /// first where it has expired, the lock let go before the request
+    /// is made.
     async fn send(&self, account: &Account, method: Method, segments: &[&str], json: Option<&Value>) -> Result<(String, u16, Vec<u8>), Error> {
-        // Rule 1.
-        let mut url = reqwest::Url::parse(&self.service).map_err(|_| Error::Address(self.service.clone()))?;
-        url.path_segments_mut().map_err(|()| Error::Address(self.service.clone()))?.pop_if_empty().extend(segments);
-        // Rule 2.
         let issuer = issuer(&account.issuer)?;
         let token = self.token(account, issuer.presents).await?;
-        let mut request = self.http.request(method, url.clone()).bearer_auth(token).header(ISSUER_HEADER, issuer.name).header(ACCEPT, "application/json");
-        if let Some(json) = json {
-            request = request.json(json);
-        }
-        let response = request.send().await.map_err(Error::Http)?;
-        let status = response.status();
-        let body = response.bytes().await.map_err(Error::Http)?.to_vec();
-        if status.is_success() {
-            return Ok((url.to_string(), status.as_u16(), body));
-        }
-        // Rule 3.
-        let refusal: Option<Value> = serde_json::from_slice(&body).ok();
-        match refusal.as_ref().and_then(|refusal| refusal.get("error")).and_then(Value::as_str) {
-            Some(code) => Err(Error::Service {
-                status: status.as_u16(),
-                code: code.to_string(),
-                description: refusal.as_ref().and_then(|refusal| refusal.get("error_description")).and_then(Value::as_str).map(str::to_string),
-            }),
-            None => Err(Error::Answer { url: url.to_string(), status: status.as_u16(), body: String::from_utf8_lossy(&body).into_owned() }),
-        }
+        request(&self.http, &self.service, issuer, &token, method, segments, json).await
     }
 }

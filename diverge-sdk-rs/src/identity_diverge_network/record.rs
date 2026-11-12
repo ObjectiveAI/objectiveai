@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt as _;
 
-use super::{Account, Accounts, Error};
+use super::{Account, Accounts, Error, Tokens};
 
 /// Everything an account's file holds: who it is, and what its issuer
 /// answered its login, and every renewal since, with. No type outside
@@ -17,15 +17,9 @@ pub(super) struct Record {
     pub(super) issuer: String,
     /// The user's id at the issuer.
     pub(super) id: String,
-    /// The access token.
-    pub(super) access_token: Option<String>,
-    /// When the access token expires, in seconds since the Unix epoch,
-    /// where the issuer said; one that does not expire has none.
-    pub(super) access_expires: Option<i64>,
-    /// The refresh token, where the issuer answered one.
-    pub(super) refresh_token: Option<String>,
-    /// The ID token, where the issuer answered one.
-    pub(super) id_token: Option<String>,
+    /// The tokens, their members beside the two above in the file.
+    #[serde(flatten)]
+    pub(super) tokens: Tokens,
 }
 
 /// The files of one account.
