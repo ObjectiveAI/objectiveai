@@ -114,6 +114,11 @@ type Form = "open" | "header" | "shapes";
  *    the window's foot, and its list scrolls within what is left.
  * 8. It keeps no files: where it stands and how it is folded live for
  *    the page alone.
+ * 9. It is drawn again only when something it shows has changed — the
+ *    nodes, their names and brightness, the open one, what is shown,
+ *    the counts, its form and folds — and its list keeps where it was
+ *    scrolled, so a busy daemon neither scrolls it back nor drops the
+ *    row under the mouse.
  */
 export function outline(game: Phaser.Game): void {
   const registry = game.registry;
@@ -160,6 +165,8 @@ export function outline(game: Phaser.Game): void {
     registry.set(OUTLINER, { x: box.left, y: box.top, width: box.width, height: box.height, held } satisfies Bounds);
   };
 
+  // Rule 9: what was last drawn, so a world that changes nothing it shows draws nothing.
+  let drawn = "";
   // Rules 2, 3 and 5: what it shows.
   const render = () => {
     const outline = (registry.get(OUTLINE) as Outline | undefined) ?? [];
@@ -167,6 +174,16 @@ export function outline(game: Phaser.Game): void {
     const lines = registry.get(LINES) as Lines | undefined;
     const status = registry.get(STATUS) as Status | undefined;
     const selected = registry.get(SELECTED) as string | null | undefined;
+    const said = words(status);
+    // Rule 9.
+    const counts = status?.kind === "drawn" ? TYPES.map((type) => status.counts[type]) : null;
+    const showing = JSON.stringify([form, docked, [...folded].sort(), selected ?? null, kinds ?? null, lines ?? null, said, counts, outline.map((e) => [e.key, e.kind, e.label, e.bright])]);
+    if (showing === drawn) {
+      place();
+      return;
+    }
+    drawn = showing;
+    const scrolled = root.querySelector<HTMLElement>(".list")?.scrollTop ?? 0;
     const back = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".outline [data-focus]")?.dataset.focus;
     const kindChip = (kind: Kind) => {
       const on = kinds === undefined || kinds[kind];
@@ -219,7 +236,6 @@ export function outline(game: Phaser.Game): void {
       head.append(dock);
       root.append(head);
       if (form === "open") {
-        const said = words(status);
         if (said !== null) {
           const p = document.createElement("p");
           p.className = "said";
@@ -290,6 +306,7 @@ export function outline(game: Phaser.Game): void {
           all[Math.max(0, Math.min(all.length - 1, to))]?.focus();
         });
         root.append(list);
+        list.scrollTop = scrolled;
       }
     }
     if (back) root.querySelector<HTMLElement>(`[data-focus="${CSS.escape(back)}"]`)?.focus();
