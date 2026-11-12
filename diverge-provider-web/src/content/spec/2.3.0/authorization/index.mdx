@@ -1,6 +1,6 @@
 ---
 title: 'Authorization'
-summary: 'The connector’s first frame is its token, and the connectee’s first frame is its own token, which need not name the connector’s issuer; a token either party does not accept closes the connection, and no frame says why.'
+summary: 'The first frame each party sends is its token, and the two tokens need not name the same issuer; a token either party does not accept closes the connection, and no frame says why.'
 order: 3
 draft: false
 ---
@@ -10,8 +10,7 @@ The party that initiated the WebSocket connection is the
 protocol role may occupy either position: a client may connect to a
 server, and a server may connect to a client. Each party sends exactly
 one authorization frame, whose payload is its token and nothing
-else. The connector sends its frame first. The connectee answers with its own token. The
-two tokens need not name the same issuer. A token that either party does not accept closes the
+else. The two tokens need not name the same issuer. A token that either party does not accept closes the
 connection.
 
 ## The requirement
@@ -21,25 +20,24 @@ connection.
   layer of this specification declares to be no connection of the
   Protocol is not governed by this layer, and carries no authorization
   frame.
-- **The connector's first frame.** The first frame the connector
-  sends is an authorization frame (type `0`), whose payload is the
-  connector's token. No frame precedes it. The connector sends no
-  other frame until the connectee's authorization frame has arrived
-  and the connector has accepted it.
-- **The connectee's first frame.** The first frame the connectee
-  sends is an authorization frame, whose payload is the connectee's
-  token. The connectee sends it only after it has accepted the
-  connector's token. The connectee serves no frame of the connector's
-  before it has sent its own authorization frame.
+- **Each party's first frame.** The first frame each party sends is
+  an authorization frame (type `0`), whose payload is that party's
+  token. No frame of that party precedes it.
+- **Both parties send.** The connector sends an authorization frame,
+  and the connectee sends an authorization frame.
+- **Nothing else without acceptance.** A party that has not accepted
+  the other party's token sends no frame other than its authorization
+  frame, and serves no frame of the other party's.
 - **No shared issuer.** The connectee's token and the connector's
-  token need not name the same issuer. The connectee answers with the
-  token of the identity it answers as, whatever issuer the connector's
-  token names. The connector does not close a connection because the
-  answering token names an issuer other than that of its own token.
+  token need not name the same issuer. Each party presents the token
+  of the identity it presents itself as, whatever issuer the other
+  party's token names. A party does not close a connection because
+  the other party's token names an issuer other than that of its own
+  token.
 - **Exactly one each.** Each party sends exactly one authorization
-  frame. An authorization frame that arrives after a party's first
-  frame, in either direction, is a protocol violation; the party
-  receiving it closes the connection.
+  frame. A second authorization frame from a party, in either
+  direction, is a protocol violation; the party receiving it closes
+  the connection.
 - **Each party judges.** Each party alone determines whether the
   other party's token is acceptable, and which token it presents. The criteria of acceptability —
   the issuers a party trusts, the signature, the expiry, the
@@ -60,8 +58,8 @@ The scope and channel fields of the frame are ignored.
   and no byte follows it. No length field precedes it, because
   WebSocket already delimits messages.
 - **The issuer.** The token's `iss` claim names the issuer of the
-  token. The connectee does not determine the issuer of its own
-  token from it.
+  token. A party does not determine the issuer of its own token from
+  the other party's token.
 - **Nothing else.** The payload states nothing but the token. It
   carries no flag, no description, and no statement of what the
   sender asks of the connection. Whether the server lists the
@@ -82,11 +80,10 @@ The payload is defined by `diverge-sdk-rs/src/wire/frame/auth.rs`:
 No frame states a refusal.
 
 - A token a party **accepts** is followed by the connection
-  proceeding: the connectee answers, or the connector begins its
-  requests.
+  proceeding.
 - A token a party **does not accept** is followed by closure of the
-  connection, and by nothing else. The party sends no frame of any
-  kind before the closure.
+  connection, and by nothing else. The party sends no frame that
+  states the refusal.
 - A party that holds no token to present closes the connection, and
   sends nothing.
 - A connection that ends before a party's authorization frame has

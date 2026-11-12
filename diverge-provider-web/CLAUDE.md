@@ -188,11 +188,11 @@ are not described at this layer.
 ### Layer 3 — Authorization (`/authorization/`)
 
 The handshake in front of everything. It states that both parties
-authenticate: the connector's first frame is its token, a JWT whose
-`iss` names its issuer, and nothing precedes it; the connectee's
-first frame is its own token, which need not be from the same issuer, sent only once it
-accepts the connector's; the connector sends nothing else until it
-has accepted that answer. It states that there is one kind of token
+authenticate: the first frame each party sends is its token, a JWT
+whose `iss` names its issuer, and no frame of that party precedes
+it; the two tokens need not be from the same issuer; a party sends
+nothing else, and serves nothing, while it has not accepted the
+other party's token. It states that there is one kind of token
 and no mode byte, that a token a party does not accept is answered by
 the connection's close with no frame, in either direction, that an
 authorization frame after a party's first is a protocol violation the

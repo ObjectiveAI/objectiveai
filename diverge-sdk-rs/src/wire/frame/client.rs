@@ -40,8 +40,7 @@ use crate::wire::encode::{Encode, Writer};
 /// directions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame<'a> {
-    /// Type `0`. An end's token, the first frame it sends: the
-    /// connector's first, the connectee's in answer — see the
+    /// Type `0`. An end's token, the first frame it sends — see the
     /// [`handshake`](crate::wire::handshake). Nothing precedes it in
     /// either direction, and neither end sends a second.
     ///

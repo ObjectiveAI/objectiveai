@@ -409,22 +409,24 @@ Specification requires a Response.
 
 ### 5.3 Authorization
 
-(a) On a Connection the Client dialed, the Provider shall treat the
-first frame as the Client's authorization frame, whose payload is the
-Client's token, and shall accept no other frame before it.
+(a) On every Connection, whichever party dialed it, the Provider
+shall treat the Client's first frame as the Client's authorization
+frame, whose payload is the Client's token, and shall accept no other
+frame of the Client's before it.
 
-(b) The Provider shall judge the Client's token by its own means. On
-accepting it, the Provider shall send, as its own first frame, an
-authorization frame whose token is the Provider's own, whatever
-issuer the Client's token names, and shall serve every Scope on the
-Connection under the Identity the Client's token establishes.
+(b) On every Connection, whichever party dialed it, the Provider
+shall send, as its own first frame, an authorization frame whose
+token is the Provider's own, whatever issuer the Client's token
+names.
 
-(c) On a Connection the Provider dialed, the Provider shall send its
-own token as its first frame, shall send no other frame until the
-Client's answering authorization frame has arrived, and shall close
-the Connection when the Client's token is not accepted. The Provider
-shall not close the Connection because the Client's token names an
-issuer other than that of the Provider's token.
+(c) The Provider shall judge the Client's token by its own means,
+shall send no frame other than its authorization frame and serve no
+frame of the Client's while it has not accepted the Client's token,
+shall close the Connection when the Client's token is not accepted,
+and shall serve every Scope on the Connection under the Identity the
+Client's token establishes. The Provider shall not close the
+Connection because the Client's token names an issuer other than
+that of the Provider's token.
 
 (d) The Provider shall answer a token it does not accept, and any
 Client's token while the Provider holds no token to present,

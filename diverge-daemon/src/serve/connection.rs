@@ -18,8 +18,8 @@ use crate::providers;
 
 /// Serve `connection` from `address` until it ends.
 ///
-/// Whoever dialled speaks first, and the first thing it says is who
-/// it is: the [`handshake`](diverge_sdk::wire::handshake), made here
+/// The first thing either end says is who it is: the
+/// [`handshake`](diverge_sdk::wire::handshake), made here
 /// as the connectee, since a client and a provider dial the one port
 /// and open the one way, and which half of the wire the daemon holds
 /// toward the socket is decided by what the verified identity is.

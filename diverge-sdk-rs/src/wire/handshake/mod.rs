@@ -15,16 +15,16 @@
 //!    JWT as UTF-8, every byte of it — see
 //!    [`Auth`](crate::wire::frame::auth::Auth). An empty payload, or a
 //!    payload that is not UTF-8, is malformed.
-//! 2. **The connector speaks first.** Its first frame is its token —
-//!    the identity it connects as — and it sends nothing else until
-//!    the connectee has answered.
-//! 3. **The connectee answers.** It reads the connector's token,
-//!    verifies it, and sends its own token as its first frame: the
-//!    token of the one identity it answers as, whatever issuer the
-//!    connector's token is from. It serves nothing before it has
-//!    answered.
-//! 4. **The connector checks the answer.** It verifies the connectee's
-//!    token. The two tokens need not share an issuer.
+//! 2. **Each end sends its token.** The first frame an end sends is
+//!    its token — the one identity it presents itself as, whatever
+//!    issuer the other end's token is from. The two tokens need not
+//!    share an issuer.
+//! 3. **Both ends send.** The connector sends one and the connectee
+//!    sends one. The steps [`connect`] and [`accept`] take are each
+//!    function's own, and no rule of the protocol.
+//! 4. **Nothing else without acceptance.** An end that has not
+//!    verified the other's token sends nothing but its own, and
+//!    serves nothing.
 //! 5. **Judgment is each end's own.** Which token an end presents,
 //!    which issuers it trusts, the signature, the expiry, the
 //!    audience, and whether the token's `(iss, sub)` is one it admits
