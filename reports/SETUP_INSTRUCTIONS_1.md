@@ -97,7 +97,7 @@ On Windows, run everything below in **Git Bash**. The install scripts are bash.
 | Root A (provider, daemon A, CLI, world A) | `A="$HOME/.diverge"` |
 | Root B (daemon B, world B) | `B="$HOME/.diverge-b"` |
 | Issuer URL | `ISS="https://identity.diverge.network"` |
-| Subjects at the issuer | `github.12345.admin` (you: CLI and both worlds, administrator of both daemons), `github.12345.provider`, `github.12345.daemon-a`, `github.12345.daemon-b`. Each is `<provider>.<id>.<name>`; `12345` stands for your own numeric id at GitHub. |
+| Subjects at the issuer | `github.12345.admin` (you: CLI and both worlds, administrator of both daemons), `github.12345.provider`, `github.12345.daemon-a`, `github.12345.daemon-b`. Each is `<issuer>.<id>.<name>`; `12345` stands for your own numeric id at GitHub. |
 | Scratch dir for request bodies | `WORK="$HOME/diverge-setup"` |
 
 | Port | Who | Configured in |
