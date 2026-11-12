@@ -39,6 +39,17 @@ use crate::shared::daemons::{Connection, client, server};
 /// connector's is from — the connectee's half, judged by whoever implements this against the
 /// address the provider saw. A connector not accepted is one the stream
 /// ends on, sending nothing. Nothing is retried.
+///
+/// # The stream is handed back before the first frame
+///
+/// Nothing reaches `from_connector` until [`accept`](Self::accept)
+/// has answered: the provider relays a connection only once it is
+/// taken, and it is taken by the half this end opens when the stream
+/// is handed back. So the stream is handed back first, and the
+/// connector's token read behind it, on a task of the connection's
+/// own. An `accept` that waits on `from_connector` waits on the half
+/// that waits on it, and never answers. [`None`] is for what the
+/// [`Connection`] alone decides.
 pub trait Acceptor: Send + Sync {
     /// The server frames the daemon sends on one connection, in order,
     /// then the end.

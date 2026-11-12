@@ -13,7 +13,9 @@
 //! the provider asks podman, each read out of podman's own output;
 //! [`sudo`], [`path`] and [`machine`], on the hosts with a machine,
 //! are a tool run inside it as root, a host path as it sees it, and
-//! the machine as podman describes it.
+//! the machine as podman describes it; [`described`] is what the
+//! machine mounts, read from the description podman keeps of it,
+//! since its inspection leaves that out.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

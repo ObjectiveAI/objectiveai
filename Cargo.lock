@@ -1634,10 +1634,13 @@ name = "diverge-postgres"
 version = "2.3.0"
 dependencies = [
  "diverge-sdk",
+ "flate2",
  "futures-util",
+ "postgresql_archive",
  "postgresql_embedded",
  "serde",
  "serde_json",
+ "tar",
  "tokio",
  "uuid",
 ]

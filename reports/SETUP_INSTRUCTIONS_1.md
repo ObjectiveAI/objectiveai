@@ -9,8 +9,10 @@ will have:
 - **diverge-world** running in dev mode against daemon A, and optionally a second window against daemon B
 
 Every command, flag and request body here was checked against the source, the installed CLI's `--help`, and the
-CLI's `request-schema` output. Two things are not proven live: the daemon-to-daemon part, and the non-Windows
-platform notes. Section 9 lists everything that is uncertain. When this guide and the code disagree, the code wins.
+CLI's `request-schema` output. Steps 1 to 8 and the CLI half of step 10, daemon to daemon, were also run live on
+macOS (Apple Silicon, podman 6.1.2). Not run there at this revision: diverge-world, which is steps 9 and 11 and
+what step 10 shows in it; and nothing was run on Linux. Section 9 lists everything that is uncertain. When this
+guide and the code disagree, the code wins.
 
 Read sections 1 and 2 before running anything.
 
@@ -139,7 +141,7 @@ ISS="http://127.0.0.1:14981"
 WORK="$HOME/diverge-setup"; mkdir -p "$WORK"
 export PATH="$A/bin:$PATH"
 # Windows only: podman's per-user install is not on Git Bash's PATH.
-export PATH="$(cygpath "$LOCALAPPDATA")/Programs/Podman:$PATH"
+command -v cygpath >/dev/null && export PATH="$(cygpath "$LOCALAPPDATA")/Programs/Podman:$PATH"
 PY=python            # python3 on Linux/macOS
 ```
 
@@ -652,7 +654,7 @@ diverge run standalone-tools create "{\"template\":\"$TPL_MEM\",\"name\":\"noteb
 diverge run connected-standalone-tools create "{\"daemon\":\"$ID_B\",\"tool\":{\"name\":\"notebook\"},\"name\":\"b-notebook\"}"
 diverge run connected-standalone-tools attach-agent-instance '{"tool":{"name":"b-notebook"},"agent":{"name":"echo"}}'
 diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"tools"}]}'
-diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"call remember {\"text\":\"hi from A\"}"}]}'
+diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"call b-notebook_remember {\"text\":\"hi from A\"}"}]}'
 diverge run logs '{"of":{"type":"agent","name":"echo"}}'
 diverge run logs '{"of":{"type":"connected_standalone_tool","name":"b-notebook"}}'
 ```
@@ -660,8 +662,13 @@ diverge run logs '{"of":{"type":"connected_standalone_tool","name":"b-notebook"}
 What to expect:
 
 - The `tools` reply lists the tool names exactly as the agent sees them. Use those names in `call`. The memory
-  tool's tools are `remember`, `recall` and `forget`.
-- The second log is every call A routed into B's tool.
+  tool's tools are `remember`, `recall` and `forget`, and the agent sees each under the name the tool is held by
+  on A: `b-notebook_remember`, `b-notebook_recall`, `b-notebook_forget`
+  (`diverge-daemon/src/containers/mcp/prefix.rs`).
+- The agent's log ends `tool said: {"id":1}`.
+- The second log is every call A routed into B's tool. On B, the log of
+  `{"of":{"type":"standalone_tool","name":"notebook"}}` shows the same calls arriving, their caller the client
+  `daemon-a`.
 
 **In world A:**
 
@@ -762,13 +769,18 @@ cleanly at the next start.
 - The provider sees host paths inside the machine as `/mnt/c/...`.
 - The proxy binary at `<root>/bin/diverge-container-proxy` is mounted read-only into each container.
 
-**macOS (from code, not run live)**
+**macOS (run live on Apple Silicon, podman 6.1.2, the Apple hypervisor)**
 
 - Same as Windows, with the same machine name, connection, XDG variables, `pp` helper and `ssh` tunnel.
 - The provider adds `--memory <containers.podman.memory>` and a `--volume P:P` share for each of: every volume
   store, every fixed volume, `<root>/provider`, and the executable's directory.
 - A machine missing a share is removed and re-made, which empties its image cache. Rebuild images after changing
-  volume paths.
+  volume paths. A machine that sees every share is kept across provider restarts, its images with it: a first
+  start takes about half a minute, a later one a second or two.
+- `podman machine inspect` does not list a machine's mounts here. They are in the machine's description,
+  `<storage_path>/containers/podman/machine/applehv/diverge-provider.json`, which is where the provider reads
+  them; a description it cannot read is an error at its start, not a machine made again.
+- In step 0, `PY=python3`, and the `cygpath` line does nothing.
 
 **Linux (from code, not run live)**
 
@@ -786,32 +798,33 @@ cleanly at the next start.
 
 ## 9. Open questions / not verified
 
-1. **Daemon-to-daemon (step 10) has never been run live.** The remote-daemon records, routes and relay are built
-   and checked only by compilation. The request bodies here validate against the CLI's schemas, and the
-   requirements come from `diverge-daemon/src/judge/admit.rs`, `diverge-sdk-rs/src/daemon/endpoints/daemons/` and
-   `diverge-daemon/src/daemons/connect.rs`: an account (not an admin) for the presented identity, an announced and accepting B, and
-   a shared provider. Expect to debug.
+1. **Daemon-to-daemon (step 10): the CLI half is run live, the world half is not.** On macOS, two daemons on one
+   provider: the relay, a tool made on B through it, and a connected tool called by A's agent all work as written.
+   The requirements held as `diverge-daemon/src/judge/admit.rs` states them: an account (not an admin) for the
+   presented identity — a record presenting an administrator that is no account is refused at once — an
+   announced and accepting B, and a shared provider. What diverge-world shows of it (the daemon node, its "Open"
+   tab, B's board) was not run.
 2. **Which tool `connected-standalone-tools create` may name.** Its `tool` is "a standalone tool of the caller's"
    as B reads it, i.e. of `daemon-a`'s account. That is why step 10 creates the tool on B *through the relay*. It
    is not verified whether a tool created by B's admin could be named instead.
-3. **The `peer` role's grant set** is generous on purpose. Which grants world A's relayed board needs to render
-   every list (it opens eleven) was not established. What `daemon-a`'s account sees on B may also be limited to
-   what it owns.
-4. **World B's view as `admin`.** It is unclear whether listings on B show records owned by other accounts (such as
-   `daemon-a`'s `notebook`) to an administrator, or only the caller's own.
-5. **The second diverge-world copy.** The CLAUDE.md recipe conflicts with Vite's `strictPort: 1440`. Workarounds
-   (a) and (b) in step 11 are reasoned from Tauri v2's behaviour (a debug build loads `devUrl`; `--config` merges
-   JSON) and were not run.
-6. **`memory` as a standalone tool.** Its DIVERGE.md documents it as a dependency tool. Using the same image as a
-   standalone tool is assumed to work, since both are MCP-server tool containers, but was not run. `chat` is the
-   example documented as standalone.
-7. **The python script's tool-call round trip.** The script ran against `harness.py` on a host Python, but not in
-   the container. It is assumed, and not traced, that after an `assistant_tool_call` the loop runs the script again
-   with the `tool_response` as the last `input` item.
+3. **The `peer` role's grant set** is generous on purpose. Under it, each of the eleven lists world A's relayed
+   board opens answers through the relay. Which of its grants could go was not established, nor whether what
+   `daemon-a`'s account sees on B is limited to what it owns.
+4. **World B's view as `admin`.** Asked by the CLI as `admin` on B, `standalone-tools list` shows `notebook`, which
+   `daemon-a`'s account made: an administrator's listing shows other accounts' records. World B was not run
+   against it.
+5. **The second diverge-world copy.** The CLAUDE.md recipe conflicts with Vite's `strictPort: 1440`. Workaround
+   (a) in step 11 was run on macOS at an earlier revision, before the handshake changed, and worked: the debug
+   binary started with `DIVERGE_CONFIG` set to root B opened B's board beside world A's. It was not run again
+   since. Workaround (b) is reasoned from Tauri v2's behaviour (`--config` merges JSON) and was not run.
+6. **`memory` as a standalone tool.** Settled, run live: the image serves as a standalone tool, on its own daemon
+   and to another daemon's agent. Its DIVERGE.md still documents it as a dependency tool only.
+7. **The python script's tool-call round trip.** Settled, run live in the container: after an
+   `assistant_tool_call` the loop runs the script again with the `tool_response` as the last `input` item.
 8. **Whether `"type":"agent"` / `"type":"tool"` is required in template bodies.** The CLI schema omits it, but the
    SDK's `Template` flattens a serde-tagged `type`. Including it is always safe, so this guide includes it.
-9. **macOS and Linux provider behaviour** comes from code only (§8). On Linux, the arrangement of a root-run
-   provider next to a user-run CLI and daemon is undecided.
+9. **Linux provider behaviour** comes from code only (§8); macOS was run live. On Linux, the arrangement of a
+   root-run provider next to a user-run CLI and daemon is undecided.
 10. **cc image credentials.** The cc image declares no secrets and says Claude Code logs in by itself. How it gets a
     login inside a container (a mount of `/root/.claude`?) was not established.
 11. **Whether `diverge-postgres` needs `GITHUB_TOKEN`** to build in a rate-limited environment.

@@ -1,6 +1,8 @@
 //! The machine podman runs in, on the hosts that have one.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use serde::Deserialize;
 
 use super::{MACHINE, command};
 use crate::host::tools::{Error, Finished, run};
@@ -40,4 +42,46 @@ pub fn path(host: &Path) -> String {
         }
         _ => written.into_owned(),
     }
+}
+
+/// A machine's description, `<ConfigDir>/<machine>.json`: the file
+/// podman wrote when the machine was made, and starts it from. Its
+/// mounts are all that is read, and it may list none.
+#[derive(Deserialize)]
+struct DescriptionRow {
+    #[serde(rename = "Mounts", default)]
+    mounts: Option<Vec<MountRow>>,
+}
+
+/// One host directory a machine mounts.
+#[derive(Deserialize)]
+struct MountRow {
+    #[serde(rename = "Source")]
+    source: PathBuf,
+}
+
+/// The host directories the provider's machine was made seeing, as
+/// the description podman keeps of it lists them: the `Mounts` of
+/// `<config>/<machine>.json`, `config` being the `ConfigDir` of the
+/// machine's inspection. `podman machine init --volume` wrote them
+/// there, and `podman machine inspect` does not repeat them.
+///
+/// A description that lists none is a machine seeing nothing. One
+/// that is not there, or does not read as one, is podman's answer
+/// unreadable, as an inspection that does not parse is: the machine
+/// is not taken for one seeing nothing on that, which would have it
+/// made again and its image cache emptied at every start.
+pub async fn described(config: &Path) -> Result<Vec<PathBuf>, Error> {
+    let description = tokio::fs::read(config.join(format!("{MACHINE}.json"))).await.map_err(|_| Error::Output {
+        program: "podman".to_string(),
+    })?;
+    mounts(&description)
+}
+
+/// The mounts the bytes of a description list.
+fn mounts(description: &[u8]) -> Result<Vec<PathBuf>, Error> {
+    let row: DescriptionRow = serde_json::from_slice(description).map_err(|_| Error::Output {
+        program: "podman".to_string(),
+    })?;
+    Ok(row.mounts.unwrap_or_default().into_iter().map(|mount| mount.source).collect())
 }
