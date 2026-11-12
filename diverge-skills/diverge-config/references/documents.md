@@ -1,10 +1,10 @@
 # Every document, every field
 
-The five documents in a root. Each is YAML, each refuses a key it does not have, and an absent file means the
+The four documents in a root. Each is YAML, each refuses a key it does not have, and an absent file means the
 defaults shown. Byte sizes are plain integers in BYTES. Read the live value of any of them with
 `diverge <program> config get`.
 
-Contents: [daemon.yaml](#daemonyaml) · [provider.yaml](#provideryaml) · [issuer.yaml](#issueryaml) ·
+Contents: [daemon.yaml](#daemonyaml) · [provider.yaml](#provideryaml) ·
 [cli.yaml](#cliyaml) · [viewer.yaml](#vieweryaml)
 
 ---
@@ -16,11 +16,11 @@ Read once, when the daemon starts.
 ```yaml
 port: 14980
 identity:
-  issuer: http://127.0.0.1:14981
-  subject: daemon-a
+  issuer: https://identity.diverge.network
+  subject: github.12345.daemon-a
 admins:
-  - issuer: http://127.0.0.1:14981
-    subject: admin
+  - issuer: https://identity.diverge.network
+    subject: github.12345.admin
 postgres:
   kind: local
   max_connections: 1024
@@ -71,11 +71,11 @@ holds `provider.yaml`), never the working directory.
 ```yaml
 port: 14979
 identity:
-  issuer: http://127.0.0.1:14981
-  subject: provider
+  issuer: https://identity.diverge.network
+  subject: github.12345.provider
 incoming:
-  - issuer: http://127.0.0.1:14981
-    subject: daemon-a
+  - issuer: https://identity.diverge.network
+    subject: github.12345.daemon-a
 outgoing:
   - address: hub.example.com:7000
     identity:
@@ -168,30 +168,6 @@ Under `<root>/provider/`: `hooks/` (one folder per hook), `run/` (scratch), and 
 
 ---
 
-## issuer.yaml
-
-Read once, when the issuer starts. Holds no secret: subjects, password hashes, signing keys and refresh tokens
-are in `<root>/issuer.sqlite`.
-
-```yaml
-port: 14981
-issuer: https://auth.example.com
-access_token_seconds: 600
-refresh_token_days: 30
-```
-
-| Field | Default | Meaning |
-|---|---|---|
-| `port` | `14981` | TCP port the issuer serves plain HTTP on, on every interface. |
-| `issuer` | `http://127.0.0.1:<port>` | The issuer identifier: exactly the `iss` of every token, and the URL every endpoint is under. Must be `https`, or `http` on a loopback host (`127.0.0.1`, `localhost`, `[::1]`); no query, no fragment. The issuer itself serves plain HTTP, so an `https` identifier means a proxy in front terminates TLS. |
-| `access_token_seconds` | `600` | Lifetime of an access token, and of the ID token issued with it — the token every handshake presents. Programs refresh by themselves; a shorter value only means more refreshes. |
-| `refresh_token_days` | `30` | Lifetime of a refresh token, from its issue; each refresh issues a new one. An identity unused for longer is signed out and must log in again. |
-
-The issuer's identifier is the string every other document uses as `issuer`. It must match character for
-character: `http://127.0.0.1:14981` and `http://localhost:14981` are two different issuers.
-
----
-
 ## cli.yaml
 
 Read by the CLI on every command. Holds no token.
@@ -204,16 +180,16 @@ daemons:
     default: admin
     accounts:
       admin:
-        issuer: http://127.0.0.1:14981
-        subject: admin
+        issuer: https://identity.diverge.network
+        subject: github.12345.admin
       reader:
-        issuer: http://127.0.0.1:14981
-        subject: reader
+        issuer: https://identity.diverge.network
+        subject: github.12345.reader
   b:
     address: ws://127.0.0.1:14982/
     default: admin
     accounts:
-      admin: {issuer: "http://127.0.0.1:14981", subject: admin}
+      admin: {issuer: "https://identity.diverge.network", subject: github.12345.admin}
 ```
 
 | Field | Default | Meaning |
@@ -248,8 +224,8 @@ Read once, when the world viewer (`diverge-world`) starts. Holds no token.
 ```yaml
 daemon:
   address: ws://127.0.0.1:14980/
-  issuer: http://127.0.0.1:14981
-  subject: admin
+  issuer: https://identity.diverge.network
+  subject: github.12345.admin
   redial: 5
 ```
 

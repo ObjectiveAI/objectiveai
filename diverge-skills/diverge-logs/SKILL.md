@@ -141,12 +141,12 @@ came to is not kept. Requests the daemon could not parse are not kept.
 
 ```bash
 diverge run events list
-# {"added":{"id":65,"sender":{"kind":"account","issuer":"http://127.0.0.1:14981","subject":"admin"},
+# {"added":{"id":65,"sender":{"kind":"account","issuer":"https://identity.diverge.network","subject":"github.12345.admin"},
 #           "receiver":{"kind":"agent","template":"b6dd4f61…","index":1},"count":85}}
 # "listed"
 diverge run events list '{"count":20}'                       # the LATEST 20 edges by id
 diverge run events list '{"parties":[{"kind":"agent","template":"b6dd4f61…","index":1}]}'   # everything touching one agent
-diverge run events list '{"senders":[{"kind":"account","issuer":"http://127.0.0.1:14981","subject":"alice"}]}'
+diverge run events list '{"senders":[{"kind":"account","issuer":"https://identity.diverge.network","subject":"github.12345.alice"}]}'
 diverge run events list --watch                              # then {"changed":{…}} each time a count rises
 ```
 
@@ -275,13 +275,13 @@ diverge run logs '{"of":{"type":"agent","name":"echo"},"type":"error"}' --jq '.i
 diverge run logs '{"of":{"type":"agent","name":"echo"},"type":"usage"}' --jq '.item.agent | {prompt_tokens, completion_tokens, total_tokens}' | tail -1
 
 # What an account did, and what it was refused
-diverge run logs '{"of":{"type":"account","issuer":"http://127.0.0.1:14981","subject":"alice"}}' \
+diverge run logs '{"of":{"type":"account","issuer":"https://identity.diverge.network","subject":"github.12345.alice"}}' \
   --jq '.item.account | {created, path, allowed}'
-diverge run logs '{"of":{"type":"account","issuer":"http://127.0.0.1:14981","subject":"alice"}}' \
+diverge run logs '{"of":{"type":"account","issuer":"https://identity.diverge.network","subject":"github.12345.alice"}}' \
   --jq '.item.account | select(.allowed == false) | {created, path, request}'
 
 # My own requests as an administrator in the last hour
-diverge run logs '{"of":{"type":"admin","issuer":"http://127.0.0.1:14981","subject":"admin"},"created_from":"2026-11-10T06:00:00Z"}' \
+diverge run logs '{"of":{"type":"admin","issuer":"https://identity.diverge.network","subject":"github.12345.admin"},"created_from":"2026-11-10T06:00:00Z"}' \
   --jq '.item.admin | select(.path=="agents/message") | {created, to: .request.agent, allowed}'
 
 # Is the provider connected?

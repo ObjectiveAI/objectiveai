@@ -38,7 +38,7 @@ for containers, volumes and images, or to **send** a direct message through it.
 
 ```bash
 # Outgoing: the daemon dials the provider. Dialled at once when enabled.
-diverge run providers add '{"identity":{"issuer":"http://127.0.0.1:14981","subject":"provider"},
+diverge run providers add '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.provider"},
   "direction":"outgoing","address":"127.0.0.1:14979",
   "announcement":"daemon A, build farm east","accept_daemons":true,"messageable":true,
   "description":"local podman provider","tags":["local"]}'
@@ -74,7 +74,7 @@ Rules:
 ```bash
 diverge run providers list                      # {"added":{…}} per provider, then "listed"
 diverge run providers list '{"connected":true,"enabled":true}'
-diverge run providers get '{"identity":{"issuer":"http://127.0.0.1:14981","subject":"provider"}}'   # {"found":{…}}
+diverge run providers get '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.provider"}}'   # {"found":{…}}
 diverge run providers list --jq '.added? | {subject: .identity.subject, status: .status.type, enabled, announcement, accept_daemons, messageable}'
 ```
 
@@ -106,21 +106,21 @@ The daemon keeps redialling an enabled outgoing provider, so fix the cause and l
 
 ```bash
 # Edit: every member given replaces the record's; absent members stay.
-diverge run providers edit '{"identity":{"issuer":"…","subject":"provider"},"description":"main provider"}'
+diverge run providers edit '{"identity":{"issuer":"…","subject":"github.12345.provider"},"description":"main provider"}'
 # Announce with a new text, stop accepting other daemons, start hearing messages: one body, nothing closes.
-diverge run providers edit '{"identity":{"issuer":"…","subject":"provider"},
+diverge run providers edit '{"identity":{"issuer":"…","subject":"github.12345.provider"},
   "announcement":"daemon A, staging","accept_daemons":false,"messageable":true}'
 # Stop announcing (null clears; leaving the member out would leave it as it is).
-diverge run providers edit '{"identity":{"issuer":"…","subject":"provider"},"announcement":null}'
+diverge run providers edit '{"identity":{"issuer":"…","subject":"github.12345.provider"},"announcement":null}'
 # An incoming provider's source IPs: a value replaces them, null admits any IP.
 diverge run providers edit '{"identity":{"issuer":"…","subject":"edge-provider"},"ips":[{"type":"cidr","cidr":"10.0.1.0/24"}]}'
 # -> "edited" | "not_found" | "forbidden" | {"error":…}
 
-diverge run providers disable '{"identity":{"issuer":"…","subject":"provider"}}'   # -> "done" | "not_found" | "forbidden"
-diverge run providers enable  '{"identity":{"issuer":"…","subject":"provider"}}'   # -> "done"
-diverge run providers tag     '{"identity":{"issuer":"…","subject":"provider"},"tags":["gpu"]}'   # -> "tagged"
-diverge run providers untag   '{"identity":{"issuer":"…","subject":"provider"},"tags":["gpu"]}'   # -> "untagged"
-diverge run providers delete  '{"identity":{"issuer":"…","subject":"provider"}}'
+diverge run providers disable '{"identity":{"issuer":"…","subject":"github.12345.provider"}}'   # -> "done" | "not_found" | "forbidden"
+diverge run providers enable  '{"identity":{"issuer":"…","subject":"github.12345.provider"}}'   # -> "done"
+diverge run providers tag     '{"identity":{"issuer":"…","subject":"github.12345.provider"},"tags":["gpu"]}'   # -> "tagged"
+diverge run providers untag   '{"identity":{"issuer":"…","subject":"github.12345.provider"},"tags":["gpu"]}'   # -> "untagged"
+diverge run providers delete  '{"identity":{"issuer":"…","subject":"github.12345.provider"}}'
 # -> "deleted" | "not_found" | "enabled" | "in_use" | "forbidden" | {"error":…}
 ```
 
@@ -191,8 +191,8 @@ restart.
 
 ```bash
 diverge run providers daemons list
-# {"added":{"issuer":"http://127.0.0.1:14981","subject":"daemon-b",
-#           "providers":[{"provider":{"issuer":…,"subject":"provider"},"ip":"127.0.0.1","address":null,"listening":false}],
+# {"added":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-b",
+#           "providers":[{"provider":{"issuer":…,"subject":"github.12345.provider"},"ip":"127.0.0.1","address":null,"listening":false}],
 #           "announcements":["daemon B"]}}
 # "listed"
 ```
@@ -227,12 +227,12 @@ provider reads the body. This needs the provider to relay messages at all (`mess
 ```bash
 # Receiver: listen. Runs until the command is ended; prints each message as it arrives.
 diverge run providers daemons listen
-# {"message":{"provider":{…},"from":{"issuer":…,"subject":"daemon-a"},"body":"aGVsbG8="}}
+# {"message":{"provider":{…},"from":{"issuer":…,"subject":"github.12345.daemon-a"},"body":"aGVsbG8="}}
 # {"skipped":{"count":3}}       <- this listener fell behind and missed 3
 
 # Sender: body is standard base64.
 diverge run providers daemons message \
-  '{"to":{"issuer":"http://127.0.0.1:14981","subject":"daemon-b"},"body":"'"$(printf hello | base64)"'"}'
+  '{"to":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-b"},"body":"'"$(printf hello | base64)"'"}'
 # -> "delivered" | "not_listening" | "not_found" | "forbidden" | {"error":…}
 ```
 
@@ -258,8 +258,8 @@ its **DaemonId**: a base62 string of 1 to 11 characters that is the hash of `dae
 three route filters. There are no names.
 
 ```bash
-diverge run daemons add '{"daemon":{"issuer":"http://127.0.0.1:14981","subject":"daemon-b"},
-  "identity":{"issuer":"http://127.0.0.1:14981","subject":"daemon-a"},
+diverge run daemons add '{"daemon":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-b"},
+  "identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-a"},
   "description":"daemon B","tags":["peer"]}'
 # -> {"added":"3kTq9ZbW1xY"} | {"exists":"3kTq9ZbW1xY"} | "forbidden" | {"error":…}
 
@@ -268,13 +268,13 @@ ID_B="$(diverge run daemons add --jq '.added // .exists' '{…}' | tr -d '"')"
 
 # With route filters (all optional; absent or empty = any route):
 diverge run daemons add '{"daemon":{…},"identity":{…},
-  "providers":[{"issuer":"http://127.0.0.1:14981","subject":"provider"}],
+  "providers":[{"issuer":"https://identity.diverge.network","subject":"github.12345.provider"}],
   "ips":[{"type":"cidr","cidr":"10.0.0.0/8"}],
   "addresses":["10.0.0.5:14980"]}'
 
 diverge run daemons get    '{"id":"3kTq9ZbW1xY"}'      # {"found":{id, description, daemon, identity, providers?, ips?, addresses?, tags, created, creator, connected}}
 diverge run daemons list                                 # {"added":{…}} …, "listed"; --watch supported
-diverge run daemons list '{"connected":true,"issuers":["http://127.0.0.1:14981"]}'
+diverge run daemons list '{"connected":true,"issuers":["https://identity.diverge.network"]}'
 diverge run daemons edit   '{"id":"3kTq9ZbW1xY","description":"daemon B (staging)"}'   # "edited" | "not_found"
 diverge run daemons tag    '{"id":"3kTq9ZbW1xY","tags":["staging"]}'                    # "tagged"
 diverge run daemons untag  '{"id":"3kTq9ZbW1xY","tags":["staging"]}'                    # "untagged"
@@ -429,11 +429,11 @@ Grants needed:
 ## 6. Worked example: A records B, relays, and holds B's tool
 
 Daemon A is the CLI's default daemon; daemon B is `--daemon b` in `cli.yaml`. Both are connected to one
-provider, and each has an `announcement` on its record of it. A's daemon presents `daemon-a`; B's presents `daemon-b`. You are an
+provider, and each has an `announcement` on its record of it. A's daemon presents `github.12345.daemon-a`; B's presents `github.12345.daemon-b`. You are an
 administrator on both. (This is step 10 of `reports/SETUP_INSTRUCTIONS_1.md`.)
 
 ```bash
-ISS=http://127.0.0.1:14981
+ISS=https://identity.diverge.network
 
 # --- On B: a role and an account for the identity A will present. B's admins do not count for A.
 diverge run --daemon b roles create '{"name":"peer","description":"daemon A on this daemon","grants":[
@@ -445,22 +445,22 @@ diverge run --daemon b roles create '{"name":"peer","description":"daemon A on t
   {"standalone_tools_templates":{"actions":["get","list"],"within":"any"}},
   {"events":["list"]},
   {"images":["info"]}]}'
-diverge run --daemon b accounts create '{"identity":{"issuer":"'$ISS'","subject":"daemon-a"},"roles":["peer"]}'
+diverge run --daemon b accounts create '{"identity":{"issuer":"'$ISS'","subject":"github.12345.daemon-a"},"roles":["peer"]}'
 
 # --- On A: is B visible through a shared provider?
 diverge run providers daemons list --jq '.added? | {subject, via: [.providers[].provider.subject]}'
-#   {"subject":"daemon-b","via":["provider"]}      (A itself is never listed)
+#   {"subject":"github.12345.daemon-b","via":["github.12345.provider"]}      (A itself is never listed)
 
-# --- On A: record B, reached as daemon-a.
+# --- On A: record B, reached as github.12345.daemon-a.
 ID_B="$(diverge run daemons add --jq '.added // .exists' \
-  '{"daemon":{"issuer":"'$ISS'","subject":"daemon-b"},"identity":{"issuer":"'$ISS'","subject":"daemon-a"},"description":"daemon B"}' | tr -d '"')"
+  '{"daemon":{"issuer":"'$ISS'","subject":"github.12345.daemon-b"},"identity":{"issuer":"'$ISS'","subject":"github.12345.daemon-a"},"description":"daemon B"}' | tr -d '"')"
 
-# --- Relay: A forwards, B serves as daemon-a's account.
+# --- Relay: A forwards, B serves as github.12345.daemon-a's account.
 diverge run info        '{"relay":["'$ID_B'"]}'       # {"info":{"version":"…"}}
 diverge run agents list '{"relay":["'$ID_B'"]}'       # B's agents (or just "listed"); not "forbidden"
 diverge run daemons get '{"id":"'$ID_B'"}' --jq '.found.connected'    # true once the first relay connected
 
-# --- A tool on B, made through the relay (creator there: daemon-a's account).
+# --- A tool on B, made through the relay (creator there: github.12345.daemon-a's account).
 TPL="$(diverge run standalone-tools templates create --jq '.created // .exists' \
   '{"type":"tool","mode":"transient","image":{"digest":"sha256:<digest>","references":[{"registry":"docker.io","name":"diverge-local/memory"}]},
     "memory":268435456,"disk":268435456,"arguments":{},"relay":["'$ID_B'"]}' | tr -d '"')"

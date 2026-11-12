@@ -3,7 +3,7 @@
 This guide is for a coding agent (Claude Code) on a fresh machine that has this repository cloned. By the end you
 will have:
 
-- one **issuer**, one **provider** and **two daemons** (A and B) running on one host
+- one **provider** and **two daemons** (A and B) running on one host
 - the agent images built into the provider's podman store
 - an agent running on daemon A, plus a tool on daemon B that daemon A's agent reaches across the daemons
 - **diverge-world** running in dev mode against daemon A, and optionally a second window against daemon B
@@ -22,8 +22,8 @@ Read sections 1 and 2 before running anything.
 
 | Term | What it is |
 |---|---|
-| **Root** (config root) | One directory holding a set of Diverge programs' documents and state: `issuer.yaml`, `provider.yaml`, `daemon.yaml`, `cli.yaml`, `viewer.yaml`, `identities/`, `daemon/`, `provider/`, `bin/`, and the `*.lock`/`*.log` files. Default `~/.diverge`. Each program runs at most once per root, enforced by its `<program>.lock`. |
-| **Issuer** (`diverge-issuer`) | Diverge's own OpenID Connect provider over plain HTTP. Default port 14981, issuer URL `http://127.0.0.1:14981`. It has one built-in public client, `diverge`. Subjects (users) and their passwords live in `<root>/issuer.sqlite`. Every program proves who it is with an ID token from an issuer. |
+| **Root** (config root) | One directory holding a set of Diverge programs' documents and state: `provider.yaml`, `daemon.yaml`, `cli.yaml`, `viewer.yaml`, `identities/`, `daemon/`, `provider/`, `bin/`, and the `*.lock`/`*.log` files. Default `~/.diverge`. Each program runs at most once per root, enforced by its `<program>.lock`. |
+| **Issuer** | An identity's issuer is any OpenID Connect provider that offers the device authorization flow. Diverge's own is `https://identity.diverge.network`, hosted, with one client id, `diverge`; its subjects are `<provider>.<id>.<name>` (for example `github.12345.daemon-a`). Every program proves who it is with an ID token from an issuer. |
 | **Identity** | One `(issuer, subject)` pair, signed in once with `diverge identities login` and stored at `<root>/identities/<pct-encoded issuer>/<subject>.json`. Programs on a root use the identities stored under **that root**. Handshakes are mutual: both ends present an ID token. |
 | **Daemon** (`diverge-daemon`) | The hub clients talk to, over a WebSocket on its `port` (default 14980). It keeps all records in its own Postgres: accounts, roles, providers, remote daemons, templates, agents, tools, events, logs, vault. `diverge-postgres` is a supervisor with Postgres embedded at build time; the daemon starts it on a free loopback port, with its data under `<root>/daemon/postgres/`. |
 | **Provider** (`diverge-provider`) | Runs containers with podman for the daemons in its `incoming` list, and also serves volumes and an image store. Default port 14979. On Windows and macOS it drives a podman machine named **`diverge-provider`** through the rootful connection **`diverge-provider-root`**. On Linux it runs podman directly and must run as root. |
@@ -59,7 +59,7 @@ Read sections 1 and 2 before running anything.
    - Servers and diverge-world: `--config`, else `DIVERGE_CONFIG`, else `~/.diverge`.
    - The CLI checks one more place between those last two: a `./.diverge` directory in the current working
      directory, if one exists. Don't run the CLI from a directory that contains a stray `.diverge/`.
-4. **The CLI starts servers from its own directory.** `diverge daemon|provider|issuer start` launches the binary in
+4. **The CLI starts servers from its own directory.** `diverge daemon|provider start` launches the binary in
    the same directory as the running `diverge` executable and passes it `--config <root>`. Root B therefore needs no
    `bin/`: use root A's `diverge` with `--config "$B"`.
 5. **`diverge daemon stop` reads `cli.yaml`, not `daemon.yaml`.** It takes the port from the address of the
@@ -94,17 +94,16 @@ On Windows, run everything below in **Git Bash**. The install scripts are bash.
 
 | Thing | Value |
 |---|---|
-| Root A (issuer, provider, daemon A, CLI, world A) | `A="$HOME/.diverge"` |
+| Root A (provider, daemon A, CLI, world A) | `A="$HOME/.diverge"` |
 | Root B (daemon B, world B) | `B="$HOME/.diverge-b"` |
-| Issuer URL | `ISS="http://127.0.0.1:14981"` |
-| Subjects at the issuer | `admin` (you: CLI and both worlds, administrator of both daemons), `provider`, `daemon-a`, `daemon-b` |
+| Issuer URL | `ISS="https://identity.diverge.network"` |
+| Subjects at the issuer | `github.12345.admin` (you: CLI and both worlds, administrator of both daemons), `github.12345.provider`, `github.12345.daemon-a`, `github.12345.daemon-b`. Each is `<provider>.<id>.<name>`; `12345` stands for your own numeric id at GitHub. |
 | Scratch dir for request bodies | `WORK="$HOME/diverge-setup"` |
 
 | Port | Who | Configured in |
 |---|---|---|
 | 14979 | provider (all interfaces) | `provider.yaml` `port` |
 | 14980 | daemon A (all interfaces) | `$A/daemon.yaml` `port`, `$A/cli.yaml` |
-| 14981 | issuer | `issuer.yaml` `port` (default) |
 | **14982** | daemon B | `$B/daemon.yaml` `port`, `$B/cli.yaml`. The value is this guide's choice; any free port works. |
 | random loopback | each daemon's Postgres | chosen at every start, so the two daemons never collide |
 | 1440 / 1441 | diverge-world Vite dev server / HMR | `diverge-world/vite.config.ts` (`strictPort: true`) |
@@ -112,11 +111,11 @@ On Windows, run everything below in **Git Bash**. The install scripts are bash.
 
 | Path | What |
 |---|---|
-| `<root>/bin/` | installed binaries: `diverge`, `diverge-daemon`, `diverge-provider`, `diverge-issuer`, `diverge-postgres` (each `.exe` on Windows), `diverge-container-proxy` (no extension) |
+| `<root>/bin/` | installed binaries: `diverge`, `diverge-daemon`, `diverge-provider`, `diverge-postgres` (each `.exe` on Windows), `diverge-container-proxy` (no extension) |
 | `<root>/identities/` | signed-in identities |
 | `<root>/daemon/postgres/` | the daemon's Postgres (`bin/`, `data/`, `password`) |
 | `<root>/provider/podman_data/` | `containers.podman.storage_path` (default). On Windows and macOS **this directory is the podman machine**: its disk and SSH key live here. |
-| `<root>/{issuer,provider,daemon}.log` | server output |
+| `<root>/{provider,daemon}.log` | server output |
 
 The two daemons share **one issuer and one provider**. The code allows this: the provider's `incoming` list holds
 both daemon identities, and it allows one connection per identity, so the two daemons need different subjects.
@@ -137,7 +136,7 @@ Run from the repository root in Git Bash (Windows) or bash.
 ```bash
 REPO="$(pwd)"                       # the repository root
 A="$HOME/.diverge"; B="$HOME/.diverge-b"
-ISS="http://127.0.0.1:14981"
+ISS="https://identity.diverge.network"
 WORK="$HOME/diverge-setup"; mkdir -p "$WORK"
 export PATH="$A/bin:$PATH"
 # Windows only: podman's per-user install is not on Git Bash's PATH.
@@ -157,56 +156,32 @@ makes `--config "$B"` work for the Windows binaries. Set it only for the single 
 tail -n 3 "$WORK/install.log"
 ```
 
-The script runs the six crates one after another: postgres, container-proxy, daemon, provider, issuer, cli.
+The script runs the five crates one after another: postgres, container-proxy, daemon, provider, cli.
 `--debug` also works and builds faster.
 
-Check: the log ends with `installed every Diverge program under …/bin (release)`, and `ls "$A/bin"` lists the six
+Check: the log ends with `installed every Diverge program under …/bin (release)`, and `ls "$A/bin"` lists the five
 binaries.
 
 To rebuild one program later, run `<crate>/install.sh "$A" --release`. Stop that program first: Windows refuses to
 replace a running executable.
 
-### Step 2: the issuer and its subjects
-
-The issuer needs no `issuer.yaml`, because the defaults are port 14981 and issuer `http://127.0.0.1:14981`.
-
-```bash
-diverge issuer start > "$WORK/issuer-start.out" 2>&1; cat "$WORK/issuer-start.out"
-# expected: started issuer, process <pid>
-diverge issuer config get
-# expected: {"port":14981,"access_token_seconds":600,"refresh_token_days":30}
-```
-
-Add the four subjects. Each password is read from stdin, with the trailing newline dropped. Pick your own
-passwords and keep them in shell variables only; never commit them.
-
-```bash
-for s in admin provider daemon-a daemon-b; do
-  printf '%s' "pw-$s-CHANGE-ME" | diverge issuer identities add "$s"
-done
-diverge issuer identities list      # four lines {"subject":…,"made":…}
-```
-
-Check that discovery is served: `curl -s "$ISS/.well-known/openid-configuration"` returns JSON whose `issuer` is
-`http://127.0.0.1:14981`. The CLI's login relies on this discovery document.
-
 ### Step 3: sign identities in, per root
 
 Every program uses identities from **its own root**:
 
-- root A needs `admin` (for the CLI and world A), `provider`, and `daemon-a`
-- root B needs `daemon-b` and `admin` (for world B)
+- root A needs `github.12345.admin` (for the CLI and world A), `github.12345.provider`, and `github.12345.daemon-a`
+- root B needs `github.12345.daemon-b` and `github.12345.admin` (for world B)
 
-> **This step does not work at this revision.** The CLI and the daemon now sign in by device code only
-> (`diverge identities login` prints a code and ends; the wait goes on in the background). The local issuer
-> this guide sets up in step 2 has no device authorization endpoint and takes passwords only, so nothing can
-> be signed in at it. Until `identity.diverge.network` serves, or the local issuer gains a device endpoint,
-> the identities this guide needs cannot be made, and the steps after this one cannot be followed.
+> **This step cannot be followed at this revision.** Identities are signed in at
+> `https://identity.diverge.network` by device code (`diverge identities login` prints a code and ends; the
+> wait goes on in the background). That service is not yet live, and the CLI has no command to approve a code
+> yet. Until both exist, the identities this guide needs cannot be made, and this step and everything after
+> it cannot be followed.
 
-The command, for an issuer that offers the device flow:
+The command:
 
 ```bash
-diverge --config "$A" identities login --issuer "$ISS" --subject admin --client-id diverge
+diverge --config "$A" identities login --issuer "$ISS" --subject github.12345.admin --client-id diverge
 # {"user_code":…,"verification_uri":…,"expires_in":…}   then the command ends; approve the code at the issuer
 diverge --config "$A" identities list   # the identity is listed once the login was approved
 ```
@@ -220,12 +195,12 @@ cat > "$A/provider.yaml" <<EOF
 port: 14979
 identity:
   issuer: $ISS
-  subject: provider
+  subject: github.12345.provider
 incoming:
   - issuer: $ISS
-    subject: daemon-a
+    subject: github.12345.daemon-a
   - issuer: $ISS
-    subject: daemon-b
+    subject: github.12345.daemon-b
 EOF
 ```
 
@@ -247,10 +222,10 @@ cat > "$A/daemon.yaml" <<EOF
 port: 14980
 identity:
   issuer: $ISS
-  subject: daemon-a
+  subject: github.12345.daemon-a
 admins:
   - issuer: $ISS
-    subject: admin
+    subject: github.12345.admin
 idle_seconds: 120
 EOF
 mkdir -p "$B"
@@ -258,10 +233,10 @@ cat > "$B/daemon.yaml" <<EOF
 port: 14982
 identity:
   issuer: $ISS
-  subject: daemon-b
+  subject: github.12345.daemon-b
 admins:
   - issuer: $ISS
-    subject: admin
+    subject: github.12345.admin
 idle_seconds: 120
 EOF
 ```
@@ -285,12 +260,12 @@ daemons:
     address: ws://127.0.0.1:14980/
     default: admin
     accounts:
-      admin: {issuer: "$ISS", subject: admin}
+      admin: {issuer: "$ISS", subject: github.12345.admin}
   b:
     address: ws://127.0.0.1:14982/
     default: admin
     accounts:
-      admin: {issuer: "$ISS", subject: admin}
+      admin: {issuer: "$ISS", subject: github.12345.admin}
 EOF
 # Root B's cli.yaml exists so that `diverge --config "$B" daemon stop` finds daemon B's port.
 cat > "$B/cli.yaml" <<EOF
@@ -303,13 +278,13 @@ cat > "$A/viewer.yaml" <<EOF
 daemon:
   address: ws://127.0.0.1:14980/
   issuer: $ISS
-  subject: admin
+  subject: github.12345.admin
 EOF
 cat > "$B/viewer.yaml" <<EOF
 daemon:
   address: ws://127.0.0.1:14982/
   issuer: $ISS
-  subject: admin
+  subject: github.12345.admin
 EOF
 ```
 
@@ -357,8 +332,8 @@ provider to **both** daemons, `outgoing` (the daemon dials it), each with its ow
 announcement is what lets each daemon find the other on the provider.
 
 ```bash
-PA='{"identity":{"issuer":"'"$ISS"'","subject":"provider"},"direction":"outgoing","address":"127.0.0.1:14979","announcement":"daemon A","messageable":true}'
-PB='{"identity":{"issuer":"'"$ISS"'","subject":"provider"},"direction":"outgoing","address":"127.0.0.1:14979","announcement":"daemon B","messageable":true}'
+PA='{"identity":{"issuer":"'"$ISS"'","subject":"github.12345.provider"},"direction":"outgoing","address":"127.0.0.1:14979","announcement":"daemon A","messageable":true}'
+PB='{"identity":{"issuer":"'"$ISS"'","subject":"github.12345.provider"},"direction":"outgoing","address":"127.0.0.1:14979","announcement":"daemon B","messageable":true}'
 diverge run providers add "$PA"
 diverge run --daemon b providers add "$PB"
 diverge run providers list            # items, then "listed"; the record's "status" should be "connected"
@@ -388,7 +363,7 @@ Change them on a running daemon with `providers edit`; nothing is restarted and 
 stays up, so no container stops:
 
 ```bash
-ID='"identity":{"issuer":"'"$ISS"'","subject":"provider"}'
+ID='"identity":{"issuer":"'"$ISS"'","subject":"github.12345.provider"}'
 diverge run --daemon b providers edit "{$ID,\"announcement\":\"daemon B, staging\",\"messageable\":false}"
 diverge run --daemon b providers edit "{$ID,\"announcement\":null}"       # stop announcing; absent would leave it
 diverge run --daemon b providers edit "{$ID,\"announcement\":\"daemon B\",\"messageable\":true}"
@@ -565,11 +540,11 @@ What `pnpm tauri dev` does:
 2. Builds and opens the Tauri app.
 
 The app reads `$A/viewer.yaml`, since `DIVERGE_CONFIG` is unset and `~/.diverge` is the default, and it signs in
-as `admin` from `$A/identities`.
+as `github.12345.admin` from `$A/identities`.
 
 Check:
 
-- The window shows the board: a dark grid with the provider node, the `admin` account and the `echo` agent.
+- The window shows the board: a dark grid with the provider node, the `github.12345.admin` account and the `echo` agent.
 - Clicking the agent opens its sheet with these tabs: logs, filesystem, console, frontend.
 - The composer under the log sends `agents message`.
 
@@ -586,11 +561,11 @@ What A needs on B:
 
 - A reaches B **as an account on B**. For relayed daemon connections, B's `admins` do **not** count
   (`diverge-daemon/src/judge/admit.rs`), so B needs an account for the identity A presents.
-- This guide has A present `daemon-a`, which is signed in under root A.
+- This guide has A present `github.12345.daemon-a`, which is signed in under root A.
 - B must announce itself on a provider A is connected to (an `announcement` on B's record of it, step 6), and
   that record must have `accept_daemons: true` (the default).
 
-**On B (as admin):** a role and an account for `daemon-a`. This role is deliberately broad, so that world A's
+**On B (as admin):** a role and an account for `github.12345.daemon-a`. This role is deliberately broad, so that world A's
 relayed board and the tool steps below work. Trim it once things work.
 
 ```bash
@@ -614,33 +589,33 @@ cat > "$WORK/peer-role.json" <<'EOF'
  {"images":["info"]}]}
 EOF
 diverge run --daemon b roles create "$(cat "$WORK/peer-role.json")"
-diverge run --daemon b accounts create "{\"identity\":{\"issuer\":\"$ISS\",\"subject\":\"daemon-a\"},\"roles\":[\"peer\"]}"
+diverge run --daemon b accounts create "{\"identity\":{\"issuer\":\"$ISS\",\"subject\":\"github.12345.daemon-a\"},\"roles\":[\"peer\"]}"
 ```
 
 **On A (as admin):** check that B is visible through the provider, then record B.
 
 ```bash
-diverge run providers daemons list        # should list daemon-b with the provider as a route (a daemon is never listed to itself)
+diverge run providers daemons list        # should list github.12345.daemon-b with the provider as a route (a daemon is never listed to itself)
 ID_B="$(diverge run daemons add --jq '.added // .exists' \
-  "{\"daemon\":{\"issuer\":\"$ISS\",\"subject\":\"daemon-b\"},\"identity\":{\"issuer\":\"$ISS\",\"subject\":\"daemon-a\"},\"description\":\"daemon B\"}" | tr -d '"')"
+  "{\"daemon\":{\"issuer\":\"$ISS\",\"subject\":\"github.12345.daemon-b\"},\"identity\":{\"issuer\":\"$ISS\",\"subject\":\"github.12345.daemon-a\"},\"description\":\"daemon B\"}" | tr -d '"')"
 echo "$ID_B"                               # base62, up to 11 characters
 ```
 
 The record:
 
-- `identity` and `daemon` may be from different issuers; here both are from the one local issuer.
+- `identity` and `daemon` may be from different issuers; here both are from the one issuer.
 - The route filters `providers`, `ips` and `addresses` are optional; leaving them out allows any route.
 - The ID hashes `{daemon, identity, routes}`, so changing any of them means deleting the record and adding a new
   one.
 - Nothing connects at `add`. The first relay or connected tool that names the record does.
 
-**A relay test:** A forwards the request to B, which serves it as `daemon-a`'s account.
+**A relay test:** A forwards the request to B, which serves it as `github.12345.daemon-a`'s account.
 
 ```bash
 diverge run agents list "{\"relay\":[\"$ID_B\"]}"     # an empty list then "listed", not "forbidden"/error
 ```
 
-**A tool on B, made through the relay**, so that it belongs to `daemon-a`'s account there:
+**A tool on B, made through the relay**, so that it belongs to `github.12345.daemon-a`'s account there:
 
 ```bash
 $PY -c 'import json,sys; print(json.dumps({"type":"tool","mode":"transient","image":{"digest":sys.argv[1],"references":[{"registry":"docker.io","name":"diverge-local/memory"}]},"memory":268435456,"disk":268435456,"arguments":{},"relay":[sys.argv[2]]}))' \
@@ -669,14 +644,14 @@ What to expect:
 - The agent's log ends `tool said: {"id":1}`.
 - The second log is every call A routed into B's tool. On B, the log of
   `{"of":{"type":"standalone_tool","name":"notebook"}}` shows the same calls arriving, their caller the client
-  `daemon-a`.
+  `github.12345.daemon-a`.
 
 **In world A:**
 
 - The Home board shows a **daemon** node (from `daemons list`) linked to the connected tool.
 - The daemon's sheet has one tab, `daemon`, with a button "Open <name>". It opens a new tab on the window: B's
   board, with every request carrying `relay: [ID_B]`.
-- That board shows what `daemon-a`'s account sees on B.
+- That board shows what `github.12345.daemon-a`'s account sees on B.
 
 ### Step 11 (optional): a second diverge-world against daemon B
 
@@ -696,7 +671,7 @@ cd "$REPO/diverge-world" && DIVERGE_CONFIG="$(cygpath -w "$B" 2>/dev/null || ech
 ```
 
 Both share the page source with world A, which is fine because the page is identical. World B reads
-`$B/viewer.yaml` and signs in as `admin` from `$B/identities`.
+`$B/viewer.yaml` and signs in as `github.12345.admin` from `$B/identities`.
 
 The app also accepts `--config <dir>` as its first argument. `DIVERGE_CONFIG` is the documented route.
 
@@ -708,7 +683,6 @@ Stop the servers in this order. Each command returns once the program's lock is 
 diverge --config "$B" daemon stop
 diverge daemon stop
 diverge provider stop        # also removes every container this provider ran, and its tunnel
-diverge issuer stop
 ```
 
 Each daemon's Postgres is stopped by its daemon. A postmaster that a killed daemon leaves behind is stopped
@@ -727,8 +701,8 @@ cleanly at the next start.
 | Remote-daemon records | `diverge run daemons list` |
 | Images in the provider store | `pp image ls --no-trunc` |
 | Containers running | `pp ps` |
-| Server failures | `<root>/issuer.log`, `$A/provider.log`, `<root>/daemon.log` |
-| Every request an account made, allowed or refused | `diverge run logs '{"of":{"type":"admin","issuer":"…","subject":"admin"}}'`, or `{"type":"account",…}` (see `diverge run logs request-schema`) |
+| Server failures | `$A/provider.log`, `<root>/daemon.log` |
+| Every request an account made, allowed or refused | `diverge run logs '{"of":{"type":"admin","issuer":"…","subject":"github.12345.admin"}}'`, or `{"type":"account",…}` (see `diverge run logs request-schema`) |
 
 ---
 
@@ -793,7 +767,7 @@ cleanly at the next start.
   same way.
 - Under `sudo`, `$HOME` is root's, so always pass `--config` explicitly.
 - How a root-owned provider shares `<root>/identities` with a user-run CLI and daemon is not worked out here. A
-  separate root for the provider, with its own `provider` login, is the obvious arrangement, but it is untested.
+  separate root for the provider, with its own `github.12345.provider` login, is the obvious arrangement, but it is untested.
 
 ---
 
@@ -806,13 +780,13 @@ cleanly at the next start.
    announced and accepting B, and a shared provider. What diverge-world shows of it (the daemon node, its "Open"
    tab, B's board) was not run.
 2. **Which tool `connected-standalone-tools create` may name.** Its `tool` is "a standalone tool of the caller's"
-   as B reads it, i.e. of `daemon-a`'s account. That is why step 10 creates the tool on B *through the relay*. It
+   as B reads it, i.e. of `github.12345.daemon-a`'s account. That is why step 10 creates the tool on B *through the relay*. It
    is not verified whether a tool created by B's admin could be named instead.
 3. **The `peer` role's grant set** is generous on purpose. Under it, each of the eleven lists world A's relayed
    board opens answers through the relay. Which of its grants could go was not established, nor whether what
-   `daemon-a`'s account sees on B is limited to what it owns.
+   `github.12345.daemon-a`'s account sees on B is limited to what it owns.
 4. **World B's view as `admin`.** Asked by the CLI as `admin` on B, `standalone-tools list` shows `notebook`, which
-   `daemon-a`'s account made: an administrator's listing shows other accounts' records. World B was not run
+   `github.12345.daemon-a`'s account made: an administrator's listing shows other accounts' records. World B was not run
    against it.
 5. **The second diverge-world copy.** The CLAUDE.md recipe conflicts with Vite's `strictPort: 1440`. Workaround
    (a) in step 11 was run on macOS at an earlier revision, before the handshake changed, and worked: the debug
