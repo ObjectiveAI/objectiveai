@@ -33,5 +33,9 @@ axum = "0.8.9"
 hyper = { version = "1.8.1", features = ["server", "http1"] }
 hyper-util = { version = "0.1.20", features = ["tokio"] }
 
+# A link that asks for a new window, opened in the person's own
+# browser instead (`main.rs`).
+webbrowser = "=1.2.4"
+
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }
