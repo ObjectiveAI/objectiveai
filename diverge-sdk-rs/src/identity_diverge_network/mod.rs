@@ -70,8 +70,10 @@
 //!    elsewhere — a tool, in its database — holds each account's
 //!    [`Tokens`] itself, keeps them good with
 //!    [`Tokens::good`] and [`Tokens::renew`] under its store's own
-//!    lock, and asks `identity.diverge.network` with the free
-//!    functions of [`service`](mod@service). What a file's account is
+//!    lock, signs one in with [`begin`] and [`Device::wait`], reads
+//!    what its issuer says of it with [`info`](fn@info), and asks
+//!    `identity.diverge.network` with the free functions of
+//!    [`service`](mod@service). What a file's account is
 //!    held to here, such an account is held to there.
 //!
 //! Its own files are flattened into it, so everything is named
@@ -96,7 +98,9 @@ mod who;
 pub use account::*;
 pub use accounts::*;
 pub use error::*;
+pub use info::*;
 pub use issuer::*;
+pub use login::*;
 pub use pending::*;
 pub use service::*;
 pub use subject::*;

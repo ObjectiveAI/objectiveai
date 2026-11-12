@@ -9,6 +9,7 @@ use rmcp::{ErrorData, RoleServer, ServerHandler};
 
 use crate::daemon::Daemon;
 use crate::failure::Failure;
+use crate::logins::Logins;
 use crate::register;
 use crate::store::Store;
 use crate::tools;
@@ -26,6 +27,8 @@ pub struct State {
     /// The HTTP client. It follows no redirect, so no answer can send
     /// a request, and the token it carries, elsewhere.
     pub http: reqwest::Client,
+    /// The account logins the page began, while they wait.
+    pub logins: Logins,
 }
 
 impl Default for State {
@@ -34,15 +37,17 @@ impl Default for State {
         // the default is: the tool serves either way, and a token is
         // only ever sent to the two addresses this crate names.
         let http = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).user_agent("diverge").build().unwrap_or_default();
-        State { client: Client::default(), store: Store::default(), daemon: Daemon::default(), http }
+        State { client: Client::default(), store: Store::default(), daemon: Daemon::default(), http, logins: Logins::default() }
     }
 }
 
-/// The server one MCP session is served by: every session the proxy
-/// opens is a clone of one server, so the state is the container's.
+/// The server one MCP session is served by, and the page's requests:
+/// every session the proxy opens is a clone of one server, so the
+/// state is the container's.
 #[derive(Clone, Default)]
 pub struct Server {
-    state: Arc<State>,
+    /// The state.
+    pub state: Arc<State>,
 }
 
 /// What a tool call has to work with: the shared state, and the
@@ -65,7 +70,7 @@ impl Server {
 const INSTRUCTIONS: &str = "Signs identities in on the daemon's host at Diverge's own issuer, https://identity.diverge.network, with nobody entering a code. \
 See which accounts this tool holds with `list_accounts`: each is `<issuer>.<id>`, a GitHub or Google sign-in, and owns every subject that begins with it. \
 Sign a subject in with `login`, giving the account's `issuer` and `id` and the subject's name as `subject`: the whole subject is `<issuer>.<id>.<subject>`. \
-A name never used before begins a new subject. No account can be added to this tool yet, so `list_accounts` may answer none.";
+A name never used before begins a new subject. Accounts are added by a person at this tool's page, never by a tool call: if `list_accounts` answers none, ask a person to open the page and sign one in.";
 
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {

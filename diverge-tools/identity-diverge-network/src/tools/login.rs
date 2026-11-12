@@ -42,8 +42,9 @@ pub struct Parameters {
 ///    template, else [`Failure::NoAccount`]. Neither the id nor the
 ///    name is empty.
 /// 2. **Its token is had first** — see
-///    [`token`](store::accounts::token): under the account's row lock,
-///    renewed where it has expired. An account that cannot approve
+///    [`token`](store::accounts::token), the one
+///    `identity.diverge.network` takes of its issuer: under the
+///    account's row lock, renewed where it has expired. An account that cannot approve
 ///    begins no login.
 /// 3. **The daemon begins the login**: its `identities login`, of the
 ///    whole subject at [`ISSUER`], as the client [`CLIENT_ID`]. The
@@ -71,7 +72,7 @@ pub async fn call(call: Call<'_>, parameters: Parameters) -> Result<Value, Failu
     let subject = format!("{}.{}.{}", issuer.name, parameters.id, parameters.subject);
     // Rule 2.
     let pool = call.state.store.pool(&call.state.client).await?;
-    let token = store::accounts::token(pool, &call.state.http, call.template, issuer, &parameters.id).await?;
+    let token = store::accounts::token(pool, &call.state.http, call.template, issuer, &parameters.id, issuer.presents).await?;
     // Rule 3.
     let request = request::Frame { issuer: ISSUER.to_string(), subject: subject.clone(), client_id: CLIENT_ID.to_string(), scope: None, resource: None, relay: None };
     let handle = call.state.daemon.handle(&call.state.client).await?;

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>identity.diverge.network</title>
+<style>
+  :root {
+    --page: #f7f8fa;
+    --raised: #ffffff;
+    --line: #dde2e8;
+    --text: #151a20;
+    --dim: #647080;
+    --accent: #1f6feb;
+    --good: #1a7f4b;
+    --bad: #b3261e;
+    --code: #eef2f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #101418;
+      --raised: #182028;
+      --line: #2a3540;
+      --text: #e4e9ee;
+      --dim: #8c98a4;
+      --accent: #6aa9ff;
+      --good: #4fd18a;
+      --bad: #f0796b;
+      --code: #0c1014;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  h2 { margin: 32px 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+  p { margin: 0 0 12px; }
+  .dim { color: var(--dim); }
+  .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  .card { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row .who { flex: 1; min-width: 0; }
+  .row .who div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge {
+    flex: none;
+    padding: 1px 9px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .problem { color: var(--bad); font-size: 13px; white-space: normal !important; }
+  .empty { padding: 20px 16px; color: var(--dim); }
+  button {
+    font: inherit;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--raised);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { button.primary { color: #0b1220; } }
+  button.quiet { border-color: transparent; color: var(--dim); padding: 4px 8px; }
+  button.quiet:hover { color: var(--bad); border-color: var(--line); }
+  .add { display: flex; flex-wrap: wrap; gap: 8px; }
+  .login { margin-top: 12px; padding: 20px 16px; }
+  .login .code {
+    display: inline-block;
+    margin: 8px 0 12px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    background: var(--code);
+    border: 1px solid var(--line);
+    font: 600 26px/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    letter-spacing: 0.08em;
+    user-select: all;
+  }
+  .login ol { margin: 0 0 12px; padding-left: 20px; }
+  .login li { margin-bottom: 6px; }
+  .state { font-size: 14px; }
+  .state.good { color: var(--good); }
+  .state.bad { color: var(--bad); }
+  a { color: var(--accent); }
+  .note { margin-top: 40px; font-size: 13px; color: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <h1>identity.diverge.network</h1>
+  <p class="dim">Accounts this tool can sign identities in as.</p>
+
+  <h2>Accounts</h2>
+  <div class="card" id="accounts"><div class="empty">Loading…</div></div>
+
+  <h2>Add an account</h2>
+  <div class="add" id="issuers"></div>
+  <div id="login"></div>
+
+  <p class="note">
+    An account is a GitHub or Google sign-in, written <span class="mono">issuer.id</span>. It owns every
+    subject at identity.diverge.network that begins with it. Anyone who can open this page can add or remove
+    accounts, and any agent attached to this tool can sign in as any of them. Removing an account here does not
+    sign out what it already signed in.
+  </p>
+</main>
+<script>
+"use strict";
+
+const accountsBox = document.getElementById("accounts");
+const issuersBox = document.getElementById("issuers");
+const loginBox = document.getElementById("login");
+const titles = { github: "GitHub", google: "Google" };
+const title = (issuer) => titles[issuer] || issuer;
+
+// What a request answered, or the error it was refused with.
+async function ask(path, options) {
+  const answer = await fetch(path, options);
+  if (answer.status === 204) return null;
+  const body = await answer.json().catch(() => ({ error: "the tool answered " + answer.status }));
+  if (!answer.ok) throw new Error(body.error || "the tool answered " + answer.status);
+  return body;
+}
+
+function element(tag, properties, children) {
+  const made = Object.assign(document.createElement(tag), properties || {});
+  for (const child of children || []) made.append(child);
+  return made;
+}
+
+async function showAccounts() {
+  let listed;
+  try {
+    listed = (await ask("api/accounts")).accounts;
+  } catch (error) {
+    accountsBox.replaceChildren(element("div", { className: "empty problem", textContent: error.message }));
+    return;
+  }
+  if (listed.length === 0) {
+    accountsBox.replaceChildren(element("div", { className: "empty", textContent: "No accounts yet. Add one below." }));
+    return;
+  }
+  accountsBox.replaceChildren(...listed.map((account) => {
+    const lines = [element("div", { className: "mono", textContent: account.account })];
+    if (account.name) lines.push(element("div", { className: "dim", textContent: account.name }));
+    if (account.problem) lines.push(element("div", { className: "problem", textContent: account.problem }));
+    const remove = element("button", { className: "quiet", textContent: "Remove" });
+    remove.addEventListener("click", async () => {
+      if (!confirm("Remove " + account.account + " from this tool?")) return;
+      remove.disabled = true;
+      try {
+        await ask("api/accounts/" + encodeURIComponent(account.issuer) + "/" + encodeURIComponent(account.id), { method: "DELETE" });
+      } catch (error) {
+        alert(error.message);
+      }
+      showAccounts();
+    });
+    return element("div", { className: "row" }, [
+      element("span", { className: "badge", textContent: title(account.issuer) }),
+      element("div", { className: "who" }, lines),
+      remove,
+    ]);
+  }));
+}
+
+// The one login the page is waiting on, if any: a newer one replaces it.
+let waiting = 0;
+
+async function begin(issuer, button) {
+  button.disabled = true;
+  let begun;
+  try {
+    begun = await ask("api/logins", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ issuer }) });
+  } catch (error) {
+    loginBox.replaceChildren(element("div", { className: "card login" }, [element("div", { className: "state bad", textContent: error.message })]));
+    button.disabled = false;
+    return;
+  }
+  button.disabled = false;
+  const mine = ++waiting;
+  const login = begun.login;
+  const page = login.verification_uri_complete || login.verification_uri;
+  const state = element("div", { className: "state dim", textContent: "Waiting for you to approve at " + title(issuer) + "…" });
+  loginBox.replaceChildren(element("div", { className: "card login" }, [
+    element("div", { textContent: "Sign in to " + title(issuer) }),
+    element("div", { className: "code", textContent: login.user_code }),
+    element("ol", {}, [
+      element("li", {}, ["Open ", element("a", { href: page, target: "_blank", rel: "noopener noreferrer", textContent: page }), "."]),
+      element("li", { textContent: "Sign in there, and enter the code above." }),
+      element("li", { textContent: "Come back here. The account appears by itself." }),
+    ]),
+    state,
+  ]));
+  while (mine === waiting) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    let now;
+    try {
+      now = (await ask("api/logins/" + begun.id)).login;
+    } catch (error) {
+      state.className = "state bad";
+      state.textContent = error.message;
+      return;
+    }
+    if (now.state === "signed_in") {
+      state.className = "state good";
+      state.textContent = "Signed in as " + now.account + ".";
+      showAccounts();
+      return;
+    }
+    if (now.state === "failed") {
+      state.className = "state bad";
+      state.textContent = "Not signed in: " + now.error;
+      return;
+    }
+  }
+}
+
+async function showIssuers() {
+  let issuers;
+  try {
+    issuers = (await ask("api/issuers")).issuers;
+  } catch (error) {
+    issuersBox.replaceChildren(element("div", { className: "problem", textContent: error.message }));
+    return;
+  }
+  issuersBox.replaceChildren(...issuers.map((issuer) => {
+    const button = element("button", { className: "primary", textContent: "Sign in with " + title(issuer) });
+    button.addEventListener("click", () => begin(issuer, button));
+    return button;
+  }));
+}
+
+showAccounts();
+showIssuers();
+</script>
+</body>
+</html>

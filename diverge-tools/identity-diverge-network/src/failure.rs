@@ -15,6 +15,8 @@ pub enum Failure {
     /// The issuer is none there is: what was given, and the ones
     /// there are.
     Issuer(String),
+    /// The page's request is no person's.
+    Person(String),
     /// The tool holds no such account.
     NoAccount(String),
     /// The account's tokens are no longer good at its issuer.
@@ -46,8 +48,9 @@ impl fmt::Display for Failure {
             Failure::Unregistered => f.write_str("the tool has not been registered yet"),
             Failure::Parameters(why) => write!(f, "the parameters are not what this tool takes: {why}"),
             Failure::Issuer(why) => write!(f, "{why}; an account's issuer is who issued its own sign-in, never identity.diverge.network"),
-            Failure::NoAccount(account) => write!(f, "the tool holds no account `{account}`: `list_accounts` lists the ones it does. An account is signed in at the tool's own page, which is not built yet, so none can be added"),
-            Failure::SignedOut(account) => write!(f, "the account `{account}` is signed out at its issuer, and has to be signed in to the tool again; nothing was signed in"),
+            Failure::Person(why) => write!(f, "the page is a person's, and this request is not one's: {why}"),
+            Failure::NoAccount(account) => write!(f, "the tool holds no account `{account}`: `list_accounts` lists the ones it does. A person adds an account at the tool's page"),
+            Failure::SignedOut(account) => write!(f, "the account `{account}` is signed out at its issuer: a person signs it in again at the tool's page"),
             Failure::Forbidden => f.write_str("the daemon grants this tool no login: it needs `{\"identities\": [\"login\"]}` for a subject not on the host yet, and `{\"identities\": {\"actions\": [\"login\"], \"within\": \"any\"}}` for one that is; nothing was signed in"),
             Failure::Held => f.write_str("another login of that identity, or a reader of it, holds it on the daemon's host right now; nothing was signed in, try again"),
             Failure::Unapproved(how) => write!(f, "the daemon's login ended {how} though the tool approved it; nothing was signed in"),
@@ -55,7 +58,7 @@ impl fmt::Display for Failure {
             Failure::Ended => f.write_str("the daemon's login ended with no outcome; nothing is known to be signed in"),
             Failure::Daemon(why) => write!(f, "the daemon could not be asked: {why}; nothing was signed in"),
             Failure::Store(why) => write!(f, "the accounts could not be read or written: {why}"),
-            Failure::Identity(why) => write!(f, "{why}; nothing was signed in"),
+            Failure::Identity(why) => write!(f, "{why}"),
         }
     }
 }

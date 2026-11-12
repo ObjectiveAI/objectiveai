@@ -18,8 +18,9 @@
 //! port [`diverge_sdk::container_proxy::inside::port()`] names, and
 //! the proxy beside it is its only caller: `POST /register` once,
 //! `POST /secrets` and `POST /secrets/collect` around every activation
-//! (the tool takes no secret), and the MCP server at `/mcp`, whose two
-//! tools are in [`tools`]. `--schema`, the program's one argument,
+//! (the tool takes no secret), the MCP server at `/mcp`, whose two
+//! tools are in [`tools`], and the page beneath `/frontend`, in
+//! [`frontend`], where a person signs an account in. `--schema`, the program's one argument,
 //! prints the JSON Schema of the arguments it takes, which is the
 //! `schema` of the image's `/DIVERGE.md` frontmatter.
 //!
@@ -30,15 +31,19 @@
 //! database and the daemon are reached on the first tool call that
 //! needs them, and kept.
 //!
-//! # No account can be added yet
+//! # An account is added by a person
 //!
-//! An account is signed in at its issuer, by a person, and the tool's
-//! page for that is not built. Until it is, the tool holds none.
+//! An account is signed in at its issuer, by a person entering a code
+//! there: that is the page's to begin, and no MCP tool's. An agent
+//! lists the accounts and logs in as one; it adds none.
 
 mod arguments;
 mod daemon;
 mod failure;
+mod frontend;
+mod logins;
 mod permissions;
+mod person;
 mod register;
 mod secrets;
 mod server;
@@ -94,16 +99,19 @@ fn schema() {
 
 /// The server, for the container's life, bound on the loopback: the
 /// proxy is the only thing that dials it, and it is beside it. Every
-/// MCP session the proxy opens shares one [`Server`], so the database
-/// pool and the daemon connection are made once.
+/// MCP session the proxy opens, and every request of the page, shares
+/// one [`Server`], so the database pool and the daemon connection are
+/// made once.
 async fn serve() {
     let server = Server::new();
-    let mcp = StreamableHttpService::new(move || Ok(server.clone()), Arc::new(LocalSessionManager::default()), StreamableHttpServerConfig::default());
+    let sessions = server.clone();
+    let mcp = StreamableHttpService::new(move || Ok(sessions.clone()), Arc::new(LocalSessionManager::default()), StreamableHttpServerConfig::default());
     let app = axum::Router::new()
         .route("/register", axum::routing::post(register::register))
         .route("/secrets", axum::routing::post(secrets::feed))
         .route("/secrets/collect", axum::routing::post(secrets::collect))
-        .nest_service("/mcp", mcp);
+        .nest_service("/mcp", mcp)
+        .merge(frontend::routes(server));
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", diverge_sdk::container_proxy::inside::port())).await.expect("the port could not be bound");
     axum::serve(listener, app).await.expect("the server stopped unexpectedly");
 }

@@ -13,7 +13,7 @@ pub const NAME: &str = "list_accounts";
 
 /// What the tool does, as its caller reads it.
 pub const DESCRIPTION: &str = "List the accounts at identity.diverge.network this tool holds. Each is `<issuer>.<id>`: a GitHub or Google sign-in, which owns every subject that begins with it. \
-Give an account's `issuer` and `id` to `login`. No token is answered. There is no way to add an account yet, so this may answer none.";
+Give an account's `issuer` and `id` to `login`. No token is answered. Accounts are added by a person at this tool's page, never by a tool call.";
 
 /// What `list_accounts` takes: nothing.
 #[derive(Debug, Deserialize, JsonSchema)]
