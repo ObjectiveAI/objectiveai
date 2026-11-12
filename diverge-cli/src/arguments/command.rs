@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 
-use super::{Document, Identities, Server};
+use super::{Document, Identities, IdentityDivergeNetwork, Server};
 use crate::run::Run;
 
 /// The commands. Every request of the daemon's wire goes under
@@ -23,6 +23,11 @@ pub enum Command {
     /// host shares. No command prints a token.
     #[command(subcommand)]
     Identities(Identities),
+    /// Work on this host's accounts at `identity.diverge.network`,
+    /// Diverge's own OpenID Connect provider: see
+    /// [`identity_diverge_network`](crate::cli::identity_diverge_network).
+    #[command(name = "identity.diverge.network", subcommand)]
+    IdentityDivergeNetwork(IdentityDivergeNetwork),
     /// Start or stop the daemon on the root, or work on its
     /// `daemon.yaml`: see [`lifecycle`](crate::lifecycle) and
     /// [`config`](crate::cli::config).

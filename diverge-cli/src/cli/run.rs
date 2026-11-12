@@ -27,6 +27,7 @@ pub async fn run(arguments: Arguments) -> Result<(), Error> {
             Ok(())
         }
         Some(Command::Identities(command)) => super::identities::run(&root, command).await,
+        Some(Command::IdentityDivergeNetwork(command)) => super::identity_diverge_network::run(&root, command).await,
         Some(Command::Daemon(command)) => {
             server(&root, Program::Daemon, Which::Daemon, command).await
         }

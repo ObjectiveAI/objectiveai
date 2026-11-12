@@ -9,7 +9,8 @@
 //! [`Action`]: the daemon and the provider are each a [`Server`] —
 //! started or stopped by a [`Lifecycle`], or configured — the viewer
 //! and the CLI each a [`Document`], configured alone. The host's
-//! OpenID Connect identities are [`Identities`].
+//! OpenID Connect identities are [`Identities`], and its accounts at
+//! Diverge's own provider are [`IdentityDivergeNetwork`].
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -19,6 +20,7 @@ mod command;
 mod config;
 mod document;
 mod identities;
+mod identity_diverge_network;
 mod lifecycle;
 mod server;
 
@@ -27,5 +29,6 @@ pub use command::*;
 pub use config::*;
 pub use document::*;
 pub use identities::*;
+pub use identity_diverge_network::*;
 pub use lifecycle::*;
 pub use server::*;

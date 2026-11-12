@@ -4,6 +4,7 @@ use std::fmt;
 use std::io;
 
 use diverge_sdk::identities;
+use diverge_sdk::identity_diverge_network;
 
 use crate::config;
 use crate::detach;
@@ -35,6 +36,9 @@ pub enum Error {
     /// A command that leaves its wait behind could not be relayed, or
     /// ended before it left.
     Detach(detach::Error),
+    /// The root's accounts at `identity.diverge.network` could not be
+    /// opened or listed, or a login could not begin.
+    Accounts(identity_diverge_network::Error),
 }
 
 impl fmt::Display for Error {
@@ -48,6 +52,7 @@ impl fmt::Display for Error {
             Error::Identities(error) => write!(f, "{error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
             Error::Detach(error) => write!(f, "{error}"),
+            Error::Accounts(error) => write!(f, "{error}"),
         }
     }
 }
@@ -69,6 +74,7 @@ impl std::error::Error for Error {
             Error::Identities(error) => Some(error),
             Error::Stdout(error) => Some(error),
             Error::Detach(error) => Some(error),
+            Error::Accounts(error) => Some(error),
         }
     }
 }
@@ -76,6 +82,12 @@ impl std::error::Error for Error {
 impl From<config::Error> for Error {
     fn from(error: config::Error) -> Self {
         Error::Config(error)
+    }
+}
+
+impl From<identity_diverge_network::Error> for Error {
+    fn from(error: identity_diverge_network::Error) -> Self {
+        Error::Accounts(error)
     }
 }
 
