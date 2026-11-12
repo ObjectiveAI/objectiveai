@@ -86,6 +86,7 @@
     letter-spacing: 0.08em;
     user-select: all;
   }
+  .login .copy { margin-left: 8px; vertical-align: middle; }
   .login ol { margin: 0 0 12px; padding-left: 20px; }
   .login li { margin-bottom: 6px; }
   .state { font-size: 14px; }
@@ -130,6 +131,29 @@ async function ask(path, options) {
   const body = await answer.json().catch(() => ({ error: "the tool answered " + answer.status }));
   if (!answer.ok) throw new Error(body.error || "the tool answered " + answer.status);
   return body;
+}
+
+// Text put on the clipboard: by the clipboard itself where the frame is
+// allowed it, else by a selection copied, which a click always allows.
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (refused) {
+    const held = element("textarea", { value: text });
+    held.style.position = "fixed";
+    held.style.opacity = "0";
+    document.body.append(held);
+    held.select();
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch (failed) {
+      copied = false;
+    }
+    held.remove();
+    return copied;
+  }
 }
 
 function element(tag, properties, children) {
@@ -191,9 +215,14 @@ async function begin(issuer, button) {
   const login = begun.login;
   const page = login.verification_uri_complete || login.verification_uri;
   const state = element("div", { className: "state dim", textContent: "Waiting for you to approve at " + title(issuer) + "…" });
+  const copier = element("button", { className: "copy", type: "button", textContent: "Copy" });
+  copier.addEventListener("click", async () => {
+    copier.textContent = (await copy(login.user_code)) ? "Copied" : "Not copied";
+    setTimeout(() => { copier.textContent = "Copy"; }, 2000);
+  });
   loginBox.replaceChildren(element("div", { className: "card login" }, [
     element("div", { textContent: "Sign in to " + title(issuer) }),
-    element("div", { className: "code", textContent: login.user_code }),
+    element("div", {}, [element("span", { className: "code", textContent: login.user_code }), copier]),
     element("ol", {}, [
       element("li", {}, ["Open ", element("a", { href: page, target: "_blank", rel: "noopener noreferrer", textContent: page }), "."]),
       element("li", { textContent: "Sign in there, and enter the code above." }),

@@ -55,7 +55,8 @@ For agents, over MCP:
 For people, in the tool's frontend. It is where an account gets into
 the tool, which no tool call can do:
 
-- **Add an account.** Choose GitHub or Google. The page shows a code
+- **Add an account.** Choose GitHub or Google. The page shows a code,
+  with a button that copies it,
   and a link to the issuer's own page; sign in there and enter the
   code, and the account appears on the page by itself.
 - **See the accounts** the tool holds, each with the name its issuer

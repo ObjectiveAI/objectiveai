@@ -497,6 +497,8 @@ refused. An administrator's log is the daemon's own admin log.
   the frame itself (or programs on this machine, which could reach the
   daemon as you anyway); another website in a browser is refused.
 - **↻** loads the frontend again from its start.
+- **Copying.** A frontend may put text on your clipboard, so its copy
+  buttons work. It cannot read the clipboard.
 - **Links that open a new window** — a link with a target, or
   `window.open` — open in your own browser when they are `http` or
   `https`, and open nothing otherwise. The app never makes a second
