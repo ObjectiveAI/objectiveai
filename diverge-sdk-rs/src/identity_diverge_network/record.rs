@@ -1,5 +1,6 @@
 //! An account's file.
 
+use std::io;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -31,6 +32,17 @@ impl Accounts {
     /// Where `account`'s file is, and where a write of it is staged.
     fn paths(&self, account: &Account) -> (PathBuf, PathBuf) {
         (self.folder.join(format!("{account}.json")), self.folder.join(format!(".{account}.json.writing")))
+    }
+
+    /// `account`'s file, read, or `None` where there is none.
+    pub(super) async fn read(&self, account: &Account) -> Result<Option<Record>, Error> {
+        let (file, _) = self.paths(account);
+        let bytes = match tokio::fs::read(&file).await {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(source) => return Err(Error::Io { path: file, source }),
+        };
+        serde_json::from_slice(&bytes).map(Some).map_err(Error::Json)
     }
 
     /// Write `record` as its account's file: whole, to the staging

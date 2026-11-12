@@ -32,18 +32,22 @@ pub struct Provider {
     pub device_endpoint: &'static str,
     /// Where it is spent, RFC 8628 §3.4.
     pub token_endpoint: &'static str,
-    /// The scope asked for: the least that has the provider say who
-    /// the user is.
+    /// The scope asked for: what has the provider say who the user
+    /// is, and what [`info`](super::Accounts::info) reads of them.
     pub scope: &'static str,
     /// How the user is learned.
     pub who: Who,
+    /// Where the user's own details are read: a `GET` with the access
+    /// token as its bearer answers a JSON object, which is the
+    /// provider's own and differs from one provider to the next.
+    pub info_endpoint: &'static str,
 }
 
 /// Every provider there is. One more is one more entry here.
 pub const PROVIDERS: [Provider; 2] = [
     // GitHub: an OAuth app, the device flow switched on. No scope:
-    // who the user is needs none. Its token names nobody, so GitHub
-    // is asked.
+    // who the user is, and what GitHub shows of anyone, needs none.
+    // Its token names nobody, so GitHub is asked.
     Provider {
         name: "github",
         client_id: "Ov23lij4pJSNsCRscWua",
@@ -52,20 +56,23 @@ pub const PROVIDERS: [Provider; 2] = [
         token_endpoint: "https://github.com/login/oauth/access_token",
         scope: "",
         who: Who::Asked("https://api.github.com/user"),
+        info_endpoint: "https://api.github.com/user",
     },
     // Google: a client of the kind for TVs and limited-input devices,
     // the one kind with a device flow — which asks for the client's
     // secret, and which Google does not hold to be one. `openid` has
     // the token endpoint answer an ID token, which names the user and
-    // the client it was issued to.
+    // the client it was issued to; `email` and `profile` are what the
+    // user's details are, which Google answers none of without them.
     Provider {
         name: "google",
         client_id: "562291546590-t128jl54jlfqo70kj9otoqspnnsjqo69.apps.googleusercontent.com",
         client_secret: Some("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"),
         device_endpoint: "https://oauth2.googleapis.com/device/code",
         token_endpoint: "https://oauth2.googleapis.com/token",
-        scope: "openid",
+        scope: "openid email profile",
         who: Who::IdToken,
+        info_endpoint: "https://openidconnect.googleapis.com/v1/userinfo",
     },
 ];
 

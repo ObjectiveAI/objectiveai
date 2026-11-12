@@ -40,8 +40,14 @@
 //!    written whole to a staging file beside it and renamed over it, so
 //!    one is never half written.
 //! 6. **No token is answered** by anything here but to this module's
-//!    own later use: [`list`](Accounts::list) reads names, and no
-//!    token.
+//!    own use: [`list`](Accounts::list) reads names, and no token, and
+//!    [`info`](Accounts::info) answers what the provider says of the
+//!    user, which holds none.
+//! 7. **Kept good.** An access token that expires — Google's, in an
+//!    hour — is renewed by the account's refresh token when it is
+//!    next needed, and the file rewritten. An account the provider no
+//!    longer answers for is [`Error::SignedOut`]: its file is kept,
+//!    and a new login replaces it.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
@@ -50,6 +56,8 @@ mod account;
 mod accounts;
 mod device;
 mod error;
+mod fresh;
+mod info;
 mod list;
 mod login;
 mod pending;

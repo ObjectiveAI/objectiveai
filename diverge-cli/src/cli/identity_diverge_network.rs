@@ -17,12 +17,18 @@ use crate::detach;
 ///    `{"account","provider","id"}`, the account written
 ///    `<provider>.<id>` — the first two parts of every subject it
 ///    owns. No file is read, and nothing is asked of anybody.
-/// 2. **Login** is the device authorization grant at the provider
+/// 2. **Info.** What the account's provider says of its user, asked
+///    now and kept nowhere, one line:
+///    `{"account","provider","id","info"}`. The `info` is the
+///    provider's own object, as it wrote it, so it is one shape for
+///    GitHub and another for Google. An account not on the host, and
+///    one its provider no longer answers for, are the error.
+/// 3. **Login** is the device authorization grant at the provider
 ///    named. The user code and the provider's page are printed as one
 ///    line, `{"user_code","verification_uri",
 ///    "verification_uri_complete","expires_in","browser_opened"}`, and
 ///    the command ends there.
-/// 3. **The browser.** Unless `--no-browser`, this host's browser is
+/// 4. **The browser.** Unless `--no-browser`, this host's browser is
 ///    opened at the provider's page — the one with the code in it
 ///    where the provider gives one — before the line is printed, and
 ///    `browser_opened` says whether a browser could be started. It
@@ -30,11 +36,11 @@ use crate::detach;
 ///    so the line names the page either way, for whoever reads it to
 ///    pass on. The code is always entered by a person: no provider
 ///    here gives a page with the code in it.
-/// 4. **The wait is left behind** — see [`detach`]: this command is
+/// 5. **The wait is left behind** — see [`detach`]: this command is
 ///    the front, and the login is its waiter's, which polls on after
 ///    the front has ended until the code is approved, denied or
 ///    expired.
-/// 5. **The outcome is not printed.** An approval writes the account
+/// 6. **The outcome is not printed.** An approval writes the account
 ///    of whoever approved — replacing one already there — and `list`
 ///    shows it; any other ending writes nothing, and there is nothing
 ///    to show.
@@ -42,7 +48,7 @@ use crate::detach;
 /// No line holds a token.
 pub async fn run(root: &Path, command: IdentityDivergeNetwork) -> Result<(), Error> {
     let IdentityDivergeNetwork::Accounts(command) = command;
-    // Rule 4: the front does none of the login's work.
+    // Rule 5: the front does none of the login's work.
     if matches!(command, Accounts::Login { .. }) && !detach::waiter() {
         return Ok(detach::relay().await?);
     }
@@ -53,10 +59,16 @@ pub async fn run(root: &Path, command: IdentityDivergeNetwork) -> Result<(), Err
             let lines: Vec<_> = accounts.list().await?.into_iter().map(|account| json!({ "account": account.to_string(), "provider": account.provider, "id": account.id })).collect();
             print(&lines).await
         }
+        // Rule 2.
+        Accounts::Info { provider, id } => {
+            let account = identity_diverge_network::Account { provider, id };
+            let info = accounts.info(&account).await?;
+            print(&[json!({ "account": account.to_string(), "provider": account.provider, "id": account.id, "info": info })]).await
+        }
         Accounts::Login { provider, no_browser } => {
-            // Rule 2.
-            let pending = accounts.login(&provider).await?;
             // Rule 3.
+            let pending = accounts.login(&provider).await?;
+            // Rule 4.
             let page = pending.verification_uri_complete.as_deref().unwrap_or(&pending.verification_uri);
             let browser_opened = !no_browser && webbrowser::open(page).is_ok();
             print(&[json!({
@@ -68,7 +80,7 @@ pub async fn run(root: &Path, command: IdentityDivergeNetwork) -> Result<(), Err
             })])
             .await?;
             detach::leave().await;
-            // Rule 5: how the wait ended is the account written, or
+            // Rule 6: how the wait ended is the account written, or
             // not; nobody is left to be told.
             let _ = pending.wait().await;
             Ok(())

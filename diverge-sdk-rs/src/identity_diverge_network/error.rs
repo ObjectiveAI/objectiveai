@@ -4,6 +4,8 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+use super::Account;
+
 /// What the [`Accounts`](super::Accounts) fail with.
 #[derive(Debug)]
 pub enum Error {
@@ -14,7 +16,8 @@ pub enum Error {
         /// Why.
         source: io::Error,
     },
-    /// An account could not be written as JSON.
+    /// An account could not be written as JSON, or its file is not one
+    /// this module wrote.
     Json(serde_json::Error),
     /// The word names no provider: the word, and the ones there are.
     Provider {
@@ -42,6 +45,12 @@ pub enum Error {
         /// The provider's description, where it gave one.
         description: Option<String>,
     },
+    /// There is no such account on this host.
+    Missing(Account),
+    /// The account's tokens are no longer good at its provider —
+    /// ended there, or expired with nothing to renew them by: it signs
+    /// in again.
+    SignedOut(Account),
     /// The device code expired before a person decided.
     Expired,
     /// The person denied the sign-in.
@@ -55,7 +64,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Io { path, source } => write!(f, "`{}` could not be used: {source}", path.display()),
-            Error::Json(error) => write!(f, "an account could not be written: {error}"),
+            Error::Json(error) => write!(f, "an account's file could not be written or read: {error}"),
             Error::Provider { named, known } => write!(f, "`{named}` is no provider: the providers are {}", known.join(", ")),
             Error::Http(error) => write!(f, "the provider could not be asked: {error}"),
             Error::Answer { url, status, body } => write!(f, "`{url}` answered {status} with what is not OAuth: {body}"),
@@ -63,6 +72,8 @@ impl fmt::Display for Error {
                 Some(description) => write!(f, "the provider refused, `{code}`: {description}"),
                 None => write!(f, "the provider refused, `{code}`"),
             },
+            Error::Missing(account) => write!(f, "there is no account `{account}` on this host"),
+            Error::SignedOut(account) => write!(f, "the account `{account}` is signed out at its provider; it logs in again"),
             Error::Expired => f.write_str("the sign-in expired before it was approved"),
             Error::Denied => f.write_str("the sign-in was denied"),
             Error::Id => f.write_str("the provider's answer named no user"),

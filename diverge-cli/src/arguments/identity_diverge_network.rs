@@ -20,6 +20,18 @@ pub enum Accounts {
     /// Every account on the host, as `{"account","provider","id"}`,
     /// one JSON line each.
     List,
+    /// What an account's provider says of its user, now: one JSON
+    /// line, `{"account","provider","id","info"}`, the `info` the
+    /// provider's own object — a GitHub user, or Google's OpenID
+    /// Connect claims — as the provider wrote it. Asked of the
+    /// provider every time, and kept nowhere.
+    Info {
+        /// The account's provider, by its name.
+        provider: String,
+        /// The account's id at that provider, as `accounts list`
+        /// prints it.
+        id: String,
+    },
     /// Sign in to an account, at its provider, by a device code: the
     /// code printed, the provider's page opened in this host's
     /// browser, and the command ended there. The wait for the code's
