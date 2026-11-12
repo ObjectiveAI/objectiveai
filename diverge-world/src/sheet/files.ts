@@ -96,7 +96,8 @@ export class Files {
   private readonly note: HTMLElement;
   private reading: Following | null = null;
   private root: Root | null = null;
-  private ended: string | null = null;
+  /** Why the read ended, and whether that was a failure — refused or unread — rather than a state, such as a container that stopped. */
+  private ended: { why: string; failed: boolean } | null = null;
   private readonly open = new Set<string>();
   private readonly flashes = new Map<string, number>();
   private sort: { column: Column; down: boolean } | null = null;
@@ -160,8 +161,8 @@ export class Files {
         for (const path of touched) this.flashes.set(keyOf(path), now);
         this.later();
       },
-      (why) => {
-        this.ended = why;
+      (why, failed) => {
+        this.ended = { why, failed };
         this.later();
       },
     );
@@ -305,9 +306,9 @@ export class Files {
     if (root) walk(root.children, []);
     this.rows.replaceChildren(...drawn);
     // Rule 7.
-    this.note.textContent = this.ended ?? (root === null ? "reading…" : root.children.length === 0 ? "no files" : "");
+    this.note.textContent = this.ended?.why ?? (root === null ? "reading…" : root.children.length === 0 ? "no files" : "");
     this.note.hidden = this.note.textContent === "";
-    this.note.classList.toggle("failed", this.ended !== null);
+    this.note.classList.toggle("failed", this.ended?.failed === true);
     if (this.flashes.size > 0) {
       const next = Math.min(...this.flashes.values()) + FLASH - now;
       clearTimeout(this.timer);
