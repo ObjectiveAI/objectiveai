@@ -4,7 +4,7 @@ use reqwest::Method;
 use reqwest::header::ACCEPT;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use super::issuer::issuer;
 use super::{Account, Accounts, Error};
@@ -43,6 +43,12 @@ pub struct RefreshToken {
     pub last_ip: Option<String>,
 }
 
+/// `POST /device/{user_code}/approve`'s answer.
+#[derive(Deserialize)]
+struct Approved {
+    subject: String,
+}
+
 /// `GET /subjects`' answer.
 #[derive(Deserialize)]
 struct Subjects {
@@ -56,6 +62,21 @@ struct RefreshTokens {
 }
 
 impl Accounts {
+    /// Approve the device's login whose user code is `user_code`, as
+    /// `account`'s subject named `name`: `POST
+    /// /device/{user_code}/approve`. The answer is the subject the
+    /// device is signed in as, whole. A code that is no waiting
+    /// login's is [`Error::Service`], `404 not_found`.
+    ///
+    /// Approving a code signs its device in as the subject, whoever's
+    /// device it is: this is for a code the caller began itself, a
+    /// moment before, and for no other.
+    pub async fn approve(&self, account: &Account, user_code: &str, name: &str) -> Result<String, Error> {
+        let (url, status, body) = self.send(account, Method::POST, &["device", user_code, "approve"], Some(&json!({ "name": name }))).await?;
+        let approved: Approved = serde_json::from_slice(&body).map_err(|_| Error::Answer { url, status, body: String::from_utf8_lossy(&body).into_owned() })?;
+        Ok(approved.subject)
+    }
+
     /// Every subject of `account`'s that is signed in somewhere, by
     /// name: `GET /subjects`.
     pub async fn subjects(&self, account: &Account) -> Result<Vec<Subject>, Error> {
@@ -75,21 +96,22 @@ impl Accounts {
     /// is none of that subject's is [`Error::Service`], `404
     /// not_found`.
     pub async fn end(&self, account: &Account, name: &str, id: &str) -> Result<(), Error> {
-        self.send(account, Method::DELETE, &["subjects", name, "refresh-tokens", id]).await?;
+        self.send(account, Method::DELETE, &["subjects", name, "refresh-tokens", id], None).await?;
         Ok(())
     }
 
     /// [`send`](Self::send), and its answer read as `T`.
     async fn ask<T: DeserializeOwned>(&self, account: &Account, method: Method, segments: &[&str]) -> Result<T, Error> {
-        let (url, status, body) = self.send(account, method, segments).await?;
+        let (url, status, body) = self.send(account, method, segments, None).await?;
         serde_json::from_slice(&body).map_err(|_| Error::Answer { url, status, body: String::from_utf8_lossy(&body).into_owned() })
     }
 
-    /// One request of `identity.diverge.network`, as `account`: the
-    /// URL asked, the status, and the body of a success. The rules:
+    /// One request of `identity.diverge.network`, as `account`, with
+    /// `json` as its body where there is one: the URL asked, the
+    /// status, and the body of a success. The rules:
     ///
     /// 1. **The path** is `segments`, each one part: what a caller
-    ///    gives — a name, an id — is escaped as a part,
+    ///    gives — a user code, a name, an id — is escaped as a part,
     ///    so none of it can name another route.
     /// 2. **As the account.** `Authorization: Bearer` carries the
     ///    token the account's issuer has `identity.diverge.network`
@@ -104,14 +126,18 @@ impl Accounts {
     ///    that is not that is [`Error::Answer`].
     /// 4. **Nowhere else.** The client follows no redirect, so the
     ///    token goes to the address asked and to no other.
-    async fn send(&self, account: &Account, method: Method, segments: &[&str]) -> Result<(String, u16, Vec<u8>), Error> {
+    async fn send(&self, account: &Account, method: Method, segments: &[&str], json: Option<&Value>) -> Result<(String, u16, Vec<u8>), Error> {
         // Rule 1.
         let mut url = reqwest::Url::parse(&self.service).map_err(|_| Error::Address(self.service.clone()))?;
         url.path_segments_mut().map_err(|()| Error::Address(self.service.clone()))?.pop_if_empty().extend(segments);
         // Rule 2.
         let issuer = issuer(&account.issuer)?;
         let token = self.token(account, issuer.presents).await?;
-        let response = self.http.request(method, url.clone()).bearer_auth(token).header(ISSUER_HEADER, issuer.name).header(ACCEPT, "application/json").send().await.map_err(Error::Http)?;
+        let mut request = self.http.request(method, url.clone()).bearer_auth(token).header(ISSUER_HEADER, issuer.name).header(ACCEPT, "application/json");
+        if let Some(json) = json {
+            request = request.json(json);
+        }
+        let response = request.send().await.map_err(Error::Http)?;
         let status = response.status();
         let body = response.bytes().await.map_err(Error::Http)?.to_vec();
         if status.is_success() {

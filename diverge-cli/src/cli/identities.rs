@@ -9,10 +9,17 @@ use super::Error;
 use super::print::print;
 use crate::arguments::Identities;
 use crate::detach;
+use crate::ours;
 
 /// Do `command` to the identities at the root, printing one JSON line
 /// per answer. The rules:
 ///
+/// 0. **Login at `identity.diverge.network`** is its own way — see
+///    [`ours`]: the subject's owner is an account signed in on this
+///    host, the code is approved by this command as that account, and
+///    the login is waited for. Nothing is left behind, and one line is
+///    printed: the identity signed in, `{"issuer","subject"}`. The
+///    rules below are every other issuer's.
 /// 1. **Login** is the device authorization grant, and the one login
 ///    there is. The identity's lock is taken first — waited for while
 ///    another holds it — and held until the login ends. The user code
@@ -33,6 +40,17 @@ use crate::detach;
 ///
 /// No line holds a token.
 pub async fn run(root: &Path, command: Identities) -> Result<(), Error> {
+    // Rule 0.
+    if let Identities::Login { issuer, subject, client_id, scope, resource } = &command
+        && let Some(ours) = ours::ours(root, issuer, subject).await?
+    {
+        let store = identities::Identities::open(root).await?;
+        let name = Name { issuer: issuer.clone(), subject: subject.clone() };
+        let pending = store.login(&name, client_id, scope.as_deref().unwrap_or(""), resource.as_deref()).await?;
+        ours.approve(&pending.user_code).await?;
+        let name = pending.wait().await?;
+        return print(&[json!({ "issuer": name.issuer, "subject": name.subject })]).await;
+    }
     // Rule 2: the front does none of the login's work.
     if matches!(command, Identities::Login { .. }) && !detach::waiter() {
         return Ok(detach::relay().await?);

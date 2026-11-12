@@ -62,6 +62,10 @@ pub enum Error {
     /// Where `identity.diverge.network` is, is no URL a request can be
     /// made to: what was given.
     Address(String),
+    /// The subject is none of `identity.diverge.network`'s: not
+    /// `<issuer>.<id>.<name>`, or its issuer is none there is. What was
+    /// given.
+    Subject(String),
     /// There is no such account on this host.
     Missing(Account),
     /// The account's tokens are no longer good at its issuer — ended
@@ -95,6 +99,11 @@ impl fmt::Display for Error {
                 None => write!(f, "identity.diverge.network refused, {status} `{code}`"),
             },
             Error::Address(address) => write!(f, "`{address}` is no address identity.diverge.network can be asked at"),
+            Error::Subject(subject) => write!(
+                f,
+                "`{subject}` is no subject of identity.diverge.network: one is `<issuer>.<id>.<name>`, split at its first two periods, the issuer one of {}",
+                super::ISSUERS.map(|issuer| issuer.name).join(", ")
+            ),
             Error::Missing(account) => write!(f, "there is no account `{account}` on this host"),
             Error::SignedOut(account) => write!(f, "the account `{account}` is signed out at its issuer; it logs in again"),
             Error::Expired => f.write_str("the sign-in expired before it was approved"),

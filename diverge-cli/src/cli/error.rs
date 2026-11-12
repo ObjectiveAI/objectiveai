@@ -10,6 +10,7 @@ use crate::config;
 use crate::detach;
 use crate::document;
 use crate::lifecycle;
+use crate::ours;
 use crate::run;
 
 /// What [`run`](super::run) fails with: the runtime, the
@@ -40,6 +41,8 @@ pub enum Error {
     /// opened or listed, a login could not begin, or a request made as
     /// one was refused.
     Accounts(identity_diverge_network::Error),
+    /// A login at `identity.diverge.network` could not be made here.
+    Ours(ours::Error),
 }
 
 impl fmt::Display for Error {
@@ -54,6 +57,7 @@ impl fmt::Display for Error {
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
             Error::Detach(error) => write!(f, "{error}"),
             Error::Accounts(error) => write!(f, "{error}"),
+            Error::Ours(error) => write!(f, "{error}"),
         }
     }
 }
@@ -76,6 +80,7 @@ impl std::error::Error for Error {
             Error::Stdout(error) => Some(error),
             Error::Detach(error) => Some(error),
             Error::Accounts(error) => Some(error),
+            Error::Ours(error) => Some(error),
         }
     }
 }
@@ -89,6 +94,12 @@ impl From<config::Error> for Error {
 impl From<identity_diverge_network::Error> for Error {
     fn from(error: identity_diverge_network::Error) -> Self {
         Error::Accounts(error)
+    }
+}
+
+impl From<ours::Error> for Error {
+    fn from(error: ours::Error) -> Self {
+        Error::Ours(error)
     }
 }
 

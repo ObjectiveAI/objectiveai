@@ -8,6 +8,7 @@ use diverge_sdk::daemon::endpoints::identities::login::{client::execute, client:
 use futures_util::StreamExt as _;
 
 use crate::detach;
+use crate::ours;
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
 /// Signing an identity in on the daemon's host.
@@ -51,6 +52,14 @@ pub struct Arguments {
 /// 1. **The request.** The body, every flag given in place of its
 ///    member; with no body, the flags alone, of which `--issuer`,
 ///    `--subject` and `--client-id` are needed.
+/// 0. **At `identity.diverge.network`** the login is its own way —
+///    see [`ours`]: the subject's owner is an account signed in on
+///    THIS host, the code the daemon answers is approved by this
+///    command as that account, and the login is waited for. Nothing
+///    is left behind, `pending` is not printed — there is nothing for
+///    anybody to do with it — and every other answer is: `signed_in`,
+///    or why not. The rules below, from 2 on, are every other
+///    issuer's.
 /// 2. **Left behind** — see [`detach`]: this command is the front,
 ///    and the request is its waiter's. Asked for a schema, there is no
 ///    request and no waiter.
@@ -82,10 +91,6 @@ pub async fn run(
         }
         None => {}
     }
-    // Rule 2.
-    if !detach::waiter() {
-        return detach::relay().await.map_err(Error::Detach);
-    }
     // Rule 1.
     let mut request: serde_json::Map<String, serde_json::Value> = match arguments.body.as_deref() {
         Some(_) => body(arguments.body.as_deref())?,
@@ -103,6 +108,24 @@ pub async fn run(
         }
     }
     let request: request::Frame = body(Some(&serde_json::Value::Object(request).to_string()))?;
+    // Rule 0.
+    if let Some(ours) = ours::ours(target.root, &request.issuer, &request.subject).await.map_err(Error::Ours)? {
+        let handle = target.dial().await?;
+        let (mut answers, _cancel) = execute::execute(&handle, &request).await.map_err(shape::exchange::open)?;
+        while let Some(item) = answers.next().await {
+            match item.map_err(shape::exchange::stream)? {
+                response::Frame::Pending(pending) => ours.approve(&pending.user_code).await.map_err(Error::Ours)?,
+                answer => {
+                    emitter.emit(&answer).await?;
+                }
+            }
+        }
+        return Ok(());
+    }
+    // Rule 2.
+    if !detach::waiter() {
+        return detach::relay().await.map_err(Error::Detach);
+    }
     let handle = target.dial().await?;
     let (mut answers, _cancel) = execute::execute(&handle, &request).await.map_err(shape::exchange::open)?;
     // Rules 3 to 5.

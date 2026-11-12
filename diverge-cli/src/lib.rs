@@ -15,8 +15,9 @@
 //! account. No token is in the document: every identity is under the
 //! root's `identities/`, which the command `identities` signs in — by
 //! a device code, the command ended once the code is printed and its
-//! wait left behind, see [`detach`] — lists and removes, and no
-//! command prints a token.
+//! wait left behind, see [`detach`]; or, at Diverge's own issuer,
+//! approved by the command itself and waited for, see [`ours`] —
+//! lists and removes, and no command prints a token.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
 //! the daemon's wire is reached under the one command `run`, as a
@@ -42,4 +43,5 @@ pub mod detach;
 pub mod document;
 pub mod jq;
 pub mod lifecycle;
+pub mod ours;
 pub mod run;

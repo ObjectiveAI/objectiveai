@@ -6,6 +6,21 @@ use super::account::usable;
 use super::{Account, Accounts, Error};
 
 impl Accounts {
+    /// Whether `account` is one of the host's: whether it has a file.
+    /// The file is not read, and no lock is taken. An account whose id
+    /// could not name a file has none.
+    pub async fn holds(&self, account: &Account) -> Result<bool, Error> {
+        if account.issuer.is_empty() || account.issuer.contains('.') || !usable(&account.id) {
+            return Ok(false);
+        }
+        let record = self.paths(account).record;
+        match tokio::fs::metadata(&record).await {
+            Ok(_) => Ok(true),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+            Err(source) => Err(Error::Io { path: record, source }),
+        }
+    }
+
     /// Every account, by issuer and then id, as the files are named:
     /// a `<issuer>.<id>.json` whose id is one an account's may be.
     /// Any other file is passed over, the locks and the staging files

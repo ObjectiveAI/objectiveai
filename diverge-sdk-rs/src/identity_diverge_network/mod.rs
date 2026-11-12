@@ -81,6 +81,7 @@ mod login;
 mod pending;
 mod record;
 mod service;
+mod subject;
 mod token;
 mod who;
 
@@ -90,3 +91,4 @@ pub use error::*;
 pub use issuer::*;
 pub use pending::*;
 pub use service::*;
+pub use subject::*;

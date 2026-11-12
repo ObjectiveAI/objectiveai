@@ -7,8 +7,14 @@ use super::Error;
 /// The folder under the root the accounts are kept in.
 pub const FOLDER: &str = "identity.diverge.network";
 
-/// Where `identity.diverge.network` is.
-pub const SERVICE: &str = "https://identity.diverge.network";
+/// The issuer identifier of `identity.diverge.network`: the `iss` of
+/// every token it signs, exactly, and so what an identity signed in
+/// there has as its issuer. An issuer that is any other string — this
+/// one with a trailing slash, another deployment's — is not it.
+pub const ISSUER: &str = "https://identity.diverge.network";
+
+/// Where `identity.diverge.network` is: at its issuer identifier.
+pub const SERVICE: &str = ISSUER;
 
 /// The environment variable that says where `identity.diverge.network`
 /// is asked instead: another deployment of it, or one at a desk.
