@@ -5,6 +5,7 @@ import { daemon } from "@diverge/sdk";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
+import { css } from "../lib/theme";
 import { handle, type Route, relayed } from "../lib/wire";
 import type { Files } from "../world/model";
 
@@ -30,8 +31,8 @@ function open(container: Container, route: Route, size: { cols: number; rows: nu
   return daemon.endpoints.dependency_tools.terminal.client.execute(handle, { dependency: container.dependency, ...size, ...relayed(route) });
 }
 
-/** A sheet colour, read from the page's own tokens. */
-const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+/** The theme's mono stack (`--font-mono`), as the terminal's font; the same stack if the page has none. */
+const mono = () => getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() || 'ui-monospace, "Cascadia Code", Consolas, monospace';
 
 /**
  * The console tab: a shell from the moment it is made until `dispose`.
@@ -75,15 +76,16 @@ export class Console {
     private readonly route: Route,
   ) {
     this.term = new Terminal({
-      cursorBlink: true,
-      fontFamily: 'ui-monospace, "JetBrains Mono", Consolas, monospace',
+      // The cursor blinks only for someone who did not ask for less motion.
+      cursorBlink: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+      fontFamily: mono(),
       fontSize: 13,
       scrollback: 5000,
       theme: {
-        background: token("--sheet-ink"),
-        foreground: token("--sheet-text"),
-        cursor: token("--sheet-copper-bright"),
-        selectionBackground: token("--sheet-line"),
+        background: css("surface"),
+        foreground: css("text"),
+        cursor: css("accent"),
+        selectionBackground: css("accent-soft"),
       },
     });
     this.term.loadAddon(this.fit);

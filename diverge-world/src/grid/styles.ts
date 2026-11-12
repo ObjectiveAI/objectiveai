@@ -2,7 +2,7 @@
 
 import type { Kind } from "../world/model";
 import type { EdgeType } from "./edges";
-import { NEON } from "./palette";
+import { neutral, tone } from "./palette";
 
 /** A line's pattern: whole, in dashes, or in dots. */
 export type Pattern = "solid" | "dashed" | "dotted";
@@ -14,19 +14,16 @@ export type Pattern = "solid" | "dashed" | "dotted";
  */
 export type Style = { pattern: Pattern; width: number; alpha: number; color: (from: Kind | null) => number; head: "chevron" | "dot" | null };
 
-/** The attachment's neutral: a grey with cyan in it. */
-const NEUTRAL = 0x6f8fa0;
-
 /**
- * The three looks:
+ * The three looks, flat — no glow:
  *
- * 1. A call: whole, thin and faint, in the sender's neon, a chevron at
- *    the receiver. Its pulses are what shine.
- * 2. An attachment: dashed, neutral, no mark.
- * 3. A creator: dotted, in the maker's neon, an open dot at the maker.
+ * 1. A call: whole, in the sender's family, a chevron at the receiver.
+ *    What passes along it runs as a short stroke (`pulses`).
+ * 2. An attachment: dashed, in the strong edge, no mark.
+ * 3. A creator: dotted, in the maker's family, an open dot at the maker.
  */
 export const STYLES: Record<EdgeType, Style> = {
-  call: { pattern: "solid", width: 1.2, alpha: 0.4, color: (from) => (from === null ? NEUTRAL : NEON[from]), head: "chevron" },
-  attachment: { pattern: "dashed", width: 1, alpha: 0.45, color: () => NEUTRAL, head: null },
-  creator: { pattern: "dotted", width: 1.2, alpha: 0.4, color: (from) => (from === null ? NEUTRAL : NEON[from]), head: "dot" },
+  call: { pattern: "solid", width: 1.5, alpha: 1, color: (from) => (from === null ? neutral() : tone(from)), head: "chevron" },
+  attachment: { pattern: "dashed", width: 1.5, alpha: 1, color: () => neutral(), head: null },
+  creator: { pattern: "dotted", width: 1.5, alpha: 1, color: (from) => (from === null ? neutral() : tone(from)), head: "dot" },
 };

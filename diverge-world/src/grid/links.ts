@@ -20,9 +20,8 @@ const HEAD = 7;
 const WING = 3.5;
 const DOT = 2.5;
 
-/** How much fainter a line not touching the focused node is drawn, and the glow under each line, as a share of its alpha. */
+/** How much fainter a line not touching the focused node is drawn, as a share of its alpha. */
 const UNFOCUSED = 1 / 3;
-const GLOW = 0.25;
 
 /** A lane drawn: from where it starts to where it ends, the way it runs. */
 export type Lane = { a: Point; b: Point };
@@ -61,9 +60,8 @@ function rank(e: Edge): number {
  * 2. Every lane is measured in its pair's fixed frame, from `a` to `b`,
  *    so dragging never changes the order.
  * 3. Every lane stops short of the shapes it joins, and is drawn in its
- *    type's style (`STYLES`): a faint glow under it, then the line, then
- *    its mark — a call's chevron at the receiver, a creator's open dot
- *    at the maker.
+ *    type's style (`STYLES`), flat: the line, then its mark — a call's
+ *    chevron at the receiver, a creator's open dot at the maker.
  * 4. While a node is focused, every line not touching it is drawn
  *    `UNFOCUSED` as bright.
  * 5. They are drawn again only on a move, a show, a focus, or new
@@ -123,8 +121,6 @@ export function makeLinks(scene: Phaser.Scene, nodes: Nodes, first: Edge[]): Lin
       // Rule 4.
       const alpha = style.alpha * (focused === null || e.a === focused || e.b === focused ? 1 : UNFOCUSED);
       // Rule 3.
-      g.lineStyle(style.width + 3, color, alpha * GLOW);
-      stroke(g, l, style.pattern);
       g.lineStyle(style.width, color, alpha);
       stroke(g, l, style.pattern);
       if (style.head === "chevron") chevron(g, l);

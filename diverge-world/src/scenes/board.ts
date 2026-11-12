@@ -1,4 +1,4 @@
-// The board scene: every entity as a glowing node on the dark grid,
+// The board scene: every entity as a node on the theme's grid,
 // dragged wherever its owner wants it. It follows the daemon: what is
 // made appears, what changes is redrawn, what is deleted goes. One board
 // per tab of the window: Home, our own daemon, and each daemon opened
@@ -8,6 +8,7 @@ import * as Phaser from "phaser";
 import { arrange } from "../grid/arrange";
 import { type Edge, edges } from "../grid/edges";
 import { type Links, makeLinks } from "../grid/links";
+import { type Here, makeHere } from "../grid/here";
 import { type Lit, makeLit } from "../grid/live";
 import { makeNodes, type Node, type Nodes, setAt, setDim, setShown, where } from "../grid/nodes";
 import { place, placeOne } from "../grid/place";
@@ -22,9 +23,6 @@ import type { Snapshot } from "../world/snapshot";
 import type { Watching } from "../world/watch";
 import { controls } from "./camera";
 import { ACTIVE, ARRANGE, type Bounds, type Counts, FOCUS, HOVER, KINDS, type Kinds, LINES, type Lines, OPEN, type Opening, OUTLINE, OUTLINER, type Outline, SELECTED, STATUS, type Status } from "./status";
-
-/** The selection ring's colour: white light. */
-const RING = 0xffffff;
 
 /** How long nodes take to glide to their arranged places, in milliseconds. */
 const GLIDE = 700;
@@ -45,7 +43,7 @@ const PAN = 400;
  * 2. Every entity is a node at its first place (`place`), every edge
  *    (`edges`) — call, attachment, creator — a line under them, side by
  *    side in lanes (`makeLinks`). A node dragged takes its lines, its
- *    ring and its pulses with it. The outliner shows and hides each type
+ *    corners and its pulses with it. The outliner shows and hides each type
  *    of line (`LINES`) and each kind of node (`KINDS`); a hidden node
  *    takes its lines and pulses with it, and closes its sheet if it was
  *    open.
@@ -56,14 +54,14 @@ const PAN = 400;
  *    now. A node that stays keeps where it stands. The outliner's counts
  *    are the world's.
  * 4. Every node is lit as the world says (`light`): bright or faint,
- *    its halo breathing while it works; pulses run as the events tell
+ *    traced while it works; pulses run as the events tell
  *    (`pulses`), after the world that holds their line is drawn.
  * 5. Clicking any node opens its sheet — its tabs, those it has, or
- *    none: a provider's or a daemon's is its header alone — and rings it; clicking another swaps the sheet and the ring;
+ *    none: a provider's or a daemon's is its header alone — and puts the gold corners round it (`makeHere`); clicking another swaps the sheet and the corners;
  *    clicking the same one again, or the sheet's ✕, closes it.
  * 6. Arrange (`ARRANGE`) gives every node shown a new place by the
  *    lines shown (`arrange`), and the nodes glide there over `GLIDE`, their
- *    lines and ring following. It does nothing while a node is
+ *    lines and corners following. It does nothing while a node is
  *    dragged, or while nodes are still gliding.
  * 7. The hovered node, else the one whose sheet is open, is focused:
  *    its lines stay bright and the rest are faint (`Links.focus`), and
@@ -92,7 +90,9 @@ export class Board extends Phaser.Scene {
   private sheet: Sheet | null = null;
   /** Every listed node's brightness, by key: deployed, connected, or mounted into something deployed. */
   private readonly bright = new Map<string, boolean>();
-  private ring: Phaser.GameObjects.Arc | null = null;
+  private here: Here | null = null;
+  /** The zoom the nodes' names were last fitted to. */
+  private fitted = 0;
   private selected: string | null = null;
   private hovered: string | null = null;
   private nodes: Nodes | null = null;
@@ -193,7 +193,7 @@ export class Board extends Phaser.Scene {
     const made = model(read);
     this.images = made.images;
     const placed = place(made.entities);
-    this.ring = this.add.circle(0, 0, 30).setStrokeStyle(1.5, RING, 0.9).setVisible(false).setDepth(7);
+    this.here = makeHere(this);
     const nodes = makeNodes(this, made.entities, placed.at, () => this.moved(), (entity) => this.select(entity), (node) => this.hover(node), (node) => this.unhover(node));
     this.nodes = nodes;
     this.edges = edges(read, made);
@@ -277,7 +277,7 @@ export class Board extends Phaser.Scene {
    * connected; agents, tools and dependency tools while deployed, a
    * connected tool while the daemon holds its connect, a provider
    * while connected, a daemon while the daemon is connected to
-   * it; volumes while mounted into something bright; the halo breathing
+   * it; volumes while mounted into something bright; the trace running
    * while it works — and the open sheet's dot told. A node whose light
    * did not change is not lit again, so its breath runs on.
    */
@@ -316,11 +316,19 @@ export class Board extends Phaser.Scene {
     this.say(STATUS, { kind: "drawn", counts, forbidden: read.forbidden } satisfies Status);
   }
 
-  /** Rule 2: a node moved; its links and its ring follow. */
+  /** Rule 2: a node moved; its links and its corners follow. */
   private moved() {
     this.links?.redraw();
     const node = this.selected === null ? undefined : this.nodes?.byKey.get(this.selected);
-    if (node) this.ring?.setPosition(where(node).x, where(node).y);
+    if (node) this.here?.move(where(node).x, where(node).y);
+  }
+
+  /** Every frame: when the zoom has changed, each node's name is fitted again, so it stays one size on screen. */
+  update() {
+    const zoom = this.cameras.main.zoom;
+    if (zoom === this.fitted || !this.nodes) return;
+    this.fitted = zoom;
+    for (const node of this.nodes.byKey.values()) setAt(node, node.image.x, node.image.y);
   }
 
   /** Rule 2: show the kinds shown, and hide the rest with their lines; a hidden node's sheet closes. */
@@ -333,7 +341,7 @@ export class Board extends Phaser.Scene {
       this.sheet?.close();
       this.selected = null;
       this.say(SELECTED, null);
-      this.ring?.setVisible(false);
+      this.here?.hide();
     }
     const hovered = this.hovered === null ? undefined : nodes.byKey.get(this.hovered);
     if (hovered && !hovered.image.visible) this.hovered = null;
@@ -391,10 +399,10 @@ export class Board extends Phaser.Scene {
       return;
     }
     const node = this.nodes?.byKey.get(entity.key);
-    if (!node || !this.ring) return;
+    if (!node || !this.here) return;
     this.selected = entity.key;
     this.say(SELECTED, entity.key);
-    this.ring.setPosition(node.image.x, node.image.y).setRadius(REACH[entity.kind] + 10).setVisible(true);
+    this.here.show(entity.kind, node.image.x, node.image.y);
     this.refocus();
     this.sheet?.open({ entity, images: this.images, route: this.route });
   }
@@ -403,7 +411,7 @@ export class Board extends Phaser.Scene {
   private deselect() {
     this.selected = null;
     this.say(SELECTED, null);
-    this.ring?.setVisible(false);
+    this.here?.hide();
     this.refocus();
   }
 

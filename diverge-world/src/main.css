@@ -1,14 +1,24 @@
-/* The whole window, one ground colour, the game's canvas filling it. */
-:root {
-  --ground: #0d0f14;
-  color-scheme: dark;
-}
-
+/* The whole window: the theme's ground, the game's canvas filling it.
+   The theme is the viewer's (diverge-viewer/src/theme.css, imported
+   first): its five colours, the roles mixed from them, its sizes. */
 html,
 body,
 #world {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--ground);
+  background: var(--bg);
+}
+
+/* Focus looks as hover does, each part saying how; the theme's accent
+   ring is not drawn here. While the keys are in use (`data-input` on
+   the root, set in main.ts) hover marks nothing, so one thing is marked. */
+:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
 }

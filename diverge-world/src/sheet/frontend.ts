@@ -69,6 +69,7 @@ export class FrontendPane {
       .catch((error: unknown) => {
         // Rule 3.
         this.where.textContent = `could not open: ${error instanceof Error ? error.message : String(error)}`;
+        this.where.classList.add("failed");
       });
   }
 

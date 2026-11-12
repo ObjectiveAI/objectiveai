@@ -307,6 +307,7 @@ export class Files {
     // Rule 7.
     this.note.textContent = this.ended ?? (root === null ? "reading…" : root.children.length === 0 ? "no files" : "");
     this.note.hidden = this.note.textContent === "";
+    this.note.classList.toggle("failed", this.ended !== null);
     if (this.flashes.size > 0) {
       const next = Math.min(...this.flashes.values()) + FLASH - now;
       clearTimeout(this.timer);
@@ -323,7 +324,7 @@ export class Files {
     row.dataset.kind = node.type;
     const name = document.createElement("span");
     name.className = "cell name";
-    name.style.paddingLeft = `${0.75 + depth * 1.25}rem`;
+    name.style.paddingLeft = `calc(var(--space-3) + ${depth} * var(--space-4))`;
     const caret = document.createElement("span");
     caret.className = "caret";
     caret.textContent = node.type === "directory" ? (opened ? "▾" : "▸") : "";
@@ -386,7 +387,8 @@ function empty(depth: number): HTMLElement {
   row.className = "row empty";
   const span = document.createElement("span");
   span.className = "cell name";
-  span.style.paddingLeft = `${0.75 + depth * 1.25 + 1}rem`;
+  // Past its caret: one step more.
+  span.style.paddingLeft = `calc(var(--space-3) + ${depth + 1} * var(--space-4))`;
   span.textContent = "empty";
   row.append(span);
   return row;

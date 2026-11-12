@@ -1,21 +1,22 @@
-// The board's sprites, drawn once into textures with their glow baked
-// in, so each node costs one image a frame.
+// The board's sprites, drawn once into textures, so each node costs one
+// image a frame: every kind's shape, flat, bright and faint.
 
 import * as Phaser from "phaser";
 import type { Kind } from "../world/model";
-import { FIELD, NEON } from "./palette";
+import { faint, field, tone } from "./palette";
 
-/** A node texture's side, in pixels, and the room its glow takes round the shape. */
+/** A node texture's side, in pixels. */
 export const NODE = 64;
 const C = NODE / 2;
+
+/** The width of a shape's stroke, in pixels: flat, no glow. */
+const STROKE = 2;
 
 /** How far from a node's middle a line to it stops: its shape's reach. */
 export const REACH: Record<Kind, number> = { account: 17, agent: 20, standalone_tool: 18, connected_standalone_tool: 18, dependency_tool: 13, volume: 15, provider: 19, daemon: 16 };
 
-/** Each texture's key. */
-export const nodeKey = (kind: Kind) => `grid-${kind}`;
-export const HALO = "grid-halo";
-export const PULSE = "grid-pulse";
+/** Each texture's key: a kind's shape bright, or faint. */
+export const nodeKey = (kind: Kind, bright = true) => `grid-${kind}${bright ? "" : "-faint"}`;
 
 /** A shape traced as points about the middle. */
 type Shape = { points: Phaser.Math.Vector2[]; closed: boolean }[];
@@ -27,6 +28,9 @@ const polygon = (n: number, r: number, turn: number) => Array.from({ length: n }
 
 /** An arc of radius `r` from `a` to `b`, as points. */
 const arc = (r: number, a: number, b: number, steps = 24) => Array.from({ length: steps + 1 }, (_, i) => v(r * Math.cos(a + ((b - a) * i) / steps), r * Math.sin(a + ((b - a) * i) / steps)));
+
+/** A squashed arc: the cylinder's top and foot, flattened to `squash` and lifted by `dy`. */
+const flat = (r: number, a: number, b: number, squash: number, dy: number) => arc(r, a, b).map((p) => new Phaser.Math.Vector2(p.x, C + (p.y - C) * squash + dy));
 
 /** Each kind's outline. */
 const SHAPES: Record<Kind, Shape> = {
@@ -50,8 +54,8 @@ const SHAPES: Record<Kind, Shape> = {
     { points: arc(7, 0, 2 * Math.PI), closed: true },
   ],
   volume: [
-    { points: arc(13, 0, 2 * Math.PI).map((p) => new Phaser.Math.Vector2(p.x, C + (p.y - C) * 0.35 - 9)), closed: true },
-    { points: arc(13, 0, Math.PI).map((p) => new Phaser.Math.Vector2(p.x, C + (p.y - C) * 0.35 + 9)), closed: false },
+    { points: flat(13, 0, 2 * Math.PI, 0.35, -9), closed: true },
+    { points: flat(13, 0, Math.PI, 0.35, 9), closed: false },
     { points: [v(-13, -9), v(-13, 9)], closed: false },
     { points: [v(13, -9), v(13, 9)], closed: false },
   ],
@@ -74,6 +78,28 @@ const SHAPES: Record<Kind, Shape> = {
   ],
 };
 
+/** A point about the node's middle, as `{x, y}` from it. */
+export type Offset = { x: number; y: number };
+
+/**
+ * Each kind's outline as one path about its middle, for the trace that
+ * runs round a working node (`live`): the shape's outer line, start to
+ * end, closed back to its start where the shape is closed. A volume's is
+ * its silhouette: down one side, round the front of its foot, up the
+ * other, and across the back of its top.
+ */
+export const OUTLINE: Record<Kind, Offset[]> = (() => {
+  const off = (points: Phaser.Math.Vector2[]) => points.map((p) => ({ x: p.x - C, y: p.y - C }));
+  const closed = (points: Phaser.Math.Vector2[]) => [...off(points), off(points)[0]];
+  const made = {} as Record<Kind, Offset[]>;
+  for (const kind of Object.keys(SHAPES) as Kind[]) {
+    const outer = SHAPES[kind][0];
+    made[kind] = outer.closed ? closed(outer.points) : off(outer.points);
+  }
+  made.volume = off([v(-13, -9), ...flat(13, Math.PI, 0, 0.35, 9), v(13, -9), ...flat(13, 0, -Math.PI, 0.35, -9)]);
+  return made;
+})();
+
 /** Draw with `paint` into a `w` by `h` texture named `key`, once. */
 function make(scene: Phaser.Scene, key: string, w: number, h: number, paint: (g: Phaser.GameObjects.Graphics) => void): void {
   if (scene.textures.exists(key)) return;
@@ -83,50 +109,28 @@ function make(scene: Phaser.Scene, key: string, w: number, h: number, paint: (g:
   g.destroy();
 }
 
-/** Stroke a shape in `color`: the glow — wide and faint, narrowing — then the bright core. */
-function neon(g: Phaser.GameObjects.Graphics, shape: Shape, color: number): void {
-  const strokes: [number, number, number][] = [
-    [12, color, 0.06],
-    [8, color, 0.1],
-    [5, color, 0.22],
-    [2.5, color, 0.9],
-    [1, 0xffffff, 0.85],
-  ];
-  for (const [width, c, alpha] of strokes) {
-    g.lineStyle(width, c, alpha);
-    for (const part of shape) g.strokePoints(part.points, part.closed);
-  }
-}
-
 /**
- * Make every texture:
+ * Make every texture: each kind's node, twice.
  *
- * 1. Each kind's node: its outline in its neon, glowing, over a dark
- *    fill so the grid does not show through it.
- * 2. A halo: a soft white ring, tinted by whoever it lights.
- * 3. A pulse: a soft white dot, tinted likewise.
+ * The rules:
+ *
+ * 1. Its outline flat, `STROKE` wide, over a disc of the ground so the
+ *    grid does not show through it. No glow: light means something on
+ *    this board (a working node's trace), so nothing glows at rest.
+ * 2. Bright, in its family's colour; faint, in the strong edge — a
+ *    still shape that reads at 3:1, never a fade.
  */
 export function makeTextures(scene: Phaser.Scene): void {
-  // Rule 1.
   for (const kind of Object.keys(SHAPES) as Kind[]) {
-    make(scene, nodeKey(kind), NODE, NODE, (g) => {
-      g.fillStyle(FIELD, 0.9);
-      g.fillCircle(C, C, REACH[kind] - 1);
-      neon(g, SHAPES[kind], NEON[kind]);
-    });
+    // Rule 2.
+    for (const bright of [true, false]) {
+      make(scene, nodeKey(kind, bright), NODE, NODE, (g) => {
+        // Rule 1.
+        g.fillStyle(field(), 1);
+        g.fillCircle(C, C, REACH[kind] - 1);
+        g.lineStyle(STROKE, bright ? tone(kind) : faint(), 1);
+        for (const part of SHAPES[kind]) g.strokePoints(part.points, part.closed);
+      });
+    }
   }
-  // Rule 2.
-  make(scene, HALO, NODE, NODE, (g) => {
-    for (let r = 30; r >= 22; r -= 2) {
-      g.lineStyle(3, 0xffffff, 0.08 + (30 - r) * 0.02);
-      g.strokeCircle(C, C, r);
-    }
-  });
-  // Rule 3.
-  make(scene, PULSE, 16, 16, (g) => {
-    for (let r = 8; r >= 2; r -= 1.5) {
-      g.fillStyle(0xffffff, 0.12 + (8 - r) * 0.1);
-      g.fillCircle(8, 8, r);
-    }
-  });
 }

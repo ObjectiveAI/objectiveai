@@ -4,16 +4,21 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 
 ## The seams
 - **The page is a Phaser game, no React**: `src/main.ts` makes one `Phaser.Game` filling the window, one scene per
-  file under `src/scenes/`. `world` draws the map and starts `ui` over itself; `ui` draws the menus — game menus,
-  drawn in the engine — with a camera of its own: one menu, the outliner
-  (`scenes/outliner.ts`) top-right — Arrange and one row per line type at its top, the status row beneath, then
-  every node by kind, each kind's header an eye that shows or hides it (`KINDS`), a row's click (`FOCUS`) flying the board's camera to it and
-  opening its sheet, a row's hover (`HOVER`) focusing it; the board tells it the nodes (`OUTLINE`) and the open one
-  (`SELECTED`) through the registry, and pans and zooms for nothing over its bounds (`OUTLINER`). Text panels are the exception, HTML over the canvas: clicking an
+  file under `src/scenes/`. `ui` takes the keys only. **The look is the viewer's theme**: `main.ts` imports
+  `diverge-viewer/src/theme.css` first — every colour, size and space comes from its roles — and `lib/theme.ts`
+  resolves a role (`int`, `css`) for the canvas and xterm, since a role is often a `color-mix` only the page can resolve;
+  `data-input` on the root says whether the keys or the mouse are in use, so hover marks nothing while the keys do and
+  focus looks as hover does (no ring, no box round a row). The one menu is the outline (`outline/outline.ts`), HTML
+  over the canvas: a card that floats where its header is dragged, snaps to edges, folds to its header or to the kinds'
+  shapes, and docks as a rail down the left (`--outline-left` on the root, which the sheet starts beside) — Arrange,
+  fold and dock in its header, line types and kinds as show/hide chips (`LINES`, `KINDS`), then every node by family,
+  a row's press (`FOCUS`) flying the board's camera to it and opening its sheet, its hover or focus (`HOVER`) focusing
+  it; the board tells it the nodes (`OUTLINE`) and the open one (`SELECTED`) through the registry, and it tells the
+  board its bounds (`OUTLINER`). Text panels are HTML over the canvas too: clicking an
   agent opens its bottom sheet (`src/sheet/`), the agent's log followed live (`agents logs` with `watch`) and folded
   into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), each
   tool call a card holding its response, user parts join per sender and are labelled by the sender. Under an agent's
-  log, its composer (`sheet/composer.ts`) writes to it (`agents message`): text, then files attached by 📎 or a paste,
+  log, its composer (`sheet/composer.ts`) writes to it (`agents message`): text, then files attached by its Attach button or a paste,
   each known by its bytes (`file-type`, `sheet/attach.ts`) and sent as an MCP image, audio or resource block in base64;
   a message sent waits greyed at the log's bottom, one request and one answer with no cancel, in the page's outbox
   (`sheet/outbox.ts`, by route and agent, outliving every sheet); it stays greyed, delivered or not,
@@ -49,7 +54,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   status, a daemon's `as <our subject> · connected|disconnected`; each tab starts reading the first time it is shown, and
   the tab last chosen carries to the next sheet.
 - **A board per daemon, by its route** (`src/tabs/tabs.ts`, `scenes/board.ts`): the tab strip, HTML along the top
-  (`TABS` tall; the outliner starts beneath it), is Home — the `board` scene, route `[]` — then one tab per daemon
+  (`TABS` tall; the outline starts beneath it), is Home — the `board` scene, route `[]` — then one tab per daemon
   opened (`OPEN` from a daemon's sheet, with `{ route, labels }`): a `Board` added at runtime as `board:<id>/<id>…`,
   given the route, with its own follow, nodes, camera and sheet, and `ui` brought back to the top. Switching sleeps the
   board shown (its sheet closes; its lists stay open), sets `ACTIVE` and wakes the target; ✕ stops and removes the
@@ -59,12 +64,13 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   frame is spread with `relayed(route)` (`lib/wire.ts`) — `{}` for `[]`, so Home's frames carry no `relay`, else
   `{ relay: route }` — in `world/live.ts`, `world/names.ts` and every sheet tab (`Opened.route`); our daemon takes the
   first ID off and relays the rest. The hex world (`world/snapshot.ts`, `world/watch.ts`) stays Home's.
-- **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,
-  standalone tool, connected standalone tool, dependency tool, account, volume, provider and daemon a glowing node in its kind's neon, first standing in a column
+- **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): the theme's grid on its ground, every agent,
+  standalone tool, connected standalone tool, dependency tool, account, volume, provider and daemon a flat node in its family's colour
+  (`grid/palette.ts`: who acts in the accent, what they use in ink, where it runs in the quietest words; gold only for where you are), first standing in a column
   per kind (`grid/place.ts`) and then wherever it is dragged — the links have no say, and positions live only for the
-  page. Each way an event ran is a glowing line in the sender's neon with a chevron at the receiver, a mount a dashed
-  green line (`grid/links.ts`); a provider is attached to every agent and tool deployed on it (`grid/edges.ts`, rule 2d), a daemon to every connected tool whose `daemon` (first hop) it is (rule 2f); a working agent or tool breathes a halo; a node is bright only while deployed (an account: connected; a connected tool: its connect held; a provider: `connected`; a daemon: `connected`; a volume: mounted into a deployed container), and the sheet's dot is that brightness; a container
-  that is down dims its node (`grid/live.ts`); every rise in an event's count runs a pulse of light along its link
+  page. Each way an event ran is a line in the sender's family colour with a chevron at the receiver, an attachment
+  dashed in the strong edge (`grid/links.ts`); a provider is attached to every agent and tool deployed on it (`grid/edges.ts`, rule 2d), a daemon to every connected tool whose `daemon` (first hop) it is (rule 2f); a working agent or tool is traced, a line in ink drawn round its outline and let go (`grid/live.ts`, still and half drawn under reduced motion); the open node has gold corners (`grid/here.ts`); a node is bright only while deployed (an account: connected; a connected tool: its connect held; a provider: `connected`; a daemon: `connected`; a volume: mounted into a deployed container), and the sheet's dot is that brightness; a container
+  that is down makes its node faint, a still shape in the strong edge (`grid/live.ts`); every rise in an event's count runs a short ink stroke along its link
   (`grid/pulses.ts`, the events list kept open). The backdrop tiles the grid under the board's camera, as the sea does
   for the hex map. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.
 - **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents, tools, providers and daemons lists stay open after the
@@ -74,7 +80,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   that reopens reconciled against what it held, the world handed to `scenes/board.ts` at most once a frame once every
   list was whole once. The board draws the first world, then diffs every later one by key (`apply`): new entities are
   nodes at `placeOne`, gone ones are removed (their sheet closed), kept ones relabelled; the edges are replaced
-  (`links.setEdges`), the lights reapplied (`light`), the outliner's counts reset; pulses take the same events stream
+  (`links.setEdges`), the lights reapplied (`light`), the outline's counts reset; pulses take the same events stream
   (`pulses.told`) after the world holding their line is drawn.
 - **The hex world is the daemon drawn once** (`scenes/world.ts`, unlisted): eleven lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its

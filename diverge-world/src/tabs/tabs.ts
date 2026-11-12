@@ -9,7 +9,7 @@ import { ACTIVE, OPEN, type Opening } from "../scenes/status";
 import "./tabs.css";
 
 /** The strip's height, in pixels: the outliner stands this much lower. */
-export const TABS = 30;
+export const TABS = 38;
 
 /** Home's board: the one the backdrop starts, its route `[]`. */
 const HOME = "board";

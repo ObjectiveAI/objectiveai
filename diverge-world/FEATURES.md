@@ -8,13 +8,16 @@ is named, so the two can be checked against each other.
 ## At a glance
 
 - A dark grid with every account, agent, tool, volume, provider and daemon on it as a
-  glowing node, and lines for how they are connected — all of it live:
-  what is made appears, what changes is redrawn, what is deleted goes.
-- Nodes light up while they work, and pulses of light run along the
-  lines as events happen.
-- An outliner at the top right lists every node by kind — clicking one
-  flies the view to it and opens its sheet — shows and hides each kind
-  and each type of line, with counts, and can arrange the board.
+  node, and lines for how they are connected — all of it live: what is
+  made appears, what changes is redrawn, what is deleted goes. It is in
+  the viewer's theme (`diverge-viewer/src/theme.css`): the same five
+  colours as every panel, nothing glowing.
+- A line traces round a node while it works, and a short stroke runs
+  along a line as each event happens.
+- An outline lists every node by family — clicking one flies the view to
+  it and opens its sheet — shows and hides each kind and each type of
+  line, with counts, and can arrange the board. It floats where you drag
+  it, folds small, and docks down the window's left.
 - Clicking a node opens a sheet along the bottom: its **logs**, its
   **filesystem**, a **console** into its container, and — for an agent
   or a tool that serves one — its **frontend**, its own web page.
@@ -32,16 +35,21 @@ is named, so the two can be checked against each other.
 
 ### What is on it
 
-| Kind | Shape | Colour |
+| Kind | Shape | Colour (its family, `grid/palette.ts`) |
 |---|---|---|
-| Account | ◎ an open ring around a dot | yellow |
-| Agent | ⬡ a hexagon inside a hexagon | cyan |
-| Standalone tool | ◇ a diamond with a bar across | orange |
-| Connected standalone tool | ◈ a diamond held by two linked rings | violet |
-| Dependency tool | □ a small square | magenta |
-| Volume | ⛁ a cylinder | green |
-| Provider | ▤ a server rack of three units | red |
-| daemon | ⊕ a globe: its ring, meridian, equator and two parallels | silver |
+| Account | ◎ an open ring around a dot | the accent — who acts |
+| Agent | ⬡ a hexagon inside a hexagon | the accent — who acts |
+| Standalone tool | ◇ a diamond with a bar across | ink — what they use |
+| Connected standalone tool | ◈ a diamond held by two linked rings | ink — what they use |
+| Dependency tool | □ a small square | ink — what they use |
+| Volume | ⛁ a cylinder | the quietest words — where it runs |
+| Provider | ▤ a server rack of three units | the quietest words — where it runs |
+| daemon | ⊕ a globe: its ring, meridian, equator and two parallels | the quietest words — where it runs |
+
+- **Families, not a colour each.** Three colours, all from the theme;
+  the shape tells kinds apart inside a family. Gold is never a kind's:
+  it marks only where you are.
+- **Flat.** Every shape is a flat 2px line; nothing glows at rest.
 
 - **Who is shown.** Every account, agent, standalone tool, connected
   standalone tool (another daemon's standalone tool, held here, listed
@@ -65,15 +73,18 @@ is named, so the two can be checked against each other.
   lowest node of its kind, in that kind's column; the first of its kind
   starts a column of its own to the right. Nodes already on the board
   stay where they are.
-- **Names.** Each node has its name beneath it. A tool is named by its
-  image's `DIVERGE.md` `name` when the image gives one.
+- **Names.** Each node has its name beneath it, in the theme's words
+  font, 12px on screen at every zoom. A tool is named by its image's
+  `DIVERGE.md` `name` when the image gives one.
 - **Starting places.** Nodes first stand in one column per kind
   (`grid/place.ts`).
 
 ### Live state (`grid/live.ts`)
 
-- **Bright or faint.** Every node stands bright or faint, and the green
-  dot in its sheet is lit exactly when it is bright:
+- **Bright or faint.** Every node stands bright or faint, and the dot
+  in its sheet is filled exactly when it is bright. Faint is a still
+  shape, not a fade: the shape in the theme's strong edge, the name in
+  its quietest words:
 
   | Kind | Bright when |
   |---|---|
@@ -85,17 +96,19 @@ is named, so the two can be checked against each other.
   | daemon | the daemon holds a connection to it now (`connected`) |
 
 - **Working:** an agent or tool — connected tools included — that is
-  active (its loop running, or a call or read in flight) also has a
-  breathing halo.
+  active (its loop running, or a call or read in flight) is traced: a
+  line in ink draws itself round the node's own outline, then lets go
+  from where it began, every 2.4 s. When the system asks for less
+  motion it stands still, half drawn.
 - These update live, as the daemon's lists change.
 
 ### Lines (`grid/edges.ts`, `grid/styles.ts`, `grid/links.ts`)
 
 | Type | Looks like | Means |
 |---|---|---|
-| Call | thin solid line in the sender's colour, chevron at the receiver | something sent to something else (an event ran that way) |
-| Attachment | dashed grey line, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it, a provider and what it runs (every agent and standalone tool deployed on it, every dependency tool running on it), a provider and every volume it holds, and a daemon and the connected tools on it (every connected tool whose `daemon`, its first hop, is that record; the further daemons of a tool's `route` are records on other daemons and draw nothing) |
-| Creator | dotted line in the maker's colour, open dot at the maker | who made it: the account, agent or tool that created an agent, tool, connected tool, account, provider or daemon |
+| Call | solid line in the sender's family colour, chevron at the receiver | something sent to something else (an event ran that way) |
+| Attachment | dashed line in the theme's strong edge, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it, a provider and what it runs (every agent and standalone tool deployed on it, every dependency tool running on it), a provider and every volume it holds, and a daemon and the connected tools on it (every connected tool whose `daemon`, its first hop, is that record; the further daemons of a tool's `route` are records on other daemons and draw nothing) |
+| Creator | dotted line in the maker's family colour, open dot at the maker | who made it: the account, agent or tool that created an agent, tool, connected tool, account, provider or daemon |
 
 - **Lanes.** Several lines between the same two nodes run side by side
   in lanes, in a fixed order, and keep that order however the nodes are
@@ -104,9 +117,9 @@ is named, so the two can be checked against each other.
 
 ### Pulses (`grid/pulses.ts`)
 
-- Every new event sends a dot of light along its call line, from sender
-  to receiver, in the sender's colour.
-- A burst of events sends at most a few dots at once, spaced out.
+- Every new event sends a short stroke in ink along its call line, from
+  sender to receiver, flat — no glow — gone as it arrives.
+- A burst of events sends at most a few strokes at once, spaced out.
 - Pulses follow a node while it is being dragged.
 
 ### Moving around (`scenes/camera.ts`)
@@ -114,19 +127,20 @@ is named, so the two can be checked against each other.
 - **Pan:** drag the empty board with any mouse button.
 - **Zoom:** the mouse wheel, from a quarter size to three times, around
   the pointer.
-- **Not over the outliner:** a drag that starts on the outliner, or the
+- **Not over the outline:** a drag that starts on the outline, or the
   wheel over it, does not move the view.
 - **Bounds:** the view's middle can roam twice the width and height of
   the area the nodes cover, around its middle, and no further — so you
   can always reach every node however far you zoom.
 - **The grid** (`scenes/backdrop.ts`) is redrawn sharp at every zoom.
-  It has a bright line every fifth square; the faint lines in between
-  fade out as you zoom out rather than turning into a haze.
+  Every line is the theme's rule: whole every fifth square, at half
+  strength in between, those fading out as you zoom out rather than
+  turning into a haze.
 
 ### Dragging nodes (`grid/nodes.ts`)
 
-- Press a node and move it to drag it. Its halo, name, lines, selection
-  ring and pulses all go with it.
+- Press a node and move it to drag it. Its name, lines, trace, gold
+  corners and pulses all go with it.
 - Positions last only for the page. A reload puts every node back in
   its starting column.
 
@@ -149,7 +163,7 @@ same way.
 - **The strip.** Along the top of the window: **Home** — our own
   daemon — first, then one tab per daemon opened. Each is named by the
   daemons along the way to it (`A › B`); hovering it shows their IDs.
-  The tab shown is lit copper.
+  The tab shown has a gold bar along its foot.
 - **Opening one.** Click a daemon's node; its sheet's **daemon** tab has
   one button, **Open <name>**. Pressing it opens that daemon in a new
   tab and shows it. A daemon opened already is switched to instead.
@@ -157,76 +171,90 @@ same way.
   daemons it has records of; opening one of those goes one hop
   further (`A › B`).
 - **The same app.** Inside a tab everything works as at Home — the
-  board, the outliner, every sheet tab, downloads and uploads, consoles
+  board, the outline, every sheet tab, downloads and uploads, consoles
   and frontends — on that daemon. Our daemon passes each request on
   (its `relay`, the route of daemon record IDs), connecting as our
   account there.
 - **Switching.** Click a tab. The one left closes its sheet but keeps
   everything else — its lists stay open, its nodes where they were
   dragged, its view where it was — so switching back loses nothing.
-  The outliner shows the tab shown.
+  The outline shows the tab shown.
 - **Shared settings.** Which kinds and which types of line are shown is
   the same in every tab.
 - **Closing.** **✕** on a tab closes it, its lists and its sheet; if it
   was shown, the tab to its left is shown. Home has no ✕.
 - **Refused.** A daemon our daemon cannot reach, or the account may not
-  relay to, stays "waiting for the daemon" in the outliner's status
-  row.
+  relay to, stays "waiting for the daemon" in the outline, under its
+  header.
 - **Through the strip:** a click on it never presses a node or the
-  outliner beneath.
+  outline beneath.
 
 ---
 
-## The outliner
+## The outline
 
-`scenes/outliner.ts`, `scenes/ui.ts`
+`outline/outline.ts`, `outline/outline.css`, `scenes/ui.ts`
 
-The one menu, at the top right of the window at first, under the tab
-strip: as tall as its rows need and no taller than the window, over a
-see-through dark backing. Drag the grip along its top (a short bar) to
-move it anywhere below the strip; it keeps its distance from the
-window's right edge when the window is resized. A drag that starts on it, or the wheel over it, does not move
-the view.
+The one menu, in HTML over the board: a card on the theme's ground with
+the strong edge, at the top right at first, under the tab strip. It
+takes focus and the keys like the rest of the page. A drag that starts
+on it, or the wheel over it, does not move the view.
 
-### Top rows
+### Header
 
-One row each, one beneath another, then a thin rule:
+- **Outline**, how many nodes the board holds, then three buttons:
+  **Arrange** (see Arrange below), **fold**, and **dock** (or **float**,
+  when docked).
+- Under it, quietly, only when there is something to say: "waiting for
+  the daemon" while the world cannot reach it, or which lists this
+  account may not read.
 
-- **Arrange** (`◇ arrange`); see Arrange below.
-- **One row per type of line** — calls `──▸`, attachments `╌╌╌`,
-  creators `o┈┈` — each with its name, how many the board holds, and
-  an eye. Press the row to hide or show that type; a hidden one's eye
-  is shut (`◌`) and its row faint. Hiding a type takes its lines and
-  lanes off the board.
+### What to show
 
-### Status row
+- **The types of line** as chips, each its sample and how many the
+  board holds — calls, attachments, creators. A chip pressed (tinted)
+  is shown; press it to hide or show that type, which takes its lines
+  and lanes off the board.
+- **The kinds** as chips, each its shape in its family's colour. Press
+  one to hide or show that kind: its nodes go, and their lines and
+  pulses with them; an open sheet for one of them closes, and its rows
+  leave the list.
 
-- Under the rule, in amber, only when there is something to say:
-  "waiting for the daemon" while the world cannot reach it, or which
-  lists this account may not read.
+### The list
 
-### Sections
+- **By family:** who acts (accounts, agents), what they use (the three
+  kinds of tool), where it runs (volumes, providers, daemons). Each
+  family's head shows how many it lists and folds its rows away.
+- **Rows:** every node shown, by name, with its shape in its family's
+  colour. A node that is not bright has its shape in the strong edge
+  and its name in the quietest words.
+- **The open sheet's row** is bold, on a raised band, with the gold bar
+  down its left.
+- **Press a row** (or Enter on it): the view flies to the node, puts the
+  gold corners round it, and opens its sheet — for a provider, the
+  sheet's header alone.
+- **Hover or focus a row:** its band lightens and its words brighten —
+  no box — and the node's lines are focused, as hovering the node itself
+  does. While the keys are in use the mouse marks nothing, so only one
+  row is ever marked. The arrow keys, Home and End move along the list.
+- **Scrolling:** the list scrolls inside the card when it outgrows it.
 
-- **One per kind**, in this order: accounts, agents, standalone tools,
-  connected tools, daemons, dependency tools, volumes, providers.
-- **A header** shows `▾` (open) or `▸` (folded), the kind's shape and
-  name, how many it holds, and its **eye**. Press the eye to hide or
-  show that kind on the board (`◉` shown, `◌` hidden); press the rest
-  of the header to fold or unfold the section. Folding and hiding are
-  separate: a folded kind stays on the board.
-- **Hiding a kind:** its nodes go, and their lines and pulses with
-  them; an open sheet for one of them closes. Its section stays,
-  faint, and pressing its rows does nothing.
-- **Rows:** every node of that kind, by name, with its shape and a dot
-  that is green while the node is bright.
-- **Press a row:** the view flies to the node, rings it, and opens its
-  sheet — for a provider, the sheet's header alone.
-- **Hover a row:** the node's lines are focused, as hovering the node
-  itself does.
-- **The open sheet's row** is lit.
-- **Scrolling:** the wheel over the outliner scrolls the sections when
-  they outgrow the window, and a scrollbar appears at their right; drag
-  its thumb to scroll too. The top rows and status row stay put.
+### Moving, folding, docking
+
+- **Drag the header** to move the card anywhere under the strip. Let go
+  near an edge and it snaps 12px in from it. While held, its edge lights
+  up.
+- **Fold** shrinks it to its header; there, **unfold** opens it again
+  and **fold to shapes** shrinks it to a column of the kinds' shapes,
+  each still a show/hide chip, with an arrow at the top to open it.
+- **Docking:** let go near the window's left edge — a dashed outline
+  shows where while you hold it there — or press **dock**, and it
+  becomes a rail down the left, the window's height, and the sheet opens
+  beside it. Folded, the rail is the column of shapes. Drag its header
+  off the rail, or press **float**, and it floats again.
+- **The sheet:** a floating card stops 12px above an open sheet, or the
+  window's foot, and its list scrolls in what is left.
+- Where it stands and how it is folded last only for the page.
 
 ### Keys
 
@@ -268,7 +296,7 @@ The keys are not printed.
 
 ### Opening and closing
 
-- **Open:** click any node. It gets a white selection ring, and its
+- **Open:** click any node. Gold corners mark it, and its
   sheet opens along the bottom of the window — for a provider, which
   has no tabs, its header alone.
 - **Swap:** click another node to switch the sheet to it.
@@ -286,7 +314,8 @@ The keys are not printed.
   outgoing to its address, or incoming — and where the daemon stands
   with it, a daemon's account of ours there and whether the
   daemon is connected to it: `as <subject> · connected`),
-  and a green dot, lit exactly while the node is bright on the board
+  and a dot, filled exactly while the node is bright on the board and a
+  ring while it is not
   (see [Live state](#live-state-gridlivets)).
 
 ### Tabs by kind
@@ -343,10 +372,10 @@ The log is read from the start and then followed live.
 
 - **Writing:** an agent's log has a box under it. Enter sends;
   Shift+Enter starts a new line.
-- **Files:** 📎 attaches files, any number; pasting a file, such as a
+- **Files:** **Attach** adds files, any number; pasting a file, such as a
   screenshot, attaches it too. Each shows as a chip — an image as a
-  thumbnail, a sound as ♪ and its name, anything else as 📄 and its
-  name — with ✕ to take it off.
+  thumbnail, a sound as "sound ·" and its name, anything else as
+  "file ·" and its name — with ✕ to take it off.
 - **What is sent:** the text first, then the files in the order they
   were attached. A file is known by its bytes, not its name, and goes
   as an image, a sound, or a file.
@@ -401,8 +430,7 @@ refused. An administrator's log is the daemon's own admin log.
 - **Folders:** click a directory to open or close it. What is open
   stays open through every change. An open empty directory says
   "empty".
-- **Live changes:** a file or directory that changes glows copper
-  briefly. A closed directory glows for changes inside it.
+- **Live changes:** a file or directory that changes glows briefly. A closed directory glows for changes inside it.
 - **Possibly stale:** a part of a container the daemon cannot watch is
   dimmed, with a tooltip saying it may be stale.
 - **Selection:** clicking or right-clicking a row selects it, like a
@@ -543,7 +571,7 @@ refused. An administrator's log is the daemon's own admin log.
   a tab not shown keeps them open too.
 - **Home's requests are unchanged.** A request at Home carries no
   `relay`; one in a daemon's tab carries the route to it.
-- **The outliner's counts are live**, as the board is.
+- **The outline's counts are live**, as the board is.
 - **Reconnecting.** The connection is held by the app's Rust and redials
   by itself as `viewer.yaml` says.
 - **Nothing is saved.** The app keeps no files of its own.
@@ -555,8 +583,8 @@ These are the gaps as they stand:
 - **Node positions** are lost on reload.
 - **Opening a file** in place is not possible: files can be browsed,
   downloaded and uploaded, but not viewed in the app.
-- **Attaching by dragging** is not possible in the log: use 📎 or
-  paste. A file is sent whole, inside the one message, however large.
+- **Attaching by dragging** is not possible in the log: use **Attach**
+  or paste. A file is sent whole, inside the one message, however large.
 - **One console per sheet.** A shell lives only while its node's sheet
   is open; there is no reattaching to an earlier one.
 - **Desktop only.** Downloading and uploading need a desktop window.

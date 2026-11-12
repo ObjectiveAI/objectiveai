@@ -2,7 +2,7 @@
 // window wherever its camera looks, so its edge is never seen.
 
 import * as Phaser from "phaser";
-import { FIELD, GRID_BOLD, GRID_FINE } from "../grid/palette";
+import { field, gridLine } from "../grid/palette";
 import { makeTextures } from "../grid/textures";
 import { ACTIVE } from "./status";
 
@@ -20,7 +20,7 @@ const FADE_TO = 10;
  *
  * The rules:
  *
- * 1. The field is the camera's own background, the colour of the board.
+ * 1. The field is the camera's own background, the theme's ground.
  * 2. Every frame it reads the camera of the board shown (`ACTIVE`, Home
  *    until a tab is chosen): its zoom, and the world point at the
  *    window's top-left (the scroll, plus half the window, less half the
@@ -29,7 +29,8 @@ const FADE_TO = 10;
  *    changed: in the window's own pixels, every line one pixel wide on
  *    a whole pixel, so zooming moves the lines apart and never blurs or
  *    thickens them.
- * 4. A bold line every `BOLD` steps always shows; the fine lines fade
+ * 4. Every line is the theme's rule: a bold line every `BOLD` steps,
+ *    whole, always shows; the fine lines, at half strength, fade
  *    out as zooming out brings them within `FADE_TO` pixels of each
  *    other, so the grid never crowds into a haze.
  */
@@ -44,7 +45,7 @@ export class Backdrop extends Phaser.Scene {
   create() {
     makeTextures(this);
     // Rule 1.
-    this.cameras.main.setBackgroundColor(FIELD);
+    this.cameras.main.setBackgroundColor(field());
     this.grid = this.add.graphics();
     this.scene.launch("board");
   }
@@ -82,7 +83,7 @@ export class Backdrop extends Phaser.Scene {
         g.lineBetween(0, at, width, at);
       }
     };
-    lines(GRID_FINE, fine, 1);
-    lines(GRID_BOLD, 1, BOLD);
+    lines(gridLine(), fine / 2, 1);
+    lines(gridLine(), 1, BOLD);
   }
 }

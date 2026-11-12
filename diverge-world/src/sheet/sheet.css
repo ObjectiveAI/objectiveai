@@ -1,32 +1,24 @@
-/* The agent sheet: ink, cream and copper, the world's own colours. */
-:root {
-  --sheet-ink: #16120a;
-  --sheet-raised: #221b11;
-  --sheet-line: #3a2f1f;
-  --sheet-cream: #f5ead0;
-  --sheet-text: #e6dcc4;
-  --sheet-dim: #a89c84;
-  --sheet-copper: #d97706;
-  --sheet-copper-bright: #fbbf24;
-  --sheet-account: #d9a521;
-  --sheet-agent: #6f9fe8;
-  --sheet-tool: #b58ae0;
-  --sheet-error: #e0604f;
-}
+/* The agent sheet, in the theme's roles (diverge-viewer/src/theme.css) and
+   nothing of its own. A row or a list item lights its band under the
+   mouse; a control with an edge lights its edge. Focus looks as hover
+   does, and hover marks nothing while the keys are in use (`data-input`
+   on the root), so one thing is marked at a time. */
 
-/* Rule 1: along the bottom, the full width; rule 8: it takes every press made on it. */
+/* Rule 1: along the bottom, the full width, on the raised surface with a
+   plain edge; rule 8: it takes every press made on it. */
 .sheet {
   position: fixed;
-  left: 0;
+  /* Beside the outline when it is docked as a rail (`--outline-left`, set by outline.ts). */
+  left: var(--outline-left, 0px);
   right: 0;
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--sheet-ink) 96%, transparent);
-  border-top: 2px solid var(--sheet-copper);
-  box-shadow: 0 -6px 24px #000a;
-  color: var(--sheet-text);
-  font: 13px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  color: var(--text);
+  font-size: var(--text-md);
+  scrollbar-color: var(--line-strong) transparent;
   z-index: 10;
   touch-action: none;
 }
@@ -34,48 +26,55 @@
   display: none;
 }
 
+/* The handle is dragged, so it wears a pressable edge's colour, lit under the mouse. */
 .sheet .handle {
   flex: none;
-  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--space-4);
   cursor: ns-resize;
   touch-action: none;
 }
 .sheet .handle::before {
   content: "";
-  display: block;
   width: 44px;
   height: 4px;
-  margin: 6px auto 0;
-  border-radius: 2px;
-  background: var(--sheet-line);
+  background: var(--line-strong);
+}
+:root:not([data-input="keys"]) .sheet .handle:hover::before {
+  background: var(--line-hover);
 }
 
 .sheet > header {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px 8px 16px;
-  border-bottom: 1px solid var(--sheet-line);
-  font-family: Georgia, "Times New Roman", serif;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--line);
 }
+/* The dot is the node's brightness: filled when on, a ring when off, so its shape says it as well as its colour. */
 .sheet .live {
-  width: 8px;
-  height: 8px;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--line-strong);
   border-radius: 50%;
-  background: var(--sheet-line);
 }
 .sheet .live.on {
-  background: #4ade80;
-  box-shadow: 0 0 6px #4ade80;
+  border-color: var(--ok);
+  background: var(--ok);
 }
 .sheet .title {
-  color: var(--sheet-cream);
-  font-size: 16px;
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: 650;
+  line-height: 1.2;
 }
 .sheet .sub {
-  color: var(--sheet-dim);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--text-sm);
 }
 /* Rule 9: filling the window, the handle gone. */
 .sheet.full {
@@ -85,46 +84,67 @@
   display: none;
 }
 .sheet.full > header {
-  padding-top: 8px;
+  padding-top: var(--space-2);
 }
+
+/* Icon buttons: fill, close, ↻. A square at the floor height, a pressable edge, the glyph quieter than words. */
 .sheet .fill {
   margin-left: auto;
 }
 .sheet .fill,
-.sheet .exit {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--sheet-line);
-  border-radius: 4px;
-  background: var(--sheet-raised);
-  color: var(--sheet-cream);
-  font-size: 14px;
+.sheet .exit,
+.sheet .frontend .bar button,
+.sheet .files .again {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  background: none;
+  color: var(--text-2);
+  font-size: var(--text-md);
+  line-height: 1;
   cursor: pointer;
 }
-.sheet .fill:hover,
-.sheet .exit:hover {
-  border-color: var(--sheet-copper);
+:root:not([data-input="keys"]) .sheet .fill:hover,
+:root:not([data-input="keys"]) .sheet .exit:hover,
+:root:not([data-input="keys"]) .sheet .frontend .bar button:hover,
+:root:not([data-input="keys"]) .sheet .files .again:hover,
+.sheet .fill:focus-visible,
+.sheet .exit:focus-visible,
+.sheet .frontend .bar button:focus-visible,
+.sheet .files .again:focus-visible {
+  border-color: var(--line-hover);
 }
 
-/* Rule 2: the tabs, the one shown copper. */
+/* Rule 2: the tabs, chips you press; the one shown filled with the soft accent, its words full and heavier. */
 .sheet .tabs {
-  margin-left: 16px;
+  margin-left: var(--space-4);
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .sheet .tab {
-  padding: 2px 10px;
-  border: 1px solid var(--sheet-line);
-  border-radius: 4px;
+  height: var(--hit-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong);
   background: none;
-  color: var(--sheet-dim);
-  font: 12px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.2;
   cursor: pointer;
 }
-.sheet .tab:hover { color: var(--sheet-cream); }
+:root:not([data-input="keys"]) .sheet .tab:hover,
+.sheet .tab:focus-visible {
+  border-color: var(--line-hover);
+}
 .sheet .tab.on {
-  border-color: var(--sheet-copper);
-  color: var(--sheet-copper-bright);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
 }
 .sheet .tabs[hidden],
 .sheet .body[hidden],
@@ -132,12 +152,12 @@
   display: none;
 }
 
-/* Rule 6: the console, one terminal filling what the sheet leaves. */
+/* Rule 6: the console, one terminal filling what the sheet leaves, on the sheet's own surface. */
 .sheet .console {
   flex: 1;
   min-height: 0;
-  padding: 4px 0 4px 8px;
-  background: var(--sheet-ink);
+  padding: var(--space-1) 0 var(--space-1) var(--space-2);
+  background: var(--surface);
 }
 .sheet .console[hidden] {
   display: none;
@@ -149,13 +169,12 @@
   display: none;
 }
 
-/* Rule 7: the frontend, a frame filling what the sheet leaves under its bar. */
+/* Rule 7: the frontend, a frame filling what the sheet leaves under its bar; the ground behind it while it loads. */
 .sheet .frontend {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--sheet-ink);
 }
 .sheet .frontend[hidden] {
   display: none;
@@ -163,118 +182,143 @@
 .sheet .frontend .bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 12px;
-  border-bottom: 1px solid var(--sheet-line);
-  font-size: 12px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-sm);
 }
-.sheet .frontend .bar button {
-  border: 0;
-  background: none;
-  color: var(--sheet-dim);
-  font: inherit;
-  font-size: 15px;
-  cursor: pointer;
+.sheet .frontend .where {
+  color: var(--text-3);
 }
-.sheet .frontend .bar button:hover { color: var(--sheet-cream); }
-.sheet .frontend .where { color: var(--sheet-dim); }
+.sheet .frontend .where.failed {
+  color: var(--bad);
+}
 .sheet .frontend iframe {
   flex: 1;
   min-height: 0;
   width: 100%;
   border: 0;
-  background: #fff;
+  background: var(--bg);
 }
 
-/* Rule 10: the daemon tab, its one button, which opens the daemon's own tab of the window. */
+/* Rule 10: the daemon tab, its one button, which opens the daemon's own tab of the window: the action that goes ahead. */
 .sheet .daemon {
   flex: 1;
   min-height: 0;
-  padding: 16px;
-  background: var(--sheet-ink);
+  padding: var(--space-4);
 }
 .sheet .daemon[hidden] {
   display: none;
 }
-.sheet .daemon button {
-  padding: 6px 14px;
-  border: 1px solid var(--sheet-copper);
-  border-radius: 4px;
-  background: var(--sheet-raised);
-  color: var(--sheet-copper-bright);
-  font: 13px ui-monospace, "JetBrains Mono", Consolas, monospace;
+
+/* The primary button: open the daemon, send. The accent filled, lighter under the mouse. */
+.sheet .daemon button,
+.sheet .composer .send {
+  flex: none;
+  height: var(--control);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.2;
   cursor: pointer;
 }
-.sheet .daemon button:hover {
-  border-color: var(--sheet-copper-bright);
-  color: var(--sheet-cream);
+:root:not([data-input="keys"]) .sheet .daemon button:hover,
+:root:not([data-input="keys"]) .sheet .composer .send:hover:not(:disabled),
+.sheet .daemon button:focus-visible,
+.sheet .composer .send:focus-visible {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+.sheet .composer .send:disabled {
+  border-color: var(--line);
+  background: none;
+  color: var(--text-3);
+  cursor: default;
 }
 
-/* Rule 5: the filesystem, scrolled from its top; every row on one grid of columns. */
+/* Rule 5: the filesystem, scrolled from its top; every row on one grid of columns, each at the floor height. */
 .sheet .files {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  font-size: 12px;
+  scrollbar-width: thin;
+  font-size: var(--text-sm);
 }
 .sheet .files .row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 6rem 9.5rem 9.5rem;
-  padding-right: 16px;
-  line-height: 22px;
+  min-height: var(--hit-min);
+  padding-right: var(--space-2);
+  line-height: var(--hit-min);
 }
 .sheet .files .cell {
   overflow: hidden;
+  padding: 0 var(--space-2);
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .sheet .files .cell.name { text-align: left; }
-.sheet .files .cell.none { color: var(--sheet-line); }
+.sheet .files .cell.none { color: var(--text-3); }
 .sheet .files .head {
   position: sticky;
   top: 0;
-  background: var(--sheet-ink);
-  border-bottom: 1px solid var(--sheet-line);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+/* A header's words sit where its column's values do: the button carries the cell's inset. */
+.sheet .files .head .cell {
+  padding: 0;
 }
 .sheet .files .head .cell:first-child {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-left: 0.75rem;
+  gap: var(--space-1);
+  padding-left: var(--space-1);
 }
-.sheet .files .sort,
-.sheet .files .again {
-  padding: 0;
+.sheet .files .sort {
+  height: var(--hit-min);
+  padding: 0 var(--space-2);
   border: none;
   background: none;
-  color: var(--sheet-dim);
-  font: inherit;
+  color: var(--text-2);
+  font-weight: 500;
+  line-height: 1.2;
+  vertical-align: top;
   cursor: pointer;
 }
-.sheet .files .sort:hover,
-.sheet .files .again:hover { color: var(--sheet-cream); }
-.sheet .files .sort.on { color: var(--sheet-copper-bright); }
+:root:not([data-input="keys"]) .sheet .files .sort:hover,
+.sheet .files .sort:focus-visible {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.sheet .files .sort.on {
+  color: var(--text);
+  font-weight: 600;
+}
 .sheet .files .row.directory { cursor: pointer; }
-.sheet .files .row.directory:not(.selected):hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
-.sheet .files .row.directory .name { color: var(--sheet-copper-bright); }
-.sheet .files .row.symlink .name { color: var(--sheet-agent); font-style: italic; }
-.sheet .files .row.stale { opacity: 0.5; }
-.sheet .files .row.empty .name { color: var(--sheet-dim); font-style: italic; }
+.sheet .files .row.symlink .name { color: var(--text-2); font-style: italic; }
+/* Rule 6: possibly stale, so quieter words. */
+.sheet .files .row.stale .cell { color: var(--text-3); }
+.sheet .files .row.empty .name { color: var(--text-3); font-style: italic; }
 .sheet .files .caret {
   display: inline-block;
-  width: 1rem;
-  color: var(--sheet-dim);
+  width: var(--space-4);
+  color: var(--text-3);
 }
-.sheet .files .note { padding: 12px 16px; }
+.sheet .files .note { padding: var(--space-3) var(--space-4); }
+.sheet .files .note.failed { color: var(--bad); }
 .sheet .files .note[hidden] { display: none; }
-/* A changed row glows copper and fades (Files, rule 5). */
+/* Rule 5: a changed row is lit with the soft accent, which fades. */
 .sheet .files .row.flash { animation: sheet-flash 1.2s ease-out forwards; }
 @keyframes sheet-flash {
-  from { background: color-mix(in srgb, var(--sheet-copper) 35%, transparent); }
+  from { background: var(--accent-soft); }
   to { background: transparent; }
 }
 
@@ -289,15 +333,18 @@
   display: none;
 }
 
-/* The scroller: a reversed column, so its resting place is its bottom; it holds the log, and an agent's pending strip beneath it. */
+/* The scroller: a reversed column, so its resting place is its bottom; it holds the log, and an agent's pending strip beneath it. Its words can be selected and copied. */
 .sheet .body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  scrollbar-width: thin;
   display: flex;
   flex-direction: column-reverse;
+  user-select: text;
+  cursor: auto;
 }
 /* While the history comes in, held at the bottom. */
 .sheet .body.loading {
@@ -306,111 +353,165 @@
 /* Shorter than the pane, the log stands at its top; taller, the margin is nothing. */
 .sheet .log {
   margin-bottom: auto;
-  padding: 10px 16px 16px;
+  padding: var(--space-2) var(--space-4) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 /* A message: its label once, then its blocks. */
 .sheet .message > header {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 2px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
+/* A sender is a plain small label, coloured by family: accounts and agents the accent, tools and answers quieter, failures bad. */
 .sheet .label {
-  padding: 0 6px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  font-size: 11px;
-  font-family: Georgia, "Times New Roman", serif;
+  color: var(--text-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
-.sheet .message.agent .label { color: var(--sheet-agent); }
-.sheet .message.account .label { color: var(--sheet-account); }
-.sheet .message.tool .label { color: var(--sheet-tool); }
+.sheet .message.agent .label,
+.sheet .message.account .label { color: var(--accent); }
+.sheet .message.tool .label { color: var(--text-2); }
 .sheet .message.error .label,
-.sheet .message.failed .label { color: var(--sheet-error); }
-.sheet .message.failed .blocks { color: var(--sheet-error); }
+.sheet .message.failed .label { color: var(--bad); }
+.sheet .message.failed .blocks {
+  border-left-color: var(--line-bad);
+  color: var(--bad);
+}
 .sheet .ago {
   margin-left: auto;
-  color: var(--sheet-dim);
-  font-size: 11px;
+  color: var(--text-3);
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 .sheet .blocks {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-left: 8px;
-  border-left: 1px solid var(--sheet-line);
+  gap: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--line);
 }
 
-/* Text, rendered. */
+/* Text, rendered: headings from the type scale, code in wells on the ground, links the accent. */
 .sheet .text {
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
-.sheet .text p { margin: 0 0 4px; }
+.sheet .text p { margin: 0 0 var(--space-1); }
+.sheet .text h1,
+.sheet .text h2,
+.sheet .text h3,
+.sheet .text h4,
+.sheet .text h5,
+.sheet .text h6 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+.sheet .text h1 { font-size: var(--text-lg); }
+.sheet .text hr {
+  margin: var(--space-2) 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
 .sheet .text ul,
-.sheet .text ol { margin: 0 0 4px; padding-left: 18px; }
-.sheet .text blockquote { margin: 0; padding-left: 8px; border-left: 2px solid var(--sheet-copper); }
-.sheet .text code { background: var(--sheet-raised); padding: 0 3px; border-radius: 2px; }
-.sheet .text pre { white-space: pre; overflow-x: auto; background: var(--sheet-raised); padding: 6px 8px; border-radius: 4px; }
-.sheet .text pre code { padding: 0; }
+.sheet .text ol { margin: 0 0 var(--space-1); padding-left: var(--space-5); }
+.sheet .text blockquote { margin: 0; padding-left: var(--space-2); border-left: 2px solid var(--line-strong); }
+.sheet .text code { padding: 0 var(--space-1); background: var(--bg); }
+.sheet .text pre {
+  margin: 0 0 var(--space-1);
+  padding: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  white-space: pre;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.sheet .text pre code { padding: 0; background: none; font-size: inherit; }
 .sheet .text table { border-collapse: collapse; }
 .sheet .text th,
-.sheet .text td { border: 1px solid var(--sheet-line); padding: 2px 6px; }
-.sheet .link { text-decoration: underline; }
-.sheet .refusal { color: var(--sheet-error); }
+.sheet .text td { padding: var(--space-1) var(--space-2); border: 1px solid var(--line); }
+.sheet .text th { font-weight: 600; text-align: left; }
+.sheet .link { color: var(--accent); text-decoration: underline; }
+.sheet .refusal { color: var(--bad); }
 
-.sheet .reasoning summary {
+/* Disclosures, reasoning and call cards alike: a row with ▸, which turns as it opens; the row lights under the mouse. */
+.sheet .reasoning > summary,
+.sheet .call > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--hit-min);
+  list-style: none;
   cursor: pointer;
-  color: var(--sheet-dim);
-  font-size: 10px;
+}
+.sheet .reasoning > summary::-webkit-details-marker,
+.sheet .call > summary::-webkit-details-marker { display: none; }
+.sheet .reasoning > summary::before,
+.sheet .call > summary::before {
+  content: "▸";
+  color: var(--text-3);
+  transition: transform 0.1s;
+}
+.sheet .reasoning[open] > summary::before,
+.sheet .call[open] > summary::before { transform: rotate(90deg); }
+:root:not([data-input="keys"]) .sheet .reasoning > summary:hover,
+:root:not([data-input="keys"]) .sheet .call > summary:hover,
+.sheet .reasoning > summary:focus-visible,
+.sheet .call > summary:focus-visible {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.sheet .reasoning > summary {
+  padding: 0 var(--space-1);
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .sheet .reasoning > div {
-  color: var(--sheet-dim);
+  color: var(--text-2);
   font-style: italic;
   max-height: 300px;
   overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-/* A tool call, its response beneath its arguments; closed until opened. */
+/* A tool call, its response beneath its arguments; closed until opened. A well on the ground, its edge bad when it failed. */
 .sheet .call {
-  border: 1px solid var(--sheet-line);
-  border-radius: 4px;
-  background: var(--sheet-raised);
-  padding: 4px 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
 }
+.sheet .call.failed { border-color: var(--line-bad); }
 .sheet .call > summary {
-  display: flex;
-  gap: 8px;
-  cursor: pointer;
-  list-style: none;
+  padding: 0 var(--space-2);
+  color: var(--text-2);
 }
-.sheet .call > summary::-webkit-details-marker { display: none; }
-.sheet .call > summary::before {
-  content: "▸";
-  color: var(--sheet-dim);
-  transition: transform 0.1s;
-}
-.sheet .call[open] > summary::before { transform: rotate(90deg); }
-.sheet .call .status { width: 1ch; color: var(--sheet-dim); }
+.sheet .call .status { width: 1ch; color: var(--text-3); }
+.sheet .call.done .status { color: var(--ok); }
 .sheet .call.failed .status,
-.sheet .call.failed .response { color: var(--sheet-error); }
-.sheet .call-name { color: var(--sheet-copper-bright); }
+.sheet .call.failed .response { color: var(--bad); }
+.sheet .call-name { overflow-wrap: anywhere; }
 .sheet .args,
 .sheet .response {
-  margin: 4px 0 0 2ch;
-  padding-left: 8px;
-  border-left: 1px solid var(--sheet-line);
+  margin: var(--space-1) var(--space-2) var(--space-2) var(--space-5);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--line);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 200px;
   overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* What was asked is JSON, machine text; an answer's words stay words, its JSON mono. */
+.sheet .args {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
 }
 .sheet .notify {
   white-space: pre-wrap;
@@ -420,10 +521,12 @@
 .sheet .response::before,
 .sheet .notify::before {
   display: block;
-  font-size: 10px;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--sheet-dim);
 }
 .sheet .args::before { content: "call"; }
 .sheet .response::before { content: "response"; }
@@ -434,117 +537,152 @@
 .sheet .json {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
 }
+/* Inside the arguments the size is set already; set again it would shrink twice. */
+.sheet .args .json { font-size: inherit; }
 .sheet .media {
   max-width: 100%;
   max-height: 320px;
   object-fit: contain;
   align-self: flex-start;
-  border-radius: 4px;
 }
-.sheet .resource { color: var(--sheet-copper-bright); }
+.sheet .resource { color: var(--text-2); overflow-wrap: anywhere; }
 
 .sheet .note {
-  color: var(--sheet-dim);
+  color: var(--text-3);
   font-style: italic;
   text-align: center;
 }
+/* The log's own note says it ended, was refused or failed: a failure. */
+.sheet .log > .note { color: var(--bad); }
 
-/* Files, rule 12: the selected row, lit more strongly than the pointer's light, which passes it by. */
+/* Files, rule 12: the selected row, on a raised band, heavier, with the bar that marks where you are down its left. The pointer's light passes it by. */
 .sheet .files .row.selected {
-  background: color-mix(in srgb, var(--sheet-copper) 32%, transparent);
-  box-shadow: inset 2px 0 0 var(--sheet-copper-bright);
+  position: relative;
+  background: var(--surface-2);
+  font-weight: 600;
 }
-.sheet .files .row.selected .name { color: var(--sheet-cream); }
-.sheet .files .row.directory.selected .name { color: var(--sheet-copper-bright); }
+.sheet .files .row.selected::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--mark);
+  background: var(--here);
+}
+.sheet .files .row.selected .name { color: var(--text); }
 
-/* Files, rule 9: every row lights while pointed at, and right-clicks to its menu. */
-.sheet .files .row.file:not(.selected):hover,
-.sheet .files .row.symlink:not(.selected):hover { background: color-mix(in srgb, var(--sheet-copper) 10%, transparent); }
+/* Files, rule 9: every row lights its band while pointed at, its words full, and right-clicks to its menu. */
+:root:not([data-input="keys"]) .sheet .files .row[data-key]:not(.selected):hover {
+  background: var(--surface-3);
+}
+:root:not([data-input="keys"]) .sheet .files .row[data-key]:not(.selected):hover .cell,
+:root:not([data-input="keys"]) .sheet .files .row[data-key]:not(.selected):hover .caret {
+  color: var(--text);
+}
+/* Files, rule 9: the row's menu, a plain raised box with a pressable edge; its items are rows. */
 .files-menu {
   position: fixed;
   z-index: 12;
   display: flex;
   flex-direction: column;
   min-width: 160px;
-  padding: 4px;
-  background: var(--sheet-raised);
-  border: 1px solid var(--sheet-copper);
-  border-radius: 4px;
-  box-shadow: 0 6px 18px #000a;
+  padding: var(--space-1);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-size: var(--text-sm);
 }
 .files-menu button {
-  padding: 4px 10px;
+  min-height: var(--hit-min);
+  padding: 0 var(--space-3);
   border: none;
-  border-radius: 3px;
   background: none;
-  color: var(--sheet-cream);
-  font: 12px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  color: var(--text-2);
+  font-weight: 500;
+  line-height: 1.2;
   text-align: left;
   cursor: pointer;
 }
-.files-menu button:hover { background: color-mix(in srgb, var(--sheet-copper) 25%, transparent); }
+:root:not([data-input="keys"]) .files-menu button:hover,
+.files-menu button:focus-visible {
+  background: var(--surface-3);
+  color: var(--text);
+}
 
-/* Files, rule 10: where a drag is aimed. */
-.sheet .files .row.aimed { background: color-mix(in srgb, var(--sheet-copper) 22%, transparent); }
-.sheet .files.aimed { box-shadow: inset 0 0 0 2px var(--sheet-copper); }
+/* Files, rule 10: where a drag is aimed, a band; the line saying where on the soft accent. */
+.sheet .files .row.aimed { background: var(--surface-3); }
+.sheet .files.aimed { background: var(--surface-3); }
 .sheet .files .aim {
   position: sticky;
-  top: 23px;
+  top: calc(var(--hit-min) + 1px);
   z-index: 1;
-  padding: 2px 16px;
-  background: var(--sheet-copper);
-  color: var(--sheet-ink);
-  font-weight: bold;
+  padding: 0 var(--space-4);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+  line-height: var(--hit-min);
 }
 .sheet .files .aim[hidden] { display: none; }
 
-/* The transfers strip: the window's bottom right, above the sheet. */
+/* The transfers strip: the window's bottom right, above the sheet; a plain raised box with a pressable edge. */
 .transfers {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
-  width: min(360px, calc(100vw - 32px));
+  right: var(--space-4);
+  bottom: var(--space-4);
+  width: min(360px, calc(100vw - 2 * var(--space-4)));
   max-height: 40vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  background: color-mix(in srgb, var(--sheet-ink) 96%, transparent);
-  border: 1px solid var(--sheet-copper);
-  border-radius: 6px;
-  box-shadow: 0 6px 24px #000a;
-  color: var(--sheet-text);
-  font: 12px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-size: var(--text-sm);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
   z-index: 11;
 }
 .transfers[hidden] { display: none; }
 .transfers .transfer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 8px;
+  gap: var(--space-1) var(--space-2);
   align-items: center;
 }
 .transfers .what {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--sheet-cream);
+  color: var(--text);
 }
+/* ✕: an icon button with no box until hovered or focused, when its edge lights. */
 .transfers .exit {
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  padding: 0;
+  border: 1px solid transparent;
   background: none;
-  color: var(--sheet-dim);
-  font: inherit;
+  color: var(--text-2);
+  line-height: 1;
   cursor: pointer;
 }
-.transfers .exit:hover { color: var(--sheet-cream); }
+:root:not([data-input="keys"]) .transfers .exit:hover,
+.transfers .exit:focus-visible {
+  border-color: var(--line-hover);
+}
 .transfers .bar {
   grid-column: 1 / -1;
   height: 4px;
-  border-radius: 2px;
-  background: var(--sheet-line);
+  background: var(--line);
   overflow: hidden;
 }
 .transfers .bar[hidden] { display: none; }
@@ -552,121 +690,150 @@
   display: block;
   height: 100%;
   width: 0;
-  background: var(--sheet-copper-bright);
+  background: var(--accent);
 }
 .transfers .said {
   grid-column: 1 / -1;
-  color: var(--sheet-dim);
+  color: var(--text-3);
+  font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
-.transfers .transfer.done .said { color: #4ade80; }
-.transfers .transfer.failed .said { color: var(--sheet-error); }
+.transfers .transfer.done .said { color: var(--ok); }
+.transfers .transfer.failed .said { color: var(--bad); }
 
-/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; a waiting message greyed, a delivered one as plain as the log, a failed one red and dismissed by a click. */
+/* Composer, rule 1: the pending strip at the log's bottom, the log right above it however short; a waiting message in quieter words, a delivered one alike, a failed one bad and dismissed by a click, its row lit under the mouse. */
 .sheet .pending {
   margin-bottom: auto;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
-.sheet .pending:not(:empty) { padding-bottom: 12px; }
+.sheet .pending:not(:empty) { padding-bottom: var(--space-3); }
 .sheet .pending ~ .log { margin-bottom: 0; }
 .sheet .pending .sent .blocks { min-width: 0; }
 .sheet .pending .sent.waiting,
-.sheet .pending .sent.delivered { opacity: 0.45; }
+.sheet .pending .sent.delivered { color: var(--text-3); }
 .sheet .pending .sent.failed {
-  color: var(--sheet-error);
+  color: var(--bad);
   cursor: pointer;
 }
-.sheet .pending .sent.failed .blocks { border-left-color: var(--sheet-error); }
+.sheet .pending .sent.failed .blocks { border-left-color: var(--line-bad); }
+:root:not([data-input="keys"]) .sheet .pending .sent.failed:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
 .sheet .pending .why { font-style: italic; }
-.sheet .composer .chip button {
-  border: none;
-  background: none;
-  color: var(--sheet-dim);
-  font: inherit;
-  cursor: pointer;
-}
-.sheet .composer .chip button:hover { color: var(--sheet-cream); }
 
-/* Composer, rules 2 to 6: under the log, the chips over the text box, 📎 and send. */
+/* Composer, rules 2 to 6: under the log, the chips over the text box, Attach and Send. */
 .sheet .composer {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 16px;
-  border-top: 1px solid var(--sheet-line);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--line);
 }
 .sheet .composer .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .sheet .composer .chips[hidden] { display: none; }
+/* A chip at the floor height with a pressable edge; its ✕ lights the chip's edge. */
 .sheet .composer .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   max-width: 220px;
-  padding: 2px 4px 2px 6px;
-  border: 1px solid var(--sheet-line);
-  border-radius: 4px;
-  background: var(--sheet-raised);
-  font-size: 12px;
+  height: var(--hit-min);
+  padding: 0 0 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  font-size: var(--text-sm);
 }
+.sheet .composer .chip:has(> img) { padding-left: 0; }
 .sheet .composer .chip img {
-  height: 40px;
+  height: 100%;
   max-width: 80px;
   object-fit: cover;
-  border-radius: 3px;
 }
 .sheet .composer .chip .name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.sheet .composer .chip button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  line-height: 1;
+  cursor: pointer;
+}
+:root:not([data-input="keys"]) .sheet .composer .chip:has(button:hover),
+.sheet .composer .chip:has(button:focus-visible) {
+  border-color: var(--line-hover);
+}
 .sheet .composer .row {
   display: flex;
   align-items: flex-end;
-  gap: 6px;
+  gap: var(--space-2);
 }
+/* The text box: a well on the ground with a pressable edge, which lights under the mouse and in focus. */
 .sheet .composer textarea {
   flex: 1;
   min-width: 0;
   max-height: 160px;
-  /* Whole pixels: the box's height is its lines, its padding and its border, so growing and shrinking never leaves a fraction behind. */
+  /* Whole pixels: the box's height is its lines, its padding and its border, so growing and shrinking never leaves a fraction behind. One line is the control height. */
   box-sizing: border-box;
-  padding: 6px 8px;
+  padding: var(--space-1) var(--space-2);
   resize: none;
-  border: 1px solid var(--sheet-line);
-  border-radius: 4px;
-  background: var(--sheet-raised);
-  color: var(--sheet-text);
-  font: inherit;
-  line-height: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: 22px;
   outline: none;
+  scrollbar-width: thin;
 }
-.sheet .composer textarea:focus { border-color: var(--sheet-copper); }
-.sheet .composer .clip,
-.sheet .composer .send {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--sheet-line);
-  border-radius: 4px;
-  background: var(--sheet-raised);
-  color: var(--sheet-cream);
-  font: 13px ui-monospace, "JetBrains Mono", Consolas, monospace;
+.sheet .composer textarea::placeholder { color: var(--text-3); }
+:root:not([data-input="keys"]) .sheet .composer textarea:hover,
+.sheet .composer textarea:focus-visible {
+  border-color: var(--line-hover);
+}
+/* Attach: a plain button at the control height, beside Send. */
+.sheet .composer .clip {
+  flex: none;
+  height: var(--control);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line-strong);
+  background: none;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.2;
   cursor: pointer;
 }
-.sheet .composer .send {
-  border-color: var(--sheet-copper);
-  color: var(--sheet-copper-bright);
+:root:not([data-input="keys"]) .sheet .composer .clip:hover,
+.sheet .composer .clip:focus-visible {
+  border-color: var(--line-hover);
 }
-.sheet .composer .clip:hover,
-.sheet .composer .send:hover:not(:disabled) { border-color: var(--sheet-copper-bright); }
-.sheet .composer .send:disabled {
-  opacity: 0.4;
-  cursor: default;
+
+/* Nothing turns or fades for someone who asked for less motion; a changed row is still lit, for the same time, and then not. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet .reasoning > summary::before,
+  .sheet .call > summary::before {
+    transition: none;
+  }
+  .sheet .files .row.flash {
+    animation: none;
+    background: var(--accent-soft);
+  }
 }
