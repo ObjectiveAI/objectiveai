@@ -23,7 +23,7 @@ Read sections 1 and 2 before running anything.
 | Term | What it is |
 |---|---|
 | **Root** (config root) | One directory holding a set of Diverge programs' documents and state: `provider.yaml`, `daemon.yaml`, `cli.yaml`, `viewer.yaml`, `identities/`, `daemon/`, `provider/`, `bin/`, and the `*.lock`/`*.log` files. Default `~/.diverge`. Each program runs at most once per root, enforced by its `<program>.lock`. |
-| **Issuer** | An identity's issuer is any OpenID Connect provider that offers the device authorization flow. Diverge's own is `https://identity.diverge.network`, hosted, with one client id, `diverge`; its subjects are `<provider>.<id>.<name>` (for example `github.12345.daemon-a`). Every program proves who it is with an ID token from an issuer. |
+| **Issuer** | An identity's issuer is any OpenID Connect provider that offers the device authorization flow. Diverge's own is `https://identity.diverge.network`, hosted, with one client id, `diverge`; its subjects are `<issuer>.<id>.<name>` (for example `github.12345.daemon-a`), where `<issuer>.<id>` is a GitHub or Google account signed in with `diverge identity.diverge.network accounts login`. Every program proves who it is with an ID token from an issuer. |
 | **Identity** | One `(issuer, subject)` pair, signed in once with `diverge identities login` and stored at `<root>/identities/<pct-encoded issuer>/<subject>.json`. Programs on a root use the identities stored under **that root**. Handshakes are mutual: both ends present an ID token. |
 | **Daemon** (`diverge-daemon`) | The hub clients talk to, over a WebSocket on its `port` (default 14980). It keeps all records in its own Postgres: accounts, roles, providers, remote daemons, templates, agents, tools, events, logs, vault. `diverge-postgres` is a supervisor with Postgres embedded at build time; the daemon starts it on a free loopback port, with its data under `<root>/daemon/postgres/`. |
 | **Provider** (`diverge-provider`) | Runs containers with podman for the daemons in its `incoming` list, and also serves volumes and an image store. Default port 14979. On Windows and macOS it drives a podman machine named **`diverge-provider`** through the rootful connection **`diverge-provider-root`**. On Linux it runs podman directly and must run as root. |
@@ -173,18 +173,29 @@ Every program uses identities from **its own root**:
 - root B needs `github.12345.daemon-b` and `github.12345.admin` (for world B)
 
 > **This step cannot be followed at this revision.** Identities are signed in at
-> `https://identity.diverge.network` by device code (`diverge identities login` prints a code and ends; the
-> wait goes on in the background). That service is not yet live, and the CLI has no command to approve a code
-> yet. Until both exist, the identities this guide needs cannot be made, and this step and everything after
-> it cannot be followed.
+> `https://identity.diverge.network`, and that service is not yet live. The commands below are what the step
+> will be once it is; until then the identities this guide needs cannot be made, and this step and everything
+> after it cannot be followed.
 
-The command:
+First sign your GitHub (or Google) account in, once per root. This is the one part that needs a person:
+
+```bash
+diverge --config "$A" identity.diverge.network accounts login github
+# {"user_code":"ABCD-EFGH","verification_uri":"https://github.com/login/device",…,"browser_opened":true}
+# Enter the code on the page it opened, then:
+diverge --config "$A" identity.diverge.network accounts list
+# {"account":"github.12345","issuer":"github","id":"12345"}       12345 is your own GitHub id; use it below
+```
+
+Then sign each identity in. At this issuer the command approves the code itself and waits:
 
 ```bash
 diverge --config "$A" identities login --issuer "$ISS" --subject github.12345.admin --client-id diverge
-# {"user_code":…,"verification_uri":…,"expires_in":…}   then the command ends; approve the code at the issuer
-diverge --config "$A" identities list   # the identity is listed once the login was approved
+# {"issuer":"https://identity.diverge.network","subject":"github.12345.admin"}
+diverge --config "$A" identities list   # every identity signed in under root A
 ```
+
+Root B needs its own account sign-in (`--config "$B"`), since accounts are per root.
 
 ### Step 4: write the documents
 

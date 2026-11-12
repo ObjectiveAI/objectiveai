@@ -1,6 +1,6 @@
 ---
 name: diverge-config
-description: Configuring and operating a Diverge installation's root. Load it to find or choose the config root (`--config`, `DIVERGE_CONFIG`, `./.diverge`, `~/.diverge`); to read or change `daemon.yaml`, `provider.yaml`, `cli.yaml` or `viewer.yaml` with `diverge <program> config get|set|patch`; to add a daemon or an account to the CLI; to sign an identity in, list or remove one (`diverge identities login`, by device code, `diverge run identities …` on the daemon's host); to start or stop the daemon or provider; to look up ports, admins, `idle_seconds`, registries, volume stores; or to work out what must be restarted after a change and why a connection or handshake is refused.
+description: Configuring and operating a Diverge installation's root. Load it to find or choose the config root (`--config`, `DIVERGE_CONFIG`, `./.diverge`, `~/.diverge`); to read or change `daemon.yaml`, `provider.yaml`, `cli.yaml` or `viewer.yaml` with `diverge <program> config get|set|patch`; to add a daemon or an account to the CLI; to sign an identity in, list or remove one (`diverge identities login`; the accounts at Diverge's own issuer, `diverge identity.diverge.network …`; `diverge run identities …` on the daemon's host); to start or stop the daemon or provider; to look up ports, admins, `idle_seconds`, registries, volume stores; or to work out what must be restarted after a change and why a connection or handshake is refused.
 ---
 
 # Diverge: the root, the documents, identities, start and stop
@@ -18,6 +18,7 @@ If you have not loaded the `diverge` skill in this task, load it first.
 <root>/
   daemon.yaml  provider.yaml  cli.yaml  viewer.yaml                  the documents (each optional)
   identities/<percent-encoded issuer>/<subject>.json                 signed-in identities (hold refresh tokens)
+  identity.diverge.network/<issuer>.<id>.json                        signed-in accounts at Diverge's own issuer (hold GitHub / Google tokens)
   daemon.log  provider.log                                           a started server's output, truncated at each start
   daemon.lock provider.lock                                          held while that server runs; holds its process id
   daemon/  provider/  viewer/                                        each program's own state
@@ -136,6 +137,59 @@ diverge cli config patch '[{op: add, path: /daemons/b, value: {address: "ws://12
 - The running program is not told. See "What needs a restart".
 - Editing the YAML file by hand is equally valid, and is the only way to keep comments.
 
+## Accounts at Diverge's own issuer: `diverge identity.diverge.network`
+
+`https://identity.diverge.network` is Diverge's hosted issuer. Every subject there is `<issuer>.<id>.<name>`:
+
+- `<issuer>` is `github` or `google`: who issued the owner's own sign-in. In these commands "issuer" always
+  means GitHub or Google, never `identity.diverge.network` itself.
+- `<id>` is the owner's permanent user id there.
+- `<name>` is chosen by the owner: 1 to 64 characters of `a-z`, `0-9`, `-`, `_`.
+
+An **account** is `<issuer>.<id>`. It owns every subject that starts with it. Sign an account in once per
+root; after that, signing any of its subjects in needs no person (see the next section).
+
+```bash
+diverge identity.diverge.network accounts login github
+# {"user_code":"ABCD-EFGH","verification_uri":"https://github.com/login/device","verification_uri_complete":null,"expires_in":899,"browser_opened":true}
+diverge identity.diverge.network accounts list
+# {"account":"github.12345","issuer":"github","id":"12345"}        one line per account
+diverge identity.diverge.network accounts info github 12345
+# {"account":"github.12345","issuer":"github","id":"12345","info":{…}}
+diverge identity.diverge.network subjects list github 12345
+# {"subject":"github.12345.daemon-a","name":"daemon-a","refresh_tokens":2}     one line per subject signed in somewhere
+diverge identity.diverge.network refresh-tokens list github 12345 daemon-a
+# {"id":"…","created":…,"ip":"…","user_agent":"…","last_used":…,"last_ip":"…"}   one line per place it is signed in
+diverge identity.diverge.network refresh-tokens end github 12345 daemon-a <id>
+# {"ended":"<id>"}
+```
+
+| Command | What it does |
+|---|---|
+| `accounts login <issuer>` | Starts a device login at GitHub or Google, opens that page in this host's browser, prints the code, and **ends**. A person enters the code on the page. A background process saves the account once it is approved. `--no-browser` opens nothing. |
+| `accounts list` | The accounts signed in under this root. Reads no token, asks nobody. |
+| `accounts info <issuer> <id>` | What GitHub or Google says about that user right now. The `info` object is the issuer's own and differs between the two. Never cached. |
+| `subjects list <issuer> <id>` | The account's subjects that are signed in somewhere, with how many places each. |
+| `refresh-tokens list <issuer> <id> <name>` | Where one subject is signed in: one entry per sign-in, with the address and program that started it and when it was last used. |
+| `refresh-tokens end <issuer> <id> <name> <refresh-token-id>` | Signs one of them out. Tokens it already holds last until they expire (15 minutes). |
+
+Facts and pitfalls:
+
+- **`accounts login` needs a person once.** Read `user_code` from the printed line and give it to the person.
+  If `browser_opened` is `false`, also give them `verification_uri`. `true` means a browser was started, not
+  that anyone saw the page, so the address is always in the line.
+- **`accounts login` prints no outcome.** Check with `accounts list`: the account appears once the code was
+  approved. If it was denied or expired, nothing is written: run it again.
+- The account's id is not chosen: it is whoever approved the code. One person signing in twice replaces the
+  same account.
+- An account whose issuer no longer accepts its token answers an error that says it is signed out. Run
+  `accounts login` again; the file is replaced.
+- A subject is listed only while it is signed in somewhere. Ending its last refresh token makes it vanish
+  from `subjects list`; signing in under the same name brings the same subject back.
+- No command here prints a token.
+- `DIVERGE_IDENTITY_URL` points these commands at another copy of the service. Unset, they use
+  `https://identity.diverge.network`.
+
 ## Identities on this host: `diverge identities`
 
 An identity is one subject at one issuer, signed in once and kept signed in by its refresh token. All programs
@@ -144,21 +198,47 @@ on a root share `<root>/identities/`. No command prints a token.
 ### login
 
 ```bash
+# At Diverge's own issuer: nothing to approve, the command does it and waits.
 diverge identities login --issuer https://identity.diverge.network --subject github.12345.admin --client-id diverge
+# → {"issuer":"https://identity.diverge.network","subject":"github.12345.admin"}     signed in
+
+# At any other issuer: a code to approve there.
+diverge identities login --issuer https://auth.example.com --subject alice --client-id my-client
 # → {"user_code":"…","verification_uri":"…","verification_uri_complete":"…","expires_in":…}   then the command ends
 ```
 
-The login is the device authorization grant (RFC 8628), and it is the only login there is.
+The login is the device authorization grant (RFC 8628), and it is the only login there is. It behaves in one
+of two ways, decided by `--issuer` alone:
+
+| | `--issuer https://identity.diverge.network` (exactly) | Any other issuer |
+|---|---|---|
+| Who approves the code | The command itself, as the account that owns the subject | A person, at the issuer |
+| When the command ends | When the identity is signed in (a couple of seconds) | As soon as the code is printed |
+| What it prints | `{"issuer","subject"}`, the identity signed in | The code and where to approve it |
+| How to know it worked | The printed line; an error otherwise | `diverge identities list`, later |
+| What it needs first | The subject's account signed in under this root | Nothing |
 
 | Flag | Meaning |
 |---|---|
 | `--issuer` (required) | The issuer, exactly as its discovery document names it. `https`, or `http` on loopback. It must offer a device authorization endpoint. |
 | `--subject` (required) | The subject to sign in as. An approval as any other subject writes nothing. |
-| `--client-id` (required) | The public client to sign in as. |
+| `--client-id` (required) | The public client to sign in as. At `identity.diverge.network` it is `diverge`. |
 | `--scope` | Space-separated; `openid` and `offline_access` are added if missing. Absent, those two. |
 | `--resource` | RFC 8707 `resource` for the access token. Rarely needed. |
 
-Facts and pitfalls:
+At `https://identity.diverge.network`:
+
+- **The issuer string must match exactly.** A trailing slash, or any other address, is treated as another
+  issuer and takes the code-and-background path.
+- **The subject must be `<issuer>.<id>.<name>`.** It is split at its first two periods. Anything else is
+  refused before anything is contacted, with the form it should have.
+- **The account `<issuer>.<id>` must be signed in under this root.** If it is not, the error says so and gives
+  the fix: `diverge identity.diverge.network accounts login <issuer>`, then run the login again.
+- **A new subject and an existing one are the same command.** Signing in under a name never used before is how
+  a subject begins. Signing in again under a used name adds another sign-in for the same subject.
+- The name must be 1 to 64 of `a-z`, `0-9`, `-`, `_`, or the issuer refuses the approval.
+
+At any other issuer:
 
 - **The command ends as soon as the code is printed.** It does not wait for the approval. A background
   process of the CLI keeps polling the issuer until the code is approved, denied or expires, and prints
@@ -167,12 +247,15 @@ Facts and pitfalls:
   the subject named. If the code was denied or expired, or approved as another subject, nothing is written
   and nothing is reported: run `login` again.
 - No browser is opened. Approve the printed code at the issuer.
+
+At every issuer:
+
 - A login replaces an identity already there, signed out or not. Logging in again is how a signed-out identity
   is repaired.
 - A second `login` of the same identity while one is still waiting waits its turn behind the first.
 - The issuer must be reachable (its discovery document is fetched).
-- An identity whose refresh token was ended, or went unused past the issuer's refresh-token lifetime, is
-  *signed out*: its file stays, handshakes fail, and a new login fixes it.
+- An identity whose refresh token was ended, or went unused past the issuer's refresh-token lifetime (30 days
+  at `identity.diverge.network`), is *signed out*: its file stays, handshakes fail, and a new login fixes it.
 
 ### list, remove
 
@@ -198,21 +281,24 @@ diverge run identities list --issuer https://identity.diverge.network   # also -
 diverge run identities tag   '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-a"},"tags":["prod"]}'   # "tagged" | "not_found"
 diverge run identities untag '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-a"},"tags":["prod"]}'   # "untagged" | "not_found"
 diverge run identities login --issuer https://identity.diverge.network --subject github.12345.daemon-a --client-id diverge
-# {"pending":{"user_code":…,"verification_uri":…,"expires_in":…}}   then the command ends
+# {"signed_in":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-a"}}
 ```
 
 - `list` is one snapshot (`{"listed":[…]}`), not a stream; there is no `--watch`. Tags exist only so grants can
   reach some identities and not others (skill `diverge-access`).
 - `login` takes `--issuer --subject --client-id [--scope --resource]`, or the same members in a BODY
-  (`issuer`, `subject`, `client_id`, `scope`, `resource`). The daemon starts a device login on its own host
-  and the command prints `{"pending":{"user_code",…}}` and ends. A background process of the CLI keeps the
-  login alive until the code is approved, denied or expires. Check the outcome with
-  `diverge run identities list`.
-- What the command can print before it ends: `{"pending":{…}}` (the code); or, where the login could not
-  begin, `"held"` (another login or reader holds that identity's lock right now; try again), `"forbidden"`,
-  or `{"error":…}` (issuer unreachable, or it has no device authorization endpoint).
-- What is never printed: how the login ended. Approved as the subject named, the identity is written;
-  denied, expired or approved as someone else, nothing is written.
+  (`issuer`, `subject`, `client_id`, `scope`, `resource`). The daemon starts a device login on its own host.
+  What happens next depends on the issuer, exactly as for `diverge identities login` above.
+- **At `https://identity.diverge.network`** the command approves the code itself and waits. It prints
+  `{"signed_in":{…}}`, or why not. The daemon's host does the sign-in, but the approval uses the account
+  signed in under **the CLI's own root**, on the machine where you run the command. The same rules apply:
+  exact issuer string, subject `<issuer>.<id>.<name>`, account signed in here first.
+- **At any other issuer** the command prints `{"pending":{"user_code",…}}` and ends. A background process of
+  the CLI keeps the login alive until the code is approved, denied or expires. Check the outcome with
+  `diverge run identities list`; it is never printed.
+- Where the login could not begin, either way: `"held"` (another login or reader holds that identity's lock
+  right now; try again), `"forbidden"`, or `{"error":…}` (issuer unreachable, or it has no device
+  authorization endpoint).
 - Signing an identity in does not make the daemon present it: which identity the daemon presents is
   still `daemon.yaml` `identity`, read at start.
 

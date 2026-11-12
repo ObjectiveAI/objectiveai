@@ -228,11 +228,15 @@ diverge run identities list '{"issuers":["https://identity.diverge.network"],"an
 diverge run identities tag   '{"identity":{"issuer":"…","subject":"github.12345.daemon-a"},"tags":["peer"]}'   # "tagged" | "not_found"
 diverge run identities untag '{"identity":{"issuer":"…","subject":"github.12345.daemon-a"},"tags":["peer"]}'   # "untagged"
 
-# Sign an identity in on the daemon's host, by device code. The command prints the code and ends;
-# the wait for its approval goes on in the background.
+# Sign an identity in on the daemon's host. At Diverge's own issuer the command approves the code
+# itself and waits; the account github.12345 must be signed in under the CLI's root first.
 diverge run identities login --issuer https://identity.diverge.network --subject github.12345.daemon-a --client-id diverge
+# -> {"signed_in":{"issuer":…,"subject":…}}
+# -> or, refused: "held" | "forbidden" | {"error":…}, or an error naming the account to sign in
+
+# At any other issuer the command prints the code and ends; the wait goes on in the background.
+diverge run identities login --issuer https://auth.example.com --subject alice --client-id my-client
 # -> {"pending":{"user_code":…,"verification_uri":…,"expires_in":…}}   then the command ends
-# -> or, refused before it had a code: "held" | "forbidden" | {"error":…}
 # Approve the code at the issuer, then check that it worked:
 diverge run identities list
 ```
@@ -241,9 +245,14 @@ diverge run identities list
 - `login` flags stand in for body members (`--issuer`, `--subject`, `--client-id`, `--scope`, `--resource`);
   a JSON body with the same members works too. The device code is the only login there is: no password,
   and no browser is opened.
-- The command ends once `pending` is printed. A background process of the CLI keeps the connection the
-  login lives on until the code is approved, denied or expires, and prints nothing. The outcome is read
-  from `identities list`: the identity is there once the login was approved as the subject named.
+- **At `https://identity.diverge.network`, exactly**, the login needs no person. The subject is
+  `<issuer>.<id>.<name>`, and the account `<issuer>.<id>` (a GitHub or Google sign-in) must already be signed
+  in under the CLI's own root with `diverge identity.diverge.network accounts login <issuer>`. The command
+  approves the code as that account, waits, and prints `signed_in`. See `diverge-config`.
+- **At any other issuer** the command ends once `pending` is printed. A background process of the CLI keeps
+  the connection the login lives on until the code is approved, denied or expires, and prints nothing. The
+  outcome is read from `identities list`: the identity is there once the login was approved as the subject
+  named.
 - A login replaces an identity already on the host. `held` means another login or a reader holds the
   identity's lock; nothing was asked of the issuer.
 - Signing an identity in does not make the daemon present it: which identity the daemon presents
