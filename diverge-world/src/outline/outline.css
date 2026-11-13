@@ -157,6 +157,48 @@
   cursor: grab;
 }
 .outline .strip .rule { align-self: stretch; }
+/* Let go nearest the top or bottom edge, the shapes lie along it. */
+.outline[data-along="true"] .strip { flex-direction: row; }
+.outline[data-along="true"] .strip .rule { width: 1px; height: auto; }
+
+/* Rule 5: folded to one button — Outline and its count — the card's edge its edge. */
+.outline .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control);
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.outline .pill .title { color: var(--text); }
+.outline .pill .n { color: var(--text-3); font-size: var(--text-xs); }
+:root:not([data-input="keys"]) .outline[data-form="button"]:hover,
+.outline[data-form="button"]:has(.pill:focus-visible) { border-color: var(--line-hover); }
+
+/* Rule 7: the grip in an open card's corner, dragged to resize it. */
+.outline .grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  padding: var(--space-1);
+  color: var(--text-3);
+  cursor: nwse-resize;
+}
+:root:not([data-input="keys"]) .outline .grip:hover { color: var(--text); }
+/* On a card against the right edge, the grip is in the left corner, mirrored. */
+.outline[data-anchor="right"] .grip { right: auto; left: 0; justify-content: flex-start; cursor: nesw-resize; }
+.outline[data-anchor="right"] .grip .ico { transform: scaleX(-1); }
 
 /* Rule 6: where a drop docks it, shown while it is held near the left. */
 .dock-zone {

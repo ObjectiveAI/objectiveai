@@ -204,7 +204,8 @@ on it, or the wheel over it, does not move the view.
 
 - **Outline**, how many nodes the board holds, then three buttons:
   **Arrange** (see Arrange below), **fold**, and **dock** (or **float**,
-  when docked).
+  when docked). Folded to its header, its buttons are **unfold**, **fold
+  to shapes**, **fold to a button** and **dock**.
 - Under it, quietly, only when there is something to say: "waiting for
   the daemon" while the world cannot reach it, or which lists this
   account may not read.
@@ -244,9 +245,19 @@ on it, or the wheel over it, does not move the view.
 - **Drag the header** to move the card anywhere under the strip. Let go
   near an edge and it snaps 12px in from it. While held, its edge lights
   up.
-- **Fold** shrinks it to its header; there, **unfold** opens it again
-  and **fold to shapes** shrinks it to a column of the kinds' shapes,
-  each still a show/hide chip, with an arrow at the top to open it.
+- **Fold** shrinks it to its header; there, **unfold** opens it again,
+  **fold to shapes** shrinks it to the kinds' shapes — each still a
+  show/hide chip, an arrow first to open it — and **fold to a button**
+  shrinks it to one button, **Outline** and how many nodes, which opens
+  it where it stands. A drag moves the button; a press opens it.
+- **The shapes stand or lie:** upright down a side edge, and lying along
+  the top or bottom edge when let go nearest it.
+- **Resizing:** the grip in an open card's lower corner resizes it, 244
+  to 420 pixels wide and at least 160 tall. On a card against the
+  window's right edge the grip is in the left corner and the card grows
+  leftward.
+- **Opening and folding keep the edges:** a card against the right edge
+  or the foot keeps that edge as it opens or folds, growing left or up.
 - **Docking:** let go near the window's left edge — a dashed outline
   shows where while you hold it there — or press **dock**, and it
   becomes a rail down the left, the window's height, and the sheet opens

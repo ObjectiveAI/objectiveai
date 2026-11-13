@@ -9,8 +9,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   resolves a role (`int`, `css`) for the canvas and xterm, since a role is often a `color-mix` only the page can resolve;
   `data-input` on the root says whether the keys or the mouse are in use, so hover marks nothing while the keys do and
   focus looks as hover does (no ring, no box round a row). The one menu is the outline (`outline/outline.ts`), HTML
-  over the canvas: a card that floats where its header is dragged, snaps to edges, folds to its header or to the kinds'
-  shapes, and docks as a rail down the left (`--outline-left` on the root, which the sheet starts beside) — Arrange,
+  over the canvas: a card that floats where its header is dragged, snaps to edges, folds to its header, to the kinds'
+  shapes (upright at a side edge, lying along the top or bottom) or to one button, resizes by its corner's grip, and docks as a rail down the left (`--outline-left` on the root, which the sheet starts beside) — Arrange,
   fold and dock in its header, line types and kinds as show/hide chips (`LINES`, `KINDS`), then every node by family,
   a row's press (`FOCUS`) flying the board's camera to it and opening its sheet, its hover or focus (`HOVER`) focusing
   it; the board tells it the nodes (`OUTLINE`) and the open one (`SELECTED`) through the registry, and it tells the

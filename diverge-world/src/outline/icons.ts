@@ -42,6 +42,9 @@ const GLYPH = {
   dock: ["M4 4h16v16h-16z", "M9 4v16"],
   float: ["M4 4h16v16h-16z", "M12 13h6v5h-6z"],
   chevron: ["M9 6l6 6l-6 6"],
+  one: ["M7 10h10v4h-10z"],
+  list: ["M9 6h11", "M9 12h11", "M9 18h11", "M5 6v.01", "M5 12v.01", "M5 18v.01"],
+  resize: ["M20 11l-9 9", "M20 16l-4 4"],
 } as const;
 
 /** A button's glyph, 16px. */
