@@ -85,7 +85,7 @@ const words = (error: unknown) => (typeof error === "string" ? error : JSON.stri
  * The rules:
  *
  * 1. `send` puts a message in its agent's outbox, waiting, and asks
- *    the daemon the route reaches to hand it over (`agents message chat`),
+ *    the daemon the route reaches to hand it over (`agents message`, a chat),
  *    one request and one answer. Nothing takes a message back.
  * 2. `delivered` — the agent's program accepted it — marks it
  *    delivered: it stays until the log shows it (rule 7), and is
@@ -119,14 +119,18 @@ export const outbox = {
     told(key);
     void (async () => {
       try {
-        const answer = await daemon.endpoints.agents.message.chat.client.execute(handle, { agent, content, ...relayed(route) });
+        const answer = await daemon.endpoints.agents.message.client.execute(handle, { agent, type: "chat", content, ...relayed(route) });
         // Rule 2.
         if (answer === "delivered") return delivered(key, held);
         // Rule 3.
         if (answer === "forbidden") return fail(key, held, "this account may not message the agent");
         if (answer === "no_chat") return fail(key, held, "this agent does not take messages");
+        // Never the answer to an unwatched chat message; said plainly if one comes.
+        if (answer === "no_structured_decisions" || answer === "dropped" || "item" in answer) {
+          return fail(key, held, "the daemon answered what a chat message is never answered");
+        }
         if ("unsupported_modalities" in answer) {
-          return fail(key, held, `this agent does not take ${answer.unsupported_modalities.join(", ")}`);
+          return fail(key, held, `this agent does not take ${answer.unsupported_modalities.prompt.join(", ")}`);
         }
         fail(key, held, `the daemon could not deliver it: ${words(answer.error)}`);
       } catch (error) {

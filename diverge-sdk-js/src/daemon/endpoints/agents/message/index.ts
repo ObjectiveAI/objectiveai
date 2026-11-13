@@ -1,7 +1,8 @@
 // Asking an agent something: a chat message, or a structured
-// decision. Both are one question and one answer, and both go to the
-// agent in the order the daemon admitted them. One grant covers both:
-// `message`, over agents.
+// decision, by the request's `type`. Both go to the agent in the
+// order the daemon admitted them. Unwatched, the answer is the
+// request's fate; watched, it is what the agent's log takes of it.
+// One grant covers both: `message`, over agents.
 
-export * as chat from "./chat/index.js";
-export * as structured_decisions from "./structured_decisions/index.js";
+export * as client from "./client/index.js";
+export * as server from "./server/index.js";
