@@ -6,8 +6,8 @@ a minimal working **agent template body** for `diverge run agents templates crea
 
 Conventions used below:
 
-- `<digest>` is the image's manifest digest as read from the provider's podman
-  (`podman image inspect --format '{{.Digest}}' <name>`).
+- `<digest>` is the image's manifest digest, as `diverge run images build` printed it in its last
+  line (`{"built":{"digest":…}}`).
 - Every body carries a `references` entry naming a registry the provider lists (`docker.io` by
   default), which the daemon requires even for a locally built image.
 - `memory` and `disk` are **bytes** and are required on every template. The values shown are starting
