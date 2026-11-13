@@ -113,7 +113,7 @@ diverge run agents create '{
   "name": "researcher",
   "secrets": {"OPENROUTER_API_KEY": "or-key"},
   "provider": {
-    "identity": {"issuer": "http://127.0.0.1:14981", "subject": "provider"},
+    "identity": {"issuer": "https://identity.diverge.network", "subject": "github.12345.provider"},
     "volume_mounts": [
       {"volume_name": "notes", "volume_relative_path": [], "volume_mode": "persistent", "container_path": ["data"]}
     ]
@@ -301,7 +301,7 @@ diverge run agents upload --path ./in.txt '{"kind":"file","agent":{"name":"echo"
 diverge run agents upload --path ./src '{"kind":"directory","agent":{"name":"echo"},"path":["workspace","src"],"files":["main.py","lib/util.py"]}'
 
 # copy container → agent | tool | dependency tool | volume, without the bytes reaching you
-diverge run agents transfer '{"agent":{"name":"echo"},"path":["workspace"],"to":{"volume":{"provider":{"issuer":"…","subject":"provider"},"name":"notes"},"path":["backup"]}}'
+diverge run agents transfer '{"agent":{"name":"echo"},"path":["workspace"],"to":{"volume":{"provider":{"issuer":"…","subject":"github.12345.provider"},"name":"notes"},"path":["backup"]}}'
 ```
 
 - A container that is not running is **started for the operation and stopped after it**, so these read the

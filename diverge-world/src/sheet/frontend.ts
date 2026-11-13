@@ -54,6 +54,8 @@ export class FrontendPane {
     // Rule 1.
     this.frame = document.createElement("iframe");
     this.frame.title = "The frontend";
+    // A frontend may put text on the clipboard: its copy buttons work.
+    this.frame.allow = "clipboard-write";
     this.pane.append(bar, this.frame);
     void invoke<Opened>("frontend_open", { target, ...relayed(route) })
       .then((opened) => {

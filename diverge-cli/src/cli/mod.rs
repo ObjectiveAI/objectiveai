@@ -19,7 +19,7 @@ mod print;
 
 pub mod config;
 pub mod identities;
-pub mod issuer;
+pub mod identity_diverge_network;
 
 pub use error::*;
 pub use run::*;

@@ -13,9 +13,7 @@ use crate::lifecycle::{self, Program};
 /// [`config`](super::config); for `identities`, the root's identities
 /// signed in, listed or removed — see [`identities`](super::identities);
 /// for `daemon` and `provider`, the program started on the root or
-/// stopped — see [`lifecycle`]; for `issuer`, the issuer started or
-/// stopped, its document worked on, or its identities and keys — see
-/// [`issuer`](super::issuer).
+/// stopped — see [`lifecycle`].
 /// With no command the root is found and the run ends.
 pub async fn run(arguments: Arguments) -> Result<(), Error> {
     let root = config::root(arguments.config).await?;
@@ -29,13 +27,13 @@ pub async fn run(arguments: Arguments) -> Result<(), Error> {
             Ok(())
         }
         Some(Command::Identities(command)) => super::identities::run(&root, command).await,
+        Some(Command::IdentityDivergeNetwork(command)) => super::identity_diverge_network::run(&root, command).await,
         Some(Command::Daemon(command)) => {
             server(&root, Program::Daemon, Which::Daemon, command).await
         }
         Some(Command::Provider(command)) => {
             server(&root, Program::Provider, Which::Provider, command).await
         }
-        Some(Command::Issuer(command)) => super::issuer::run(&root, command).await,
         Some(Command::Viewer(Document::Config(action))) => {
             super::config::run(&root, Which::Viewer, action).await
         }

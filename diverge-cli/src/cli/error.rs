@@ -3,13 +3,14 @@
 use std::fmt;
 use std::io;
 
-use diverge_issuer::{password, signing};
 use diverge_sdk::identities;
+use diverge_sdk::identity_diverge_network;
 
 use crate::config;
 use crate::detach;
 use crate::document;
 use crate::lifecycle;
+use crate::ours;
 use crate::run;
 
 /// What [`run`](super::run) fails with: the runtime, the
@@ -31,23 +32,17 @@ pub enum Error {
     /// The root's identities refused, could not be opened, or a login
     /// did not come to an identity.
     Identities(identities::Error),
-    /// Stdin could not be read.
-    Stdin(io::Error),
     /// Stdout could not be written.
     Stdout(io::Error),
-    /// The password on stdin was empty.
-    EmptyPassword,
-    /// The issuer's database refused, or could not be opened.
-    Issuer(diverge_issuer::store::Error),
-    /// A signing key could not be made.
-    Signing(signing::Error),
-    /// A password could not be hashed.
-    Password(password::Error),
-    /// The signing key could not be rotated: why.
-    Rotate(String),
     /// A command that leaves its wait behind could not be relayed, or
     /// ended before it left.
     Detach(detach::Error),
+    /// The root's accounts at `identity.diverge.network` could not be
+    /// opened or listed, a login could not begin, or a request made as
+    /// one was refused.
+    Accounts(identity_diverge_network::Error),
+    /// A login at `identity.diverge.network` could not be made here.
+    Ours(ours::Error),
 }
 
 impl fmt::Display for Error {
@@ -59,14 +54,10 @@ impl fmt::Display for Error {
             Error::Run(error) => write!(f, "{error}"),
             Error::Lifecycle(error) => write!(f, "{error}"),
             Error::Identities(error) => write!(f, "{error}"),
-            Error::Stdin(error) => write!(f, "stdin could not be read: {error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
-            Error::EmptyPassword => f.write_str("the password on stdin was empty"),
-            Error::Issuer(error) => write!(f, "{error}"),
-            Error::Signing(error) => write!(f, "{error}"),
-            Error::Password(error) => write!(f, "{error}"),
-            Error::Rotate(why) => write!(f, "the signing key was not rotated: {why}"),
             Error::Detach(error) => write!(f, "{error}"),
+            Error::Accounts(error) => write!(f, "{error}"),
+            Error::Ours(error) => write!(f, "{error}"),
         }
     }
 }
@@ -86,13 +77,10 @@ impl std::error::Error for Error {
             Error::Run(error) => Some(error),
             Error::Lifecycle(error) => Some(error),
             Error::Identities(error) => Some(error),
-            Error::Stdin(error) | Error::Stdout(error) => Some(error),
-            Error::EmptyPassword => None,
-            Error::Issuer(error) => Some(error),
-            Error::Signing(error) => Some(error),
-            Error::Password(error) => Some(error),
-            Error::Rotate(_) => None,
+            Error::Stdout(error) => Some(error),
             Error::Detach(error) => Some(error),
+            Error::Accounts(error) => Some(error),
+            Error::Ours(error) => Some(error),
         }
     }
 }
@@ -100,6 +88,18 @@ impl std::error::Error for Error {
 impl From<config::Error> for Error {
     fn from(error: config::Error) -> Self {
         Error::Config(error)
+    }
+}
+
+impl From<identity_diverge_network::Error> for Error {
+    fn from(error: identity_diverge_network::Error) -> Self {
+        Error::Accounts(error)
+    }
+}
+
+impl From<ours::Error> for Error {
+    fn from(error: ours::Error) -> Self {
+        Error::Ours(error)
     }
 }
 
@@ -124,24 +124,6 @@ impl From<run::Error> for Error {
 impl From<identities::Error> for Error {
     fn from(error: identities::Error) -> Self {
         Error::Identities(error)
-    }
-}
-
-impl From<diverge_issuer::store::Error> for Error {
-    fn from(error: diverge_issuer::store::Error) -> Self {
-        Error::Issuer(error)
-    }
-}
-
-impl From<signing::Error> for Error {
-    fn from(error: signing::Error) -> Self {
-        Error::Signing(error)
-    }
-}
-
-impl From<password::Error> for Error {
-    fn from(error: password::Error) -> Self {
-        Error::Password(error)
     }
 }
 

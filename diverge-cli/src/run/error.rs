@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use crate::detach;
 use crate::jq;
+use crate::ours;
 
 /// What [`run`](super::run) fails with. What a request takes and
 /// which arguments it has are the command line's, refused by clap
@@ -48,6 +49,8 @@ pub enum Error {
     /// A command that leaves its wait behind could not be relayed, or
     /// ended before it left.
     Detach(detach::Error),
+    /// A login at `identity.diverge.network` could not be made here.
+    Ours(ours::Error),
     /// The request was not complete within the seconds given, and
     /// was abandoned.
     Timeout(u64),
@@ -78,6 +81,7 @@ impl fmt::Display for Error {
             Error::Jq(error) => write!(f, "{error}"),
             Error::Stdout(error) => write!(f, "stdout could not be written: {error}"),
             Error::Detach(error) => write!(f, "{error}"),
+            Error::Ours(error) => write!(f, "{error}"),
             Error::Timeout(seconds) => {
                 write!(f, "the request was not complete within {seconds} seconds")
             }
@@ -95,6 +99,7 @@ impl std::error::Error for Error {
             Error::Jq(error) => Some(error),
             Error::Stdout(error) => Some(error),
             Error::Detach(error) => Some(error),
+            Error::Ours(error) => Some(error),
             Error::Rejected
             | Error::Identities(_)
             | Error::Dial(_)

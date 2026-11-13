@@ -49,6 +49,20 @@ fn main() {
             let name = Name { issuer: daemon.issuer, subject: daemon.subject };
             let presenter = Arc::new(Presenter::new(identities, name));
             app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, presenter, daemon.redial));
+            // The window, made here and not by the configuration, so a
+            // link that opens a new window can be answered: the page or
+            // a frontend's frame asking for one — a link with a target,
+            // `window.open` — is never given a window of the app's. An
+            // `http` or `https` address opens in the person's own
+            // browser; anything else opens nothing.
+            tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?
+                .on_new_window(|url, _| {
+                    if matches!(url.scheme(), "http" | "https") {
+                        let _ = webbrowser::open(url.as_str());
+                    }
+                    tauri::webview::NewWindowResponse::Deny
+                })
+                .build()?;
             Ok(())
         })
         // A page starting to load — a reload above all — leaves the old

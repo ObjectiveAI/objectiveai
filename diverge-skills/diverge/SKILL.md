@@ -1,6 +1,6 @@
 ---
 name: diverge
-description: The index and core of the Diverge skills. Load this FIRST for any task that touches Diverge — the `diverge` CLI, a Diverge daemon, provider, issuer, agents, agent templates, standalone / dependency / connected tools, images, volumes, the vault, accounts, roles, grants, events, logs, remote daemons, relays, or the diverge-world viewer — and load it AGAIN after each such task finishes. It explains the concepts, the shape of the CLI (`diverge run <family> <request> [BODY]`, `request-schema`, `response-schema`, `--jq`, `--watch`), the rules that keep an agent from hurting itself, and which one of the other Diverge skills to load for the task at hand.
+description: The index and core of the Diverge skills. Load this FIRST for any task that touches Diverge — the `diverge` CLI, a Diverge daemon, provider, identities, agents, agent templates, standalone / dependency / connected tools, images, volumes, the vault, accounts, roles, grants, events, logs, remote daemons, relays, or the diverge-world viewer — and load it AGAIN after each such task finishes. It explains the concepts, the shape of the CLI (`diverge run <family> <request> [BODY]`, `request-schema`, `response-schema`, `--jq`, `--watch`), the rules that keep an agent from hurting itself, and which one of the other Diverge skills to load for the task at hand.
 ---
 
 # Diverge: index and core
@@ -26,8 +26,8 @@ into tasks and run the protocol once per task.
 
 | Term | What it is |
 |---|---|
-| Root | One directory holding the documents and state of the Diverge programs on a host: `daemon.yaml`, `provider.yaml`, `issuer.yaml`, `cli.yaml`, `viewer.yaml`, `identities/`, logs, locks, `bin/`. Default `~/.diverge`. One of each program per root. |
-| Issuer | Diverge's own OpenID Connect provider (`diverge-issuer`, HTTP, default port 14981). Holds subjects and passwords; signs the tokens every program proves itself with. Any standard OIDC issuer can be used instead. |
+| Root | One directory holding the documents and state of the Diverge programs on a host: `daemon.yaml`, `provider.yaml`, `cli.yaml`, `viewer.yaml`, `identities/`, logs, locks, `bin/`. Default `~/.diverge`. One of each program per root. |
+| Issuer | The OpenID Connect provider that signs the tokens an identity proves itself with. Any provider that offers the device authorization flow can be one. Diverge's own is `https://identity.diverge.network`, hosted, whose subjects are `<issuer>.<id>.<name>` (for example `github.12345.daemon-a`): a GitHub or Google account, and a name that account chose. A login there needs no person once that account is signed in on the host. |
 | Identity | One `(issuer, subject)` pair signed in under a root (`<root>/identities/`). Every handshake is mutual: both ends present an ID token. |
 | Daemon | `diverge-daemon` (WebSocket, default port 14980). The hub: keeps accounts, roles, provider records, templates, agents, tools, vault, events and logs in its own Postgres, and starts and stops containers on providers. |
 | Account | An identity the daemon admits as a client, holding **roles**; each role is a list of **grants**. Identities listed under `admins` in `daemon.yaml` are admitted without an account and hold every grant. |
@@ -52,7 +52,7 @@ into tasks and run the protocol once per task.
 diverge [--config <dir>] <command> …
 ```
 
-Top-level commands: `run`, `identities`, `daemon`, `provider`, `issuer`, `viewer`, `cli` (and `help`).
+Top-level commands: `run`, `identities`, `daemon`, `provider`, `viewer`, `cli` (and `help`).
 Everything except `run` works on the local root and is covered by `diverge-config`.
 
 ```
@@ -102,11 +102,11 @@ through the filter: every value it yields is a line, and `null` or nothing print
 
 **Root resolution.** The CLI finds its root in this order: `--config <dir>`; else the `DIVERGE_CONFIG`
 environment variable; else a `.diverge` directory in the current working directory, if one exists; else
-`~/.diverge`. The daemon, provider, issuer and viewer do the same without the working-directory step.
+`~/.diverge`. The daemon, provider and viewer do the same without the working-directory step.
 
 ## Rules that keep you from hurting yourself
 
-1. **Never pipe `diverge … start`.** `diverge daemon|provider|issuer start` leaves a detached server running;
+1. **Never pipe `diverge … start`.** `diverge daemon|provider start` leaves a detached server running;
    a pipe (`| tail`, `| tee`, `$(…)`) is inherited by it and your shell hangs. Redirect to a file and read the
    file: `diverge daemon start > start.out 2>&1; cat start.out`.
 2. **Do not start, stop or reconfigure a server unless the task asks for it.** A provider stop removes every
@@ -133,7 +133,7 @@ environment variable; else a `.diverge` directory in the current working directo
    the reference (rule 7), `--daemon`, and `--account`.
 10. **Deletes are final.** A deleted agent, tool, volume, vault key or account is gone, with its data. Confirm
     with the user before a delete they did not ask for.
-11. **Never print or store secrets.** Vault values, passwords and tokens go in on stdin or in a body; no command
+11. **Never print or store secrets.** Vault values and tokens go in on stdin or in a body; no command
     prints a token, and you should not echo one either.
 12. **Lists end; watches do not.** A command with `--watch`, or a `logs` body with `"watch": true`, runs until
     you end it. Give it `--timeout` or run it in the background.
@@ -144,7 +144,7 @@ Every `diverge run` family and every top-level command belongs to exactly one sk
 
 | Task | Skill | Commands it owns |
 |---|---|---|
-| The root; any `*.yaml` document; signing identities in; the issuer's subjects, passwords and signing key; starting and stopping a server; ports; what needs a restart; the identities on the daemon's host | `diverge-config` | `diverge daemon start\|stop\|config`, `diverge provider start\|stop\|config`, `diverge issuer start\|stop\|config\|identities\|rotate`, `diverge viewer config`, `diverge cli config`, `diverge identities login\|list\|remove`, `diverge run identities list\|tag\|untag\|login` |
+| The root; any `*.yaml` document; signing identities in; the accounts at Diverge's own issuer; starting and stopping a server; ports; what needs a restart; the identities on the daemon's host | `diverge-config` | `diverge daemon start\|stop\|config`, `diverge provider start\|stop\|config`, `diverge viewer config`, `diverge cli config`, `diverge identity.diverge.network accounts\|subjects\|refresh-tokens …`, `diverge identities login\|list\|remove`, `diverge run identities list\|tag\|untag\|login` |
 | Agent templates and agents: create, get, list, edit, delete, tag; sending a message; MCP into an agent; an agent's files, exec, terminal, frontend, mounts | `diverge-agents` | `diverge run agents …` (including `agents templates …` and `agents connect …`) |
 | Standalone tools and their templates; dependency tools; attaching and detaching tools; a tool's files, exec, terminal, frontend; MCP exchanges with a tool | `diverge-tools` | `diverge run standalone-tools …` (including `templates …` and `connect …`), `diverge run dependency-tools …` |
 | Images: an image's `DIVERGE.md`, digests and references, building images into the provider, what each stock image takes as arguments and secrets | `diverge-images` | `diverge run images info\|oci` |

@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 
-use super::{Document, Identities, Issuer, Server};
+use super::{Document, Identities, IdentityDivergeNetwork, Server};
 use crate::run::Run;
 
 /// The commands. Every request of the daemon's wire goes under
@@ -10,8 +10,7 @@ use crate::run::Run;
 /// document in the root is worked on beneath it, as `config`: the
 /// daemon and the provider on this host are also started and stopped
 /// under [`Daemon`](Self::Daemon) and [`Provider`](Self::Provider); the
-/// issuer, which takes no commands of its own, is administered under
-/// [`Issuer`](Self::Issuer); the viewer and the CLI itself are
+/// viewer and the CLI itself are
 /// [`Viewer`](Self::Viewer) and [`Cli`](Self::Cli), configured alone. The host's identities are
 /// [`Identities`](Self::Identities).
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
@@ -24,6 +23,11 @@ pub enum Command {
     /// host shares. No command prints a token.
     #[command(subcommand)]
     Identities(Identities),
+    /// Work on this host's accounts at `identity.diverge.network`,
+    /// Diverge's own OpenID Connect provider, and ask it as one: see
+    /// [`identity_diverge_network`](crate::cli::identity_diverge_network).
+    #[command(name = "identity.diverge.network", subcommand)]
+    IdentityDivergeNetwork(IdentityDivergeNetwork),
     /// Start or stop the daemon on the root, or work on its
     /// `daemon.yaml`: see [`lifecycle`](crate::lifecycle) and
     /// [`config`](crate::cli::config).
@@ -34,11 +38,6 @@ pub enum Command {
     /// [`config`](crate::cli::config).
     #[command(subcommand)]
     Provider(Server),
-    /// Start or stop the issuer on the root, work on its
-    /// `issuer.yaml`, its identities and its signing key: see
-    /// [`issuer`](crate::cli::issuer).
-    #[command(subcommand)]
-    Issuer(Issuer),
     /// Work on the viewer's `viewer.yaml`: see
     /// [`config`](crate::cli::config).
     #[command(subcommand)]

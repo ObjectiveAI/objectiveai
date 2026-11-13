@@ -1,5 +1,5 @@
-//! The loopback routes, as one HTTP exchange over a loopback socket
-//! each: the stop of every program, and the issuer's rotation.
+//! The loopback route, as one HTTP exchange over a loopback socket:
+//! the stop of either program.
 
 use std::io;
 

@@ -24,8 +24,8 @@ Every command is `diverge run <family> <leaf> [BODY]`, the body one JSON object.
 Two shapes recur:
 
 ```json
-{"issuer": "http://127.0.0.1:14981", "subject": "provider"}                               // a provider's identity
-{"provider": {"issuer": "http://127.0.0.1:14981", "subject": "provider"}, "name": "data"}  // a volume reference
+{"issuer": "https://identity.diverge.network", "subject": "github.12345.provider"}                               // a provider's identity
+{"provider": {"issuer": "https://identity.diverge.network", "subject": "github.12345.provider"}, "name": "data"}  // a volume reference
 ```
 
 Get a provider's identity from `diverge run providers list` (see `diverge-daemons`). Paths inside a
@@ -70,7 +70,7 @@ When: before the first agent or tool that needs disk state.
 
 ```bash
 diverge run volumes create '{
-  "provider": {"issuer":"http://127.0.0.1:14981","subject":"provider"},
+  "provider": {"issuer":"https://identity.diverge.network","subject":"github.12345.provider"},
   "name": "data", "bytes": 1073741824, "mode": "persistent"}'
 ```
 
@@ -101,7 +101,7 @@ diverge run volumes stat '{"volume":{"provider":{…},"name":"data"}}'
 A volume as `get` (`{"found":{…}}`) and `list` (`{"added":{…}}`) report it:
 
 ```json
-{"provider":{"issuer":"…","subject":"provider"},"name":"data","bytes":1073741824,"mode":"persistent",
+{"provider":{"issuer":"…","subject":"github.12345.provider"},"name":"data","bytes":1073741824,"mode":"persistent",
  "created":"2026-11-10T09:00:00Z",
  "agents":[{"template":"…","index":0,"name":"worker"}],
  "tools":[{"record":{"template":"…","index":0,"name":"notes"}}],"tags":["prod"]}
@@ -231,7 +231,7 @@ Naming a volume in a mount takes the `mount` grant over it. Two ways:
 
    ```json
    {"template":"<id>","name":"worker",
-    "provider":{"identity":{"issuer":"…","subject":"provider"},
+    "provider":{"identity":{"issuer":"…","subject":"github.12345.provider"},
       "volume_mounts":[{"volume_name":"data","volume_relative_path":[],
                         "volume_mode":"persistent","container_path":["data"]}]}}
    ```
@@ -240,7 +240,7 @@ Naming a volume in a mount takes the `mount` grant over it. Two ways:
 
    ```json
    {"template":"<id>","name":"worker",
-    "fuse_directory_mounts":[{"provider":{"issuer":"…","subject":"provider"},"volume_name":"creds",
+    "fuse_directory_mounts":[{"provider":{"issuer":"…","subject":"github.12345.provider"},"volume_name":"creds",
         "volume_relative_path":[],"volume_mode":"persistent","container_path":["root",".config","tool"]}],
     "fuse_file_mounts":[{"provider":{…},"volume_name":"creds","volume_relative_path":["token.json"],
         "volume_mode":"ephemeral","overlay_disk":16777216,"container_path":["etc","token.json"]}]}

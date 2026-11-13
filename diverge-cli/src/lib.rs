@@ -15,8 +15,9 @@
 //! account. No token is in the document: every identity is under the
 //! root's `identities/`, which the command `identities` signs in — by
 //! a device code, the command ended once the code is printed and its
-//! wait left behind, see [`detach`] — lists and removes, and no
-//! command prints a token.
+//! wait left behind, see [`detach`]; or, at Diverge's own issuer,
+//! approved by the command itself and waited for, see [`ours`] —
+//! lists and removes, and no command prints a token.
 //!
 //! [`arguments`] is the command line; [`cli`] runs it. Every request of
 //! the daemon's wire is reached under the one command `run`, as a
@@ -26,17 +27,14 @@
 //! `request-schema` beneath the request prints, and whose every answer
 //! `response-schema` states; see [`run`]. Each program's document in
 //! the root is read, rewritten and edited beneath the program —
-//! `daemon config`, `provider config`, `issuer config`, `viewer config`,
-//! `cli config` — through jq, as JSON on this side; see [`document`].
-//! The commands `daemon start|stop`, `provider start|stop` and `issuer
-//! start|stop` start the program on the root — its own
+//! `daemon config`, `provider config`, `viewer config`, `cli config` —
+//! through jq, as JSON on this side; see [`document`]. The commands
+//! `daemon start|stop` and `provider start|stop` start the program on
+//! the root — its own
 //! binary beside this one, spawned detached and waited for until it
 //! holds the root's lock — and stop it, by one `POST /stop` on its
 //! own port from this host, waited for until the lock is free; see
-//! [`lifecycle`]. The issuer takes no commands of its own: its
-//! identities are worked on and its signing key rotated here, in its
-//! `issuer.sqlite` — `issuer identities add|list|remove|password`,
-//! `issuer rotate [--sign-out]` — see [`cli::issuer`].
+//! [`lifecycle`].
 
 pub mod arguments;
 pub mod cli;
@@ -45,4 +43,5 @@ pub mod detach;
 pub mod document;
 pub mod jq;
 pub mod lifecycle;
+pub mod ours;
 pub mod run;

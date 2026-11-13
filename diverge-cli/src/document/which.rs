@@ -4,15 +4,13 @@ use serde_json::Value;
 
 use super::Error;
 
-/// One of the five documents in the root.
+/// One of the four documents in the root.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Which {
     /// The daemon's.
     Daemon,
     /// The provider's.
     Provider,
-    /// The issuer's.
-    Issuer,
     /// The viewer's.
     Viewer,
     /// The CLI's own.
@@ -25,7 +23,6 @@ impl Which {
         match self {
             Which::Daemon => "daemon.yaml",
             Which::Provider => "provider.yaml",
-            Which::Issuer => diverge_issuer::config::FILE,
             Which::Viewer => "viewer.yaml",
             Which::Cli => "cli.yaml",
         }
@@ -37,7 +34,6 @@ impl Which {
         let value = match self {
             Which::Daemon => serde_json::to_value(diverge_daemon::config::Config::default()),
             Which::Provider => serde_json::to_value(diverge_provider::config::Config::default()),
-            Which::Issuer => serde_json::to_value(diverge_issuer::config::Config::default()),
             Which::Viewer => serde_json::to_value(diverge_viewer_config::Config::default()),
             Which::Cli => serde_json::to_value(crate::config::Config::default()),
         };
@@ -55,9 +51,6 @@ impl Which {
             }
             Which::Provider => {
                 serde_yaml_ng::to_string(&typed::<diverge_provider::config::Config>(value)?)
-            }
-            Which::Issuer => {
-                serde_yaml_ng::to_string(&typed::<diverge_issuer::config::Config>(value)?)
             }
             Which::Viewer => {
                 serde_yaml_ng::to_string(&typed::<diverge_viewer_config::Config>(value)?)
