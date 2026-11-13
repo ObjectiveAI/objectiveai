@@ -8,12 +8,14 @@ use diverge_sdk::daemon::creator::Creator;
 use diverge_sdk::shared::containers::enqueue;
 use diverge_sdk::shared::containers::structured_decisions::{Decision, Question};
 use diverge_sdk::shared::error::Error;
+use futures_util::FutureExt as _;
 use futures_util::StreamExt as _;
+use futures_util::future::BoxFuture;
 use futures_util::stream::FuturesUnordered;
 use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 
-use super::{Activated, Message, StartError, activate, events, stop};
+use super::{Activated, AgentRun, Message, StartError, activate, events, inflight, stop};
 use crate::daemon::Daemon;
 use crate::serve::reply;
 use crate::store::AgentId;
@@ -110,11 +112,24 @@ async fn watched(daemon: Arc<Daemon>, id: AgentId) {
 
 /// The agent's pump: the one task that takes from the agent's outbox,
 /// and the one sender of its messages. It sends everything waiting, in
-/// the order it was admitted, to a run that is up and fed, and waits
-/// for every answer before it looks again — so the feed is answered
-/// before anything leaves, and nothing can overtake anything: the
-/// order and the joining hold by construction. The rules, one turn of
-/// the loop each time:
+/// the order it was admitted, to a run that is up and fed, and looks
+/// again at once: it waits for no answer. What keeps every message
+/// delivered, and in order, is these four, and not a wait:
+///
+/// - **One numberer.** Only the pump takes from the outbox, in the
+///   order of admission, and only the pump takes the run's indexes, so
+///   the indexes are the order of admission; the container's proxy
+///   hands requests over by index, whatever order they reach it in.
+/// - **Nothing leaves before the run is up.** Step 2 is waited for,
+///   and the outbox is the cold start's buffer.
+/// - **Nothing leaves before the feed is answered.** Step 3 is waited
+///   for, each turn.
+/// - **Every request unanswered holds the run.** Each turn's hold of
+///   `pending` is kept until every request of the turn is answered, so
+///   the idle clock does not stop a run with a request on its way, and
+///   an `inactive` that crosses one feeds again.
+///
+/// The rules, one turn of the loop each time:
 ///
 /// 1. **Look.** Nothing waiting ends the pump, its entry removed in
 ///    the same look: rule 3 of
@@ -155,9 +170,11 @@ async fn watched(daemon: Arc<Daemon>, id: AgentId) {
 ///    container's proxy hands them over in, whatever order they reach
 ///    it in: see
 ///    [`enqueue::request::Request`].
-/// 6. **Send them all, and wait for them all.** Every request goes
-///    out at once, each an enqueue of its own, and each answer is
-///    taken as it comes: `Delivered` is the fate of every message of
+/// 6. **Send them all, and look again.** Every request goes out at
+///    once, each an enqueue of its own, and the turn's requests, with
+///    its hold, are handed to a task of their own — [`answered`] —
+///    which outlives the turn, and the pump where it ends. There each
+///    answer is taken as it comes: `Delivered` is the fate of every message of
 ///    that request, the container's `Error` is theirs, and an enqueue
 ///    that failed on the way — the run ending under it, the provider
 ///    gone — is the daemon's error for them. A decision's answer comes
@@ -169,18 +186,19 @@ async fn watched(daemon: Arc<Daemon>, id: AgentId) {
 ///    - A loop that ends as the batch crosses it shuts the gate on
 ///      the batch, and the run's own pump opens it again, since the
 ///      hold says a batch is pending. Where that failed — the run's
-///      `unfed` told — the pump activates the run again itself, while
-///      it waits. A feed that fails again leaves a batch no feed will
-///      reach: the run is ended as failed —
-///      [`fail_agent`](super::fail_agent), which takes the batch with
-///      it — every message's fate is that error, kind `secrets`, and
-///      what waits after starts the next run.
-/// 7. **Look again.**
+///      `unfed` told — one of the tasks waiting on answers activates
+///      the run again itself. A feed that fails again leaves requests
+///      no feed will reach: the run is ended as failed —
+///      [`fail_agent`](super::fail_agent), which takes every request
+///      on it with it — the fate of that task's messages is that
+///      error, kind `secrets`, the fate of every other request on the
+///      run is its enqueue's failure, and what waits after starts the
+///      next run.
+/// 7. **Look again**, at once.
 ///
-/// Every message taken is answered in the turn that took it: nothing
-/// is put back, and nothing is held across a turn. The pump is no
-/// task of any run's, so a run's end never ends it; a pump that dies
-/// is [`watched`]'s.
+/// Every message taken is answered by the task its turn made: nothing
+/// is put back. The pump is no task of any run's, so a run's end never
+/// ends it; a pump that dies is [`watched`]'s.
 async fn pump(daemon: Arc<Daemon>, id: AgentId) {
     while let Some(agent) = daemon.live.waiting(id).await {
         let run = match super::agent(&daemon, &agent).await {
@@ -231,22 +249,17 @@ async fn pump(daemon: Arc<Daemon>, id: AgentId) {
             }
         }
         run.touch();
-        // Rule 6: every request out at once, each under its index.
+        // Rule 6: every request out at once, each under its index —
+        // taken here, by the pump, in order — and answered apart.
         let mut unanswered: HashMap<u64, Sent> = HashMap::new();
-        let mut asking = FuturesUnordered::new();
+        let asking: FuturesUnordered<BoxFuture<'static, (u64, Fate)>> = FuturesUnordered::new();
         for (item, sent) in requests {
             let index = run.next_index().await;
             unanswered.insert(index, sent);
-            let handle = &run.handle;
-            asking.push(async move { (index, handle.enqueue(enqueue::request::Request { index, item }).await) });
-        }
-        let failed = loop {
-            tokio::select! {
-                answered = asking.next() => {
-                    let Some((index, frame)) = answered else {
-                        break None;
-                    };
-                    let fate = match frame {
+            let run = Arc::clone(&run);
+            asking.push(
+                async move {
+                    let fate = match run.handle.enqueue(enqueue::request::Request { index, item }).await {
                         Ok(enqueue::response::Frame::Delivered) => Fate::Delivered,
                         Ok(enqueue::response::Frame::Error(error)) => Fate::Error(error),
                         Err(error) => Fate::Error(Error(serde_json::json!({
@@ -254,35 +267,66 @@ async fn pump(daemon: Arc<Daemon>, id: AgentId) {
                             "error": format!("the messages could not be enqueued: {error}"),
                         }))),
                     };
-                    if let Some(sent) = unanswered.remove(&index) {
-                        settle(&run, sent, &fate).await;
-                    }
+                    (index, fate)
                 }
-                () = run.unfed.notified() => {
-                    if let Err(error) = activate::activate_agent(&daemon, &run).await {
-                        stop::fail_agent(&run).await;
-                        break Some(Fate::Error(error));
-                    }
+                .boxed(),
+            );
+        }
+        tokio::spawn(answered(Arc::clone(&daemon), run, pending, unanswered, asking));
+    }
+}
+
+/// One turn's requests, sent and answered: rule 6 of [`pump`], in a
+/// task of its own so the pump waits for none of it. `pending` is the
+/// turn's hold of the run, let go once every request is answered.
+///
+/// 1. Each answer is the fate of every message its request carried,
+///    said as it comes.
+/// 2. The run's `unfed` told — an `inactive` could not feed again, and
+///    left the gate shut on what is unanswered — has the run activated
+///    again, here. It wakes one such task, which is enough: the gate is
+///    the run's.
+/// 3. An activation that fails ends the run as failed, and is the fate
+///    of every request of this turn not yet answered.
+async fn answered(
+    daemon: Arc<Daemon>,
+    run: Arc<AgentRun>,
+    pending: inflight::Guard,
+    mut unanswered: HashMap<u64, Sent>,
+    mut asking: FuturesUnordered<BoxFuture<'static, (u64, Fate)>>,
+) {
+    let failed = loop {
+        tokio::select! {
+            answer = asking.next() => {
+                let Some((index, fate)) = answer else {
+                    break None;
+                };
+                if let Some(sent) = unanswered.remove(&index) {
+                    settle(&run, sent, &fate).await;
                 }
             }
-        };
-        drop(asking);
-        // A feed that failed: every request not yet answered has that
-        // error for its fate.
-        if let Some(fate) = failed {
-            for (_, sent) in unanswered {
-                settle(&run, sent, &fate).await;
+            () = run.unfed.notified() => {
+                if let Err(error) = activate::activate_agent(&daemon, &run).await {
+                    stop::fail_agent(&run).await;
+                    break Some(Fate::Error(error));
+                }
             }
         }
-        drop(pending);
+    };
+    drop(asking);
+    if let Some(fate) = failed {
+        for (_, sent) in unanswered {
+            settle(&run, sent, &fate).await;
+        }
     }
+    drop(pending);
 }
 
 /// One request answered: its entries marked or removed as rules 2 and
 /// 3 of [`Message`] state — an undelivered entry leaves now, a
 /// delivered one is the run's pump's to sweep — and its fate said to
 /// every message it carried.
-async fn settle(run: &super::AgentRun, sent: Sent, fate: &Fate) {
+async fn settle(run: &AgentRun, sent: Sent, fate: &Fate) {
     {
         let mut kept = run.messages.lock().await;
         for key in &sent.keys {

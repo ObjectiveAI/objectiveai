@@ -76,9 +76,10 @@ pub struct AgentRun {
     /// each: what a user part is logged as. See [`Message`] for when
     /// one leaves.
     pub messages: Arc<Mutex<HashMap<String, Message>>>,
-    /// The batch of messages on its way to the run: entered by the
-    /// agent's outbox pump once it has the run, before it activates
-    /// it, and left when the batch is answered — see
+    /// The requests on their way to the run: entered by the agent's
+    /// outbox pump each turn, once it has the run and before it
+    /// activates it, and left when every request of that turn is
+    /// answered; several turns may hold it at once — see
     /// [`message`](super::message). What the idle clock waits on, and
     /// what an inactive asks before it activates the run again.
     pub pending: Arc<Inflight>,
@@ -217,8 +218,10 @@ impl Decisions {
 
 impl AgentRun {
     /// The index the next enqueue takes, and the counter moved past it.
-    /// Only the agent's outbox pump asks, one request at a time, so the
-    /// indexes are handed out in the order the requests are made.
+    /// Only the agent's outbox pump asks, one request at a time and in
+    /// the order the messages were admitted, so the indexes are that
+    /// order — which is what orders them at the container's proxy, since
+    /// the pump waits for no answer before it sends the next.
     pub async fn next_index(&self) -> u64 {
         let mut index = self.index.lock().await;
         let taken = *index;
