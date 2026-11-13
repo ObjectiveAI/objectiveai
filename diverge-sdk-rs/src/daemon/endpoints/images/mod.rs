@@ -11,11 +11,18 @@
 //! `{"images":["info"]}`: see
 //! [`grant::images`](crate::daemon::grant::images).
 //!
+//! [`build`] makes one: a Containerfile, built on a provider the
+//! client names, into the daemon's own Store there, so that every
+//! container the daemon runs on that provider can name its digest.
+//! Its grant is `{"images":["build"]}`, and `mount` over the volume
+//! the build reads its context from, where it reads one.
+//!
 //! [`oci`] is the image itself: whether the daemon can supply it, from
 //! a provider or a remote daemon it asks, and, where it can, its
 //! manifests, blobs and proof on one scope. It is reached by the `oci`
 //! action of the `providers` and `daemons` grants, over the sources it
 //! asks.
 
+pub mod build;
 pub mod info;
 pub mod oci;

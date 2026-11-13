@@ -10,4 +10,6 @@ use serde::{Deserialize, Serialize};
 pub enum Action {
     /// Read an image's DIVERGE.md.
     Info,
+    /// Build an image on a provider, from a Containerfile.
+    Build,
 }
