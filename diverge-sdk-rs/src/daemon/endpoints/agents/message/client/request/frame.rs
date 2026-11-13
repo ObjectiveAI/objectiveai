@@ -13,10 +13,14 @@ use crate::daemon::reference;
 /// The name is the one a [`create`](crate::daemon::endpoints::agents::create)
 /// gave the agent. The content is the message, as the provider's
 /// enqueue carries one: a list of MCP content blocks, in order, which
-/// the daemon relays to the agent's container verbatim and does not
-/// read. What the agent makes of a block is its image's; an image
-/// that cannot take one refuses the whole message, and the scope's
-/// error carries its words.
+/// the daemon relays to the agent's container verbatim. The daemon
+/// reads it for one thing first: what it carries beside text, held to
+/// what the agent's image says it takes, and a message that carries
+/// more is refused there and reaches nothing — see the
+/// [response](super::super::server::response::Frame). What the agent
+/// makes of a block it is sent is its image's; an image that cannot
+/// take one refuses the whole message, and the scope's error carries
+/// its words.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {

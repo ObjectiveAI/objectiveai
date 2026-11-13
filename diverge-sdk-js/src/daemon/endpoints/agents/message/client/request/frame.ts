@@ -8,7 +8,9 @@ import { ContentBlockSchema } from "@modelcontextprotocol/core";
 
 /**
  * Ask the daemon to hand an agent a message: content blocks, MCP's
- * own, relayed to the container verbatim and not read. The agent's
+ * own, relayed to the container verbatim. The daemon first holds
+ * what they carry beside text to what the agent's image says it
+ * takes, and refuses a message that carries more. The agent's
  * container is started for it if it does not run. The one answer
  * comes when the message's fate is known — handed to the agent's
  * program, or refused — which may be long after the ask; nothing

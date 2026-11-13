@@ -74,6 +74,17 @@ pub fn mount(refusal: &fuse_mount::response::Frame) -> Error {
     }))
 }
 
+/// The wire's error for an image the daemon will not deploy: one
+/// shape, `{"kind":"image","error":…}`, saying why — the image has no
+/// document the daemon could read, or its document does not say what
+/// an image of its kind has to. Nothing changed.
+pub fn image(what: &str) -> Error {
+    Error(serde_json::json!({
+        "kind": "image",
+        "error": what,
+    }))
+}
+
 /// The wire's error for a record's secrets that are not its
 /// template's: one shape, `{"kind":"secrets","error":…}`, naming the
 /// secret missing or not declared — or, at a template's create, the

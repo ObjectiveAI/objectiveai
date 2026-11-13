@@ -39,6 +39,7 @@ mod chat;
 mod document;
 mod false_or;
 mod modalities;
+mod modality;
 mod parse_error;
 mod structured_decisions;
 
@@ -48,5 +49,6 @@ pub use chat::*;
 pub use document::*;
 pub use false_or::*;
 pub use modalities::*;
+pub use modality::*;
 pub use parse_error::*;
 pub use structured_decisions::*;

@@ -90,8 +90,9 @@ const words = (error: unknown) => (typeof error === "string" ? error : JSON.stri
  * 2. `delivered` — the agent's program accepted it — marks it
  *    delivered: it stays until the log shows it (rule 7), and is
  *    taken out at once if the log showed it already.
- * 3. `forbidden`, an error, and a request that fails mark it failed,
- *    with words that say why; it stays until dismissed (rule 4).
+ * 3. `forbidden`, `no_chat`, `unsupported_modalities`, an error, and
+ *    a request that fails mark it failed, with words that say why; it
+ *    stays until dismissed (rule 4).
  * 4. `dismiss` takes a failed message out. A waiting or delivered
  *    one is left.
  * 5. The outbox outlives every sheet: closing or swapping a sheet
@@ -123,6 +124,10 @@ export const outbox = {
         if (answer === "delivered") return delivered(key, held);
         // Rule 3.
         if (answer === "forbidden") return fail(key, held, "this account may not message the agent");
+        if (answer === "no_chat") return fail(key, held, "this agent does not take messages");
+        if ("unsupported_modalities" in answer) {
+          return fail(key, held, `this agent does not take ${answer.unsupported_modalities.join(", ")}`);
+        }
         fail(key, held, `the daemon could not deliver it: ${words(answer.error)}`);
       } catch (error) {
         fail(key, held, error instanceof Error ? error.message : String(error));

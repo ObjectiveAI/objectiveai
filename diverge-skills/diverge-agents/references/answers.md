@@ -19,7 +19,7 @@ carry `relay`. `<ref>` is an agent reference: `{"name":…}` or `{"template":…
 
 | leaf | body | answers |
 |---|---|---|
-| `agents templates create` | the template: `type:"agent"`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}` |
+| `agents templates create` | the template: `type:"agent"`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}`; `{"error":{"kind":"image",…}}` when the image has no valid `DIVERGE.md` or declares neither `chat` nor `structured_decisions` |
 | `agents templates get` | `{"id"}` | `{"found":<listed>}`, `"not_found"` |
 | `agents templates list` (`--watch`) | filter + `count` | `{"added":<listed>}`…, `"listed"`, then with `--watch` `{"added"}`, `{"changed"}`, `{"removed"}` |
 | `agents templates delete` | `{"id"}` | `"deleted"`, `"not_found"`, `"in_use"` |
@@ -43,7 +43,7 @@ Template list filter: `ids`, `creators`, `in_use` (bool: some agent was made fro
 | `agents delete` | `{"agent":<ref>}` | `"deleted"`, `"not_found"`, `"active"` |
 | `agents tag` | `{"agent":<ref>,"tags":[…]}` | `"tagged"`, `"not_found"` |
 | `agents untag` | `{"agent":<ref>,"tags":[…]}` | `"untagged"`, `"not_found"` |
-| `agents message` | `{"agent":<ref>,"content":[<block>…]}` | `"delivered"` (no `"not_found"`: an unknown agent is `{"error":…}`) |
+| `agents message` | `{"agent":<ref>,"content":[<block>…]}` | `"delivered"`, `"no_chat"`, `{"unsupported_modalities":[…]}` (no `"not_found"`: an unknown agent is `{"error":…}`) |
 
 A listed agent:
 

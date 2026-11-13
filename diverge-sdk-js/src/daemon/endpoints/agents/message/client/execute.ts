@@ -7,7 +7,8 @@ import * as response from "../server/response/index.js";
 
 /**
  * Send the message and read the daemon's one answer, whichever it is
- * — delivered, forbidden, or a failure — as the response frame, when
+ * — delivered, forbidden, a failure, or the refusal the agent's
+ * image's document makes of it — as the response frame, when
  * the message's fate is known. The absence of an answer is a
  * `OneShotError`.
  */

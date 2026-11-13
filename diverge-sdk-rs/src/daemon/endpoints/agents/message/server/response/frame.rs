@@ -5,6 +5,7 @@ use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
+use crate::shared::containers::info::Modality;
 use crate::shared::error::Error;
 
 /// A message's answer: the agent's program has it, or a failure.
@@ -15,8 +16,20 @@ use crate::shared::error::Error;
 /// for a sleeping agent waits for its run to be activated and its
 /// loop to start, and nothing times it out. A payload leads with one
 /// byte saying which — `0` for [`Delivered`](Self::Delivered), `1` for
-/// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error) — and
-/// only the error carries anything after it.
+/// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error), `3`
+/// for [`NoChat`](Self::NoChat), `4` for
+/// [`UnsupportedModalities`](Self::UnsupportedModalities) — and only
+/// the error and the modalities carry anything after it.
+///
+/// # What the agent's image says
+///
+/// The daemon holds the message to the `chat` of the agent's image's
+/// `/DIVERGE.md`, as it has it on record, before anything is sent on:
+/// [`NoChat`](Self::NoChat) where the image states `false`, and
+/// [`UnsupportedModalities`](Self::UnsupportedModalities) where the
+/// message carries what its `prompt_modalities` does not take. Either
+/// way the message reached no provider and no container, nothing was
+/// started for it, and the agent's log has no line of it.
 ///
 /// # A finish with nothing before it
 ///
@@ -64,6 +77,18 @@ pub enum Frame {
     /// [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
     Error(Error),
+    /// The agent's image does not chat: its document states `chat` as
+    /// `false`, or leaves it out. Tag `3`.
+    ///
+    /// No message is taken, whatever it carries.
+    NoChat,
+    /// The message carries what the agent's image does not take: the
+    /// modalities its content carries and the image's
+    /// `chat.prompt_modalities` state as `false`, each once, in the
+    /// order image, audio, file, and never empty. Tag `4`.
+    ///
+    /// The whole message is refused, the text in it included.
+    UnsupportedModalities(Vec<Modality>),
 }
 
 /// Tag for [`Frame::Delivered`].
@@ -75,9 +100,16 @@ const FORBIDDEN: u8 = 1;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 2;
 
-/// A tag, and — for the error alone — that variant's own JSON.
+/// Tag for [`Frame::NoChat`].
+const NO_CHAT: u8 = 3;
+
+/// Tag for [`Frame::UnsupportedModalities`].
+const UNSUPPORTED_MODALITIES: u8 = 4;
+
+/// A tag, and — for the error and the modalities — that variant's own
+/// JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure. The two bare answers cannot fail.
+    /// The ordinary JSON failure. The three bare answers cannot fail.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this enum has a variant
@@ -96,12 +128,20 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
+            Frame::NoChat => {
+                out.extend_from_slice(&[NO_CHAT]);
+                Ok(())
+            }
+            Frame::UnsupportedModalities(modalities) => {
+                out.extend_from_slice(&[UNSUPPORTED_MODALITIES]);
+                serde_json::to_writer(out, modalities)
+            }
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Four ways to fail, and two of them are JSON.
     type Error = FrameError;
 
     // Spelled out for the same reason as `encode` above.
@@ -111,6 +151,8 @@ impl Decode<'_> for Frame {
             DELIVERED => Ok(Frame::Delivered),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
+            NO_CHAT => Ok(Frame::NoChat),
+            UNSUPPORTED_MODALITIES => serde_json::from_slice(rest).map(Frame::UnsupportedModalities).map_err(FrameError::Modalities),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -121,10 +163,12 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),
+    /// The modalities did not parse.
+    Modalities(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -133,6 +177,7 @@ impl fmt::Display for FrameError {
             FrameError::Empty => f.write_str("agents message response frame is empty"),
             FrameError::UnknownTag(tag) => write!(f, "unknown agents message response frame tag {tag}"),
             FrameError::Error(error) => write!(f, "agents message error did not parse: {error}"),
+            FrameError::Modalities(error) => write!(f, "agents message modalities did not parse: {error}"),
         }
     }
 }
@@ -140,7 +185,7 @@ impl fmt::Display for FrameError {
 impl std::error::Error for FrameError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameError::Error(error) => Some(error),
+            FrameError::Error(error) | FrameError::Modalities(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

@@ -25,10 +25,9 @@ use crate::store;
 /// The rules, in order:
 ///
 /// 1. The daemon's record of the digest
-///    ([`store::image_info`]) is read first. An answer on it is the
-///    answer — `Info` with the document recorded, `Missing` when the
-///    image ships none — and nothing is asked: the digest is the
-///    image, so what it ships does not change.
+///    ([`store::image_info`]) is read first. A document on it is the
+///    answer, `Info`, and nothing is asked: the digest is the image,
+///    so what it ships does not change.
 /// 2. Every container the daemon runs whose image's digest is the
 ///    request's is a candidate — an agent's, or a tool's the daemon runs
 ///    itself; a connected tool is another daemon's container and has no
@@ -52,10 +51,10 @@ use crate::store;
 ///    document is `Info`, none shipped is `Missing`, the image found
 ///    nowhere is `NoSource`, and a failure is `Error`, in the
 ///    provider's words where it said any. Nothing is retried.
-/// 6. An `Info` or a `Missing` that rules 3 to 5 found is put on the
-///    record before it is answered. A `NoSource` and an `Error` are
-///    not: neither is a fact about the image, and a later ask may
-///    reach one.
+/// 6. An `Info` that rules 3 to 5 found is put on the record before
+///    it is answered. Nothing else is: only a document is recorded,
+///    so a `Missing`, a `NoSource` and an `Error` are each asked
+///    again by a later ask.
 ///
 /// A record that cannot be read or written is the `Err`, and no
 /// answer is given.
@@ -65,19 +64,36 @@ pub async fn info(daemon: &Arc<Daemon>, image: &Image) -> Result<Frame, store::E
         store::image_info::by_digest(&mut conn, &image.digest).await?
     };
     if let Some(found) = recorded {
-        return Ok(document(found));
+        return Ok(Frame::Info(found));
     }
     let answer = reach(daemon, image).await;
-    let found = match &answer {
-        Frame::Info(document) => Some(Some(document)),
-        Frame::Missing => Some(None),
-        Frame::NoSource | Frame::Forbidden | Frame::Error(_) => None,
-    };
-    if let Some(found) = found {
+    if let Frame::Info(found) = &answer {
         let mut conn = daemon.store.acquire().await?;
         store::image_info::save(&mut conn, &image.digest, found).await?;
     }
     Ok(answer)
+}
+
+/// The image's document, or why there is none, in words: what a
+/// template's creation and a dependency's declaration hold an image
+/// to, so that every image the daemon deploys has a document on
+/// record. The rules:
+///
+/// 1. The document is found as [`info`] finds it, record first, and is
+///    on the record once this answers it.
+/// 2. An image that ships no `/DIVERGE.md` has none.
+/// 3. An image no source holds, or whose document could not be read
+///    or does not parse, has none either, and the words say which.
+///
+/// A record that cannot be read or written is the outer `Err`.
+pub async fn document(daemon: &Arc<Daemon>, image: &Image) -> Result<Result<Document, String>, store::Error> {
+    Ok(match info(daemon, image).await? {
+        Frame::Info(document) => Ok(document),
+        Frame::Missing => Err("the image ships no /DIVERGE.md".to_string()),
+        Frame::NoSource => Err("the image's document could not be read: no source holds the image".to_string()),
+        Frame::Forbidden => Err("the image's document could not be read".to_string()),
+        Frame::Error(error) => Err(format!("the image's document could not be read: {}", error.0)),
+    })
 }
 
 /// Rules 2 to 5: the answer of a running container, else of a
@@ -94,7 +110,7 @@ async fn reach(daemon: &Arc<Daemon>, image: &Image) -> Frame {
     };
     let asked = request::Frame { image: image.clone() };
     match execute::execute(&handle, &asked).await {
-        Ok(found) => document(found),
+        Ok(found) => shipped(found),
         Err(execute::ExecuteError::NoSource) => Frame::NoSource,
         Err(execute::ExecuteError::Provider(error)) => Frame::Error(error),
         Err(error) => Frame::Error(reply::failure(&error)),
@@ -131,7 +147,7 @@ async fn from_running(daemon: &Daemon, image: &Image) -> Option<Frame> {
         },
     };
     Some(match read {
-        Ok(found) => document(found),
+        Ok(found) => shipped(found),
         Err(UnaryError::Refused(error)) => Frame::Error(error),
         Err(error) => Frame::Error(reply::failure(&error)),
     })
@@ -169,7 +185,7 @@ async fn choose_provider(daemon: &Arc<Daemon>, image: &Image) -> Option<Identity
 }
 
 /// A document read, or none shipped, as the answer.
-fn document(found: Option<Document>) -> Frame {
+fn shipped(found: Option<Document>) -> Frame {
     match found {
         Some(document) => Frame::Info(document),
         None => Frame::Missing,

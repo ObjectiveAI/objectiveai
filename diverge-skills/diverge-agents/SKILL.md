@@ -72,7 +72,10 @@ diverge run agents templates create '{
 | `description` | Free text for whoever creates agents from it (which mounts it needs, and so on). In the hash. Optional. |
 
 Answers: `{"created":"<id>"}`, `{"exists":"<id>"}` (the same template was made before; not a failure),
-`"forbidden"`, `{"error":…}`. The **id** is the lowercase hex SHA-256 of the template's canonical JSON
+`"forbidden"`, `{"error":…}`. The image is checked here: the daemon reads its `DIVERGE.md` (asking a
+provider to pull the image the first time it sees the digest) and answers
+`{"error":{"kind":"image","error":…}}` when the image ships none, no connected provider can obtain it, it
+does not parse, or it declares neither `chat` nor `structured_decisions`. The **id** is the lowercase hex SHA-256 of the template's canonical JSON
 (64 characters). Capture it:
 
 ```bash
@@ -211,7 +214,8 @@ diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","
 
 Rules:
 
-- **One request, one answer**: `"delivered"`, `"forbidden"` or `{"error":…}`. `delivered` means the agent's
+- **One request, one answer**: `"delivered"`, `"forbidden"`, `"no_chat"`,
+  `{"unsupported_modalities":[…]}` or `{"error":…}`. `delivered` means the agent's
   program accepted the message (the loop it started took it, or it went onto the program's own queue). It
   does not mean the agent has answered. The answer is in the log.
 - **Nothing takes a message back.** There is no cancel and no dequeue.
@@ -225,6 +229,12 @@ Rules:
 - **Idle stop**: once the agent is inactive and unused for the daemon's `idle_seconds` (default 10), its
   container is stopped. The record, the conversation and anything on mounted volumes persist; the next
   message starts it again. Files written only to the container's own disk are gone with the container.
+- **What the agent takes**: the daemon holds the message to the `chat` of the agent's image's `DIVERGE.md`
+  before sending anything. `"no_chat"`: the image does not chat, and no message is taken.
+  `{"unsupported_modalities":["audio"]}`: the message carries an image, audio or a file (a resource with
+  `blob` that is neither `image/*` nor `audio/*`) that the image's `prompt_modalities` says `false` to; the
+  whole message is refused. Either way nothing was started and the agent's log has no line of it. Text, a
+  text resource and a resource link are always taken.
 - **Errors**: no such agent is an `{"error":…}` here (not `"not_found"`); so is an image that refuses a block
   kind it cannot take (the whole message is refused), and a run that could not start (missing secret value,
   a dependency that did not deploy, no capable provider). The same failure is kept in the agent's log.

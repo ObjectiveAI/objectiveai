@@ -13,7 +13,7 @@ tables. Bare answers are JSON strings; answers with a payload are one-member obj
 
 | leaf | body | answers |
 |---|---|---|
-| `create` | `type:"tool"`, optional `mode`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}` |
+| `create` | `type:"tool"`, optional `mode`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}`; `{"error":{"kind":"image",…}}` when the image has no valid `DIVERGE.md` |
 | `get` | `{"id"}` | `{"found":{id, created, creator, tags, template}}`, `"not_found"` |
 | `list` (`--watch`) | `ids`, `creators`, `in_use`, `all_tags`, `any_tags`, `created_from`, `created_to`, `count` | `{"added":…}`…, `"listed"`; with `--watch` also `{"changed":…}`, `{"removed":…}` |
 | `delete` | `{"id"}` | `"deleted"`, `"not_found"`, `"in_use"` |

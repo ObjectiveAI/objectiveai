@@ -10,7 +10,8 @@ use crate::wire::client::handle::Handle;
 pub type ExecuteError = one_shot::Error<serde_json::Error, response::FrameError>;
 
 /// Send the message and hand back the daemon's one answer, whenever
-/// its fate is known — delivered, forbidden, or the daemon's error:
+/// its fate is known — delivered, forbidden, the daemon's error, or
+/// the refusal the agent's image's document makes of it:
 /// see [`response::Frame`], and
 /// [`one_shot`](crate::daemon::client::one_shot) for the exchange.
 pub async fn execute(handle: &Handle, request: &request::Frame) -> Result<response::Frame, ExecuteError> {

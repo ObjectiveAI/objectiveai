@@ -181,8 +181,13 @@ What each member means:
   taken and is not listed. `file` is an embedded resource that is neither an image nor audio.
 - `structured_decisions` — an agent's image only. `false`, or
   `{"prompt_modalities": {…}, "choice_modalities": {…}}`, each the same three booleans.
-- Neither is enforced yet: the daemon and the provider carry them and act on neither. A tool's image
-  states neither.
+- An agent's image declares at least one of the two; a tool's image states neither.
+- **The document is required.** `templates create` (agents and standalone tools) and an agent's
+  dependency declaration each read the image's document and refuse an image that ships none, that no
+  connected provider can obtain, or whose document does not parse. An agent template is also refused
+  when its image declares neither `chat` nor `structured_decisions`.
+- **`chat` is enforced** on `agents message`: see `diverge-agents`. `structured_decisions` is carried
+  and not yet acted on.
 - The body states, in prose, the tools the image serves and the **secrets it declares** with their
   modes. Read it before writing a template.
 
