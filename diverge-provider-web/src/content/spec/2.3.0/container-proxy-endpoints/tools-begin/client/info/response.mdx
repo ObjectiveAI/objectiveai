@@ -27,8 +27,8 @@ draft: false
   The value of `chat` is the boolean `false` or an object of exactly
   one member, `prompt_modalities`. The value of
   `structured_decisions` is the boolean `false` or an object of
-  exactly two members, `prompt_modalities` and `choice_modalities`.
-  Each of those three members is an object of exactly three members,
+  exactly three members, `prompt_modalities`, `instruction_modalities` and `choice_modalities`.
+  Each of those four members is an object of exactly three members,
   `image`, `audio` and `file`, each a boolean. The frontmatter has no
   other member, and a frontmatter in which `chat` or
   `structured_decisions` is `true` is not a document.

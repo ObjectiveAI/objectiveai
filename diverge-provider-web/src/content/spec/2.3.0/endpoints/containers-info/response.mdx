@@ -31,8 +31,8 @@ finish follows the response, and no frame follows the finish.
   and states how an agent's program chats: the object has exactly one
   member, `prompt_modalities`. `structured_decisions` is present only
   with an object as its value, and states how an agent's program makes
-  structured decisions: the object has exactly two members,
-  `prompt_modalities` and `choice_modalities`. Each of those three
+  structured decisions: the object has exactly three members,
+  `prompt_modalities`, `instruction_modalities` and `choice_modalities`. Each of those four
   members is an object of exactly three members, `image`, `audio` and
   `file`, each a boolean. The absence of `chat` states that the
   program does not chat, and the absence of `structured_decisions`
