@@ -325,7 +325,7 @@ the request itself.
 ```bash
 diverge run agents list  '{"relay":["3kTq9ZbW1xY"]}'                        # B's agents, as our account on B
 diverge run info         '{"relay":["3kTq9ZbW1xY"]}'                        # B's version: the cheapest reachability test
-diverge run agents message chat '{"agent":{"name":"echo"},"content":[{"type":"text","text":"hi"}],"relay":["3kTq9ZbW1xY"]}'
+diverge run agents message '{"agent":{"name":"echo"},"type":"chat","content":[{"type":"text","text":"hi"}],"relay":["3kTq9ZbW1xY"]}'
 diverge run agents list  '{"relay":["3kTq9ZbW1xY","7Qm2"]}'                 # two hops: A -> B -> C; "7Qm2" is B's record of C
 ```
 
@@ -469,7 +469,7 @@ diverge run standalone-tools create '{"template":"'$TPL'","name":"notebook","rel
 # --- Hold B's tool on A, attach it to A's agent "echo", use it.
 diverge run connected-standalone-tools create '{"daemon":"'$ID_B'","tool":{"name":"notebook"},"name":"b-notebook"}'
 diverge run connected-standalone-tools attach-agent-instance '{"tool":{"name":"b-notebook"},"agent":{"name":"echo"}}'
-diverge run agents message chat '{"agent":{"name":"echo"},"content":[{"type":"text","text":"remember that the launch is on Friday"}]}'
+diverge run agents message '{"agent":{"name":"echo"},"type":"chat","content":[{"type":"text","text":"remember that the launch is on Friday"}]}'
 
 # --- See what happened.
 diverge run logs '{"of":{"type":"agent","name":"echo"}}'                               # the agent's side

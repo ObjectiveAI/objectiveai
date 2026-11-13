@@ -140,7 +140,7 @@ or `{"kind":"client","identity":{…},"scope":…}`. `tools/list` and `resources
 
 ### What a command log holds
 
-One entry type, `command`: `path` (`agents/message/chat`, `roles/create`, `logs`), `request` (the body as
+One entry type, `command`: `path` (`agents/message`, `roles/create`, `logs`), `request` (the body as
 sent, `relay` included, secrets replaced), `allowed` (`false` exactly when the answer was `forbidden`; a
 request that was let through and then failed is still `true`). One entry per request; what the request
 came to is not kept. Requests the daemon could not parse are not kept.
@@ -248,11 +248,10 @@ diverge run logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L>2
 diverge run logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L>30 ? L-30 : 1))'}' \
   --jq '.item.agent | [.logs_index, .type, (.text // .name // .reason // "")] | join(" ")'
 
-# Send a message and wait for the reply to finish
-L=$(diverge run agents get '{"agent":{"name":"echo"}}' --jq '.found.logs_index')
-diverge run agents message chat '{"agent":{"name":"echo"},"content":[{"type":"text","text":"hello"}]}'
-diverge run --timeout 300 logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L+1))',"type":"inactive","watch":true,"count":1}'
-diverge run logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L+1))',"type":"assistant_text_content"}' --jq '.item.agent.text'
+# Send a message and print the reply: "watch" streams the log entries of that message's run, from the
+# message itself to the run's `inactive`, and exits (see `diverge-agents`, Watching)
+diverge run --timeout 300 agents message '{"agent":{"name":"echo"},"type":"chat","watch":true,"content":[{"type":"text","text":"hello"}]}' \
+  --jq '.item.agent | select(.type=="assistant_text_content") | .text'
 
 # Who messaged this agent, when, and what
 diverge run logs '{"of":{"type":"agent","name":"echo"},"type":"user_text_content"}' \
@@ -290,7 +289,7 @@ diverge run logs '{"of":{"type":"account","issuer":"https://identity.diverge.net
 
 # My own requests as an administrator in the last hour
 diverge run logs '{"of":{"type":"admin","issuer":"https://identity.diverge.network","subject":"github.12345.admin"},"created_from":"2026-11-10T06:00:00Z"}' \
-  --jq '.item.admin | select(.path=="agents/message/chat") | {created, to: .request.agent, allowed}'
+  --jq '.item.admin | select(.path=="agents/message") | {created, to: .request.agent, allowed}'
 
 # Is the provider connected?
 diverge run providers list --jq '.added? | {subject: .identity.subject, status: .status.type}'

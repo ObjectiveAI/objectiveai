@@ -187,8 +187,8 @@ What each member means:
   reach holds, or whose document does not parse. An agent is also refused when its image declares
   neither `chat` nor `structured_decisions`. A template is not checked: `templates create` takes any
   image.
-- **Both are enforced**: `chat` on `agents message chat`, and `structured_decisions` on
-  `agents message structured-decisions` (see `diverge-agents`). A request for a mode the image says
+- **Both are enforced** on `agents message`: `chat` for a request of type `chat`, and
+  `structured_decisions` for one of type `structured_decisions` (see `diverge-agents`). A request for a mode the image says
   `false` to is refused by the daemon and never reaches the container.
 - **What a program is handed.** Its `POST /run` body is tagged: `{"type":"chat","messages":[…]}` or
   `{"type":"structured_decisions","key":…,"content":[…],"questions":[…]}`. A program that declares
@@ -196,6 +196,10 @@ What each member means:
   saying its answers in one `structured_decisions_response` chunk, and ending the stream. `POST /enqueue`
   is chat only: the proxy never enqueues a decision, and hands a program nothing while a decision's run is
   open.
+- **Echo what you take.** A program says a request back as it takes it up: a chat message as its user
+  parts, a decision as its `user_structured_decisions` chunk, each under the `key` it was handed. The echo
+  is how the daemon logs the request with its sender, and how a sender watching (`"watch":true`) finds its
+  request in the log. A request accepted and never echoed is answered `"dropped"` to a watcher.
 - The body states, in prose, the tools the image serves and the **secrets it declares** with their
   modes. Read it before writing a template.
 

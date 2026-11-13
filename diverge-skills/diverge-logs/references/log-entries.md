@@ -59,7 +59,7 @@ parts of one message share it. Each carries `sender`, and nothing else in the lo
 `sender` is who sent the message (the message request names no sender; the daemon knows from the
 connection):
 
-- `{"type":"client","identity":{"issuer":…,"subject":…}}`: an account or administrator, with `agents message chat`.
+- `{"type":"client","identity":{"issuer":…,"subject":…}}`: an account or administrator, with `agents message`.
 - `{"type":"agent","template":…,"index":…,"name":…}`: another agent, through the daemon.
 - `{"type":"tool","record":{"template":…,"index":…,"name":…}}` or
   `{"type":"tool","dependency":{"template":…,"owner":…}}`: a tool, through the daemon.
@@ -118,7 +118,7 @@ The daemon's own record of every exchange it routed into the tool; never the too
 
 | `type` | Members |
 |---|---|
-| `command` | `path`: the request as the daemon names it (`agents/message/chat`, `vault/insert`, `logs`); `request`: the body as sent, `relay` and all, with secret values replaced (a vault insert's `value`, a login's password); `allowed`: `false` exactly when the daemon answered `forbidden` |
+| `command` | `path`: the request as the daemon names it (`agents/message`, `vault/insert`, `logs`); `request`: the body as sent, `relay` and all, with secret values replaced (a vault insert's `value`, a login's password); `allowed`: `false` exactly when the daemon answered `forbidden` |
 
 - One entry per request. Channels opened inside a request (a cancel, a disconnect, a connect's MCP
   exchanges) are not commands.
