@@ -17,6 +17,30 @@ pub async fn sudo(program: &str, args: &[String]) -> Result<Finished, Error> {
     run(program, command).await
 }
 
+/// `podman` with `args`, run INSIDE the podman machine, as root
+/// there: `podman machine ssh <machine> -- sudo podman <args…>`. For
+/// the one subcommand that reads the filesystem it is run on — a
+/// build, whose Containerfile and context are paths — where the
+/// client on this host would read this host's filesystem, and the
+/// paths the provider holds are the machine's: a stored volume is
+/// mounted in the machine and nowhere else. Root's podman in the
+/// machine keeps the store the provider's connection speaks to, so
+/// what it builds is there for every invocation after.
+///
+/// The arguments cross a shell on the way, so each is quoted whole:
+/// a path with a space in it stays one argument.
+pub fn inside<I, S>(args: I) -> tokio::process::Command
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut command = command(["machine", "ssh", MACHINE, "--", "sudo", "podman"]);
+    for arg in args {
+        command.arg(format!("'{}'", arg.as_ref().replace('\'', r"'\''")));
+    }
+    command
+}
+
 /// A host path as the machine sees it: on macOS, the path itself,
 /// since a podman machine mounts a host directory at the same path
 /// inside the VM — every directory the provider made the machine
