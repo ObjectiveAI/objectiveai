@@ -1,6 +1,6 @@
 ---
 name: diverge-images
-description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its podman cache, a listed registry, the caller), how to build an image on a provider with `diverge run images build` and get its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images info` and `diverge run images oci` commands, and a reference of every image in the repository — the five agent-loop images (python, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
+description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its podman cache, a listed registry, the caller), how to build an image on a provider with `diverge run images build` and get its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images info` and `diverge run images oci` commands, and a reference of every image in the repository — the six agent-loop images (python, lone, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
 ---
 
 # Diverge images
@@ -345,6 +345,7 @@ above with `-f <dir>/Containerfile .`.
 | image dir | `name` | kind | required `arguments` | secrets the program declares |
 |---|---|---|---|---|
 | `diverge-agents/python` | `python` | agent, no model | `python` | none |
+| `diverge-agents/lone` | `lone` | agent, local LoNE bundle (macOS) | `bundle` | none |
 | `diverge-agents/openrouter` | `openrouter` | agent | `model` | `OPENROUTER_API_KEY` (fixed) |
 | `diverge-agents/codex` | `codex` | agent | `model`, `auth` | one, by `auth.method`: `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`, `OPENAI_IDENTITY_TOKEN` (fixed) or `CODEX_AUTH` (rotating) |
 | `diverge-agents/hermes` | `hermes` | agent | `provider`, `model` | selected by the provider and the toolsets chosen |
@@ -359,8 +360,8 @@ above with `-f <dir>/Containerfile .`.
 Full per-image detail — every argument, every secret with its mode and value shape, dependencies and
 a minimal working template body:
 
-- [references/agent-loop-images.md](references/agent-loop-images.md) — python, openrouter, codex,
-  cc, and the shared `dependencies` member.
+- [references/agent-loop-images.md](references/agent-loop-images.md) — python, lone,
+  openrouter, codex, cc, and the shared `dependencies` member.
 - [references/hermes.md](references/hermes.md) — hermes: every provider id and its secrets, every
   toolset.
 - [references/example-images.md](references/example-images.md) — courier, taskboard, memory, alarm,

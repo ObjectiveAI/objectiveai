@@ -1,6 +1,6 @@
-# The agent-loop images: python, openrouter, codex, cc
+# The agent-loop images: python, lone, openrouter, codex, cc
 
-Reference for four of the five agent-loop images (hermes is in [hermes.md](hermes.md)). For each:
+Reference for five of the six agent-loop images (hermes is in [hermes.md](hermes.md)). For each:
 what it is, its `arguments`, the secrets its program declares and their modes, its dependencies, and
 a minimal working **agent template body** for `diverge run agents templates create`.
 
@@ -116,6 +116,46 @@ than hand-escaping Python inside JSON inside a shell string.
 
 With a requirement: `"requirements": {"requests": {"operator": ">=", "version": "2.31.0"}}`. A failed
 install is a registration error (`kind: "requirements"`), surfaced as the agent's start error.
+
+## lone (`diverge-agents/lone`)
+
+An agent that runs a local [LoNE](https://github.com/AJ-Gonzalez/LoNE) bundle — LFM3 / LFM2.5
+converted for Core ML and the Apple Neural Engine — instead of calling an upstream model. Each turn
+runs `lone harness` over the conversation.
+
+**macOS only.** The image builds and registers anywhere, but a turn on a Linux provider exits with
+`lone targets the Apple Neural Engine and needs macOS`; that is the harness being honest, not a
+registration failure. A thin-client mode is tracked as
+[LoNE issue #3](https://github.com/AJ-Gonzalez/LoNE/issues/3).
+
+`arguments`:
+
+| member | required | meaning |
+|---|---|---|
+| `bundle` | yes | the converted bundle's directory inside the container, holding `manifest.json`; checked at registration |
+| `system_prompt` | no | the conversation's leading system message |
+| `max_new_tokens` | no | generated-token cap per turn, reasoning included; absent is 512 |
+| `temperature`, `top_p`, `top_k` | no | sampling; absent is greedy and the whole distribution |
+| `thinking` | no | whether the model may think before answering; absent follows the template |
+| `dependencies` | no | see above |
+
+Secrets: **none**. The model is on disk.
+
+Minimal template body:
+
+```json
+{
+  "type": "agent",
+  "image": { "digest": "<digest>", "references": [{ "registry": "docker.io", "name": "diverge-local/lone" }] },
+  "memory": 8589934592,
+  "disk": 1073741824,
+  "arguments": { "bundle": "/models/lfm3-1.7b", "temperature": 0.0, "max_new_tokens": 512 }
+}
+```
+
+The bundle is mounted on the **agent**, not the template:
+`volume_mounts: [{"volume_name":"models","volume_relative_path":["lfm3-1.7b"],"volume_mode":"persistent","container_path":["models","lfm3-1.7b"]}]`.
+`memory` is a starting point; the 1.7B LUT8 stack measures ~3.5 GB on disk.
 
 ## openrouter (`diverge-agents/openrouter`)
 

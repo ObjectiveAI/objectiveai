@@ -1,0 +1,75 @@
+# The lone agent image: the loop, a musl binary, on the official
+# Python image — the interpreter `lone harness` runs on, with the
+# bundle mounted at runtime.
+#
+# The container proxy is NOT in this image. The host injects it at
+# runtime, and it may not be up at all until a request comes — which
+# is why the loop touches nothing of the proxy's until `POST /run`
+# arrives: no database, no MCP session before then. Registration
+# touches only the bundle's directory, and only to check it.
+#
+# Build from the WORKSPACE ROOT — the crates ride path dependencies:
+#
+#     podman build -f diverge-agents/lone/Containerfile .
+#
+# The builder is the same Alpine rust image the other agents use: the
+# musl toolchain is its default target, and a static musl binary runs
+# on the Debian below without asking it for anything. Digests pinned
+# from Docker Hub — the builder's on 2026-08-26, the runner's on
+# 2026-09-09; bump deliberately.
+
+# rust:1.98.0-alpine3.24.
+FROM docker.io/library/rust:1.98.0-alpine3.24@sha256:a10e64dd139b7387337c7fbe8aca31b959b57b2fd4c8ae20a02cf1d6ea424dce AS build
+
+# `ring` (rustls' crypto) compiles C; build-base is the whole musl C
+# toolchain.
+RUN apk add --no-cache build-base
+
+WORKDIR /build
+
+# Only the crates this image needs, in their workspace layout — the
+# workspace manifest itself is NOT copied, so the crate builds as its
+# own root and the absent sibling members are never asked for. The
+# workspace lockfile rides into the crate so the resolved versions
+# hold; cargo prunes the entries the crate does not use, which is why
+# the build does not pass --locked.
+COPY diverge-sdk-rs diverge-sdk-rs
+COPY diverge-agents/lone diverge-agents/lone
+COPY Cargo.lock diverge-agents/lone/Cargo.lock
+
+RUN cargo build --release \
+    --manifest-path diverge-agents/lone/Cargo.toml
+
+# python:3.13-slim-bookworm, by digest: CPython 3.13 with pip, on
+# Debian bookworm. The system python is where `lone` is installed; no
+# venv is made, as in the python image.
+FROM docker.io/library/python:3.13-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e
+
+# The harness, pinned to the commit that added `lone harness`, and
+# the runtime it imports on the way to its platform check. `--no-deps`
+# and the explicit list, because `coremltools` has no manylinux wheel
+# for arm64: installing the distribution's full dependency set would
+# make this image unbuildable on the machine most likely to build it.
+# The turn itself needs macOS; see HARNESS.md.
+ARG LONE=https://github.com/AJ-Gonzalez/LoNE/archive/145437526224145d26a392b8dc6088fd3b78c831.tar.gz
+RUN python3 -m pip install --no-cache-dir --no-deps "lone-ane @ ${LONE}" \
+    && python3 -m pip install --no-cache-dir typer numpy jinja2 tokenizers safetensors
+
+# The harness runs from here, and whatever it writes stays for the
+# container's life.
+WORKDIR /root
+
+COPY --from=build \
+    /build/diverge-agents/lone/target/release/diverge-agentic-loop-lone \
+    /usr/local/bin/diverge-agentic-loop-lone
+
+# The image's arguments schema and its description, read by the proxy;
+# the settled decisions beside it, for whoever reads the image.
+COPY diverge-agents/lone/DIVERGE.md /DIVERGE.md
+COPY diverge-agents/lone/HARNESS.md /HARNESS.md
+
+# The loop's own server, on the loopback: 8080, or whatever `PORT`
+# names. Nothing is exposed — the proxy the host injects is the only
+# thing that dials it, and it is beside it.
+
+ENTRYPOINT ["/usr/local/bin/diverge-agentic-loop-lone"]
