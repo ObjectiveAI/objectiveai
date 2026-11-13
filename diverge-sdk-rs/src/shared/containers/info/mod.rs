@@ -3,10 +3,13 @@
 //!
 //! Every container image ships one file at the root of its
 //! filesystem, `/DIVERGE.md`: a frontmatter between two `---` lines
-//! that is one JSON object of two members — `name`, what the image
+//! that is one JSON object — `name`, what the image
 //! calls itself, and `schema`, the JSON Schema of the
 //! [`arguments`](crate::shared::containers::request::Container::arguments)
-//! the image's program accepts — and then a short markdown body: what
+//! the image's program accepts, both required; `frontend` where the
+//! program serves one; and, in an agent's image, `chat` and
+//! `structured_decisions`, each `false` or what the agent says of
+//! itself ([`Chat`], [`StructuredDecisions`]) — and then a short markdown body: what
 //! the image runs, and the secrets it declares.
 //! [`Document`] is that file parsed, and [`Document::parse`] states
 //! the rules; [`Document::render`] writes one back, so that one shape
@@ -32,10 +35,18 @@
 //! ordered, what a tool server's tools do — is not its job, and this
 //! crate says that in prose as it does everywhere.
 
+mod chat;
 mod document;
+mod false_or;
+mod modalities;
 mod parse_error;
+mod structured_decisions;
 
 pub mod response;
 
+pub use chat::*;
 pub use document::*;
+pub use false_or::*;
+pub use modalities::*;
 pub use parse_error::*;
+pub use structured_decisions::*;

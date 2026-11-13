@@ -160,7 +160,9 @@ The parse rules, in the order they are checked:
    unterminated frontmatter.
 3. The frontmatter is **one JSON object** (JSON is valid YAML flow style) with these members and no
    other: `name` (string, required), `schema` (required), `frontend` (boolean, optional, `false` when
-   absent). A missing member, an extra member or a wrong type is an error.
+   absent), and, for an agent's image, `chat` and `structured_decisions` (each `false` or an object,
+   never `true`; optional, `false` when absent). A missing member, an extra member or a wrong type is
+   an error.
 4. `schema` must be a JSON object: it is the **JSON Schema of the image's `arguments`**, not of the
    whole template.
 5. The body is everything after the closing fence, verbatim.
@@ -174,6 +176,13 @@ What each member means:
   `templates create`.
 - `frontend` — `true` when the program serves a web UI beneath `/frontend` (see the `frontend`
   commands in `diverge-agents` / `diverge-tools`).
+- `chat` — an agent's image only. `false`, or `{"prompt_modalities": {"image": …, "audio": …, "file": …}}`:
+  what a message to the agent may carry beside text, all three booleans required. Text is always
+  taken and is not listed. `file` is an embedded resource that is neither an image nor audio.
+- `structured_decisions` — an agent's image only. `false`, or
+  `{"prompt_modalities": {…}, "choice_modalities": {…}}`, each the same three booleans.
+- Neither is enforced yet: the daemon and the provider carry them and act on neither. A tool's image
+  states neither.
 - The body states, in prose, the tools the image serves and the **secrets it declares** with their
   modes. Read it before writing a template.
 
@@ -199,7 +208,7 @@ One answer:
 
 | answer | meaning |
 |---|---|
-| `{"info":{"name":…,"schema":{…},"frontend":true,"body":"…"}}` | the document, parsed (`frontend` absent when false) |
+| `{"info":{"name":…,"schema":{…},"frontend":true,"chat":{…},"body":"…"}}` | the document, parsed (`frontend`, `chat` and `structured_decisions` each absent when false) |
 | `"missing"` | the image ships no `/DIVERGE.md` |
 | `"no_source"` | no container of the image runs and no connected provider can obtain it; nothing was asked |
 | `"forbidden"` | the account holds no `{"images":["info"]}` grant |
