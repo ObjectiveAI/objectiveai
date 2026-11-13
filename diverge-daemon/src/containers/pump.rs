@@ -8,6 +8,7 @@ use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use diverge_sdk::provider::endpoints::containers::client::WaitError;
 use futures_util::StreamExt as _;
+use tokio::sync::oneshot;
 
 use super::lifecycle::{self, End};
 use super::mcp;
@@ -48,11 +49,11 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                     // under the one lock, so the ids follow the order
                     // the items are written in.
                     AgenticLoopChunk::UserStructuredDecisions(chunk) => {
-                        let sender = run.messages.lock().await.get(&chunk.decision.key).map(|message| message.sender.clone());
+                        let (sender, echo) = echoed(&run, &chunk.decision.key).await;
                         let mut decisions = run.decisions.lock().await;
                         let id = numbering(&daemon, &run, &mut decisions).await.decision();
                         let item = Item::UserStructuredDecisions(log::UserStructuredDecisions { id, sender, chunk });
-                        let _ = append(&daemon, &run, item).await;
+                        say(echo, kept(&daemon, &run, item).await);
                     }
                     AgenticLoopChunk::StructuredDecisionsResponse(chunk) => {
                         let mut decisions = run.decisions.lock().await;
@@ -61,14 +62,15 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                         let _ = append(&daemon, &run, item).await;
                     }
                     chunk => {
-                        let item = match user_key(&chunk) {
-                            Some(key) => match run.messages.lock().await.get(key).map(|message| message.sender.clone()) {
-                                Some(sender) => Item::User(log::User { sender, chunk }),
-                                None => Item::Chunk(chunk),
-                            },
+                        let (sender, echo) = match user_key(&chunk) {
+                            Some(key) => echoed(&run, key).await,
+                            None => (None, None),
+                        };
+                        let item = match sender {
+                            Some(sender) => Item::User(log::User { sender, chunk }),
                             None => Item::Chunk(chunk),
                         };
-                        let _ = append(&daemon, &run, item).await;
+                        say(echo, kept(&daemon, &run, item).await);
                     }
                 }
             }
@@ -149,10 +151,36 @@ async fn numbering<'a>(daemon: &Daemon, run: &AgentRun, decisions: &'a mut Optio
     decisions.get_or_insert_default()
 }
 
+/// Who sent the message enqueued under `key`, and — for the first item
+/// kept under it — where its echo is said: rule 4 of
+/// [`Message`](super::Message). Neither, for a key the run does not
+/// hold.
+async fn echoed(run: &AgentRun, key: &str) -> (Option<diverge_sdk::daemon::creator::Creator>, Option<oneshot::Sender<u64>>) {
+    match run.messages.lock().await.get_mut(key) {
+        Some(message) => (Some(message.sender.clone()), message.echo.take()),
+        None => (None, None),
+    }
+}
+
+/// The echo said, where this item is one and it was kept: its
+/// `logs_index`. An item the log did not keep is no echo, and the
+/// sender is dropped unsaid.
+fn say(echo: Option<oneshot::Sender<u64>>, index: Option<u64>) {
+    if let (Some(echo), Some(index)) = (echo, index) {
+        let _ = echo.send(index);
+    }
+}
+
 /// One item onto the run's log — the one it took at its start — under
-/// its live lock, and the watchers told.
+/// its live lock, and the watchers told: its `logs_index`, or `None`
+/// where the log kept nothing.
+async fn kept(daemon: &Daemon, run: &AgentRun, item: Item) -> Option<u64> {
+    lifecycle::note(daemon.logs.clone(), run.id, Arc::clone(&run.log), item).await
+}
+
+/// One item onto the run's log, as [`kept`] keeps it.
 pub async fn append(daemon: &Daemon, run: &AgentRun, item: Item) -> Result<(), logs::Error> {
-    let _ = lifecycle::note(daemon.logs.clone(), run.id, Arc::clone(&run.log), item).await;
+    let _ = kept(daemon, run, item).await;
     Ok(())
 }
 

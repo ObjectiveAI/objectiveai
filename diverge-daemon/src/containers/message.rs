@@ -49,6 +49,22 @@ pub struct Waiting {
     /// dropped unanswered only when the pump died, which the handler
     /// reports as an error.
     pub fate: oneshot::Sender<Fate>,
+    /// Where its echo is said: kept with the run's entry for it, as
+    /// rule 4 of [`Message`] states.
+    pub echo: oneshot::Sender<u64>,
+}
+
+/// What [`admit`] hands back: what is to come of the message.
+pub struct Admitted {
+    /// Its fate: `Delivered` once the agent's program has it, or the
+    /// error. A sender dropped unsaid is the pump dead.
+    pub fate: oneshot::Receiver<Fate>,
+    /// Its echo: the `logs_index` of the first item the agent's log
+    /// keeps of it. A sender dropped unsaid is the message never
+    /// echoed, as rule 4 of [`Message`] states — read only once the
+    /// fate is `Delivered`, since a message that failed is dropped
+    /// unsaid too.
+    pub echo: oneshot::Receiver<u64>,
 }
 
 /// What is admitted to an agent's outbox: the two things an agent is
@@ -75,11 +91,12 @@ struct Sent {
 
 /// Admit the message to the agent's outbox, under a key the daemon
 /// mints, with who sent it kept so its user parts are logged as
-/// theirs, and hand back its fate to come: `Delivered` once the
-/// agent's program has it, or the error — however long the run takes
-/// to start, to be activated, and its loop to take the batch. A sender
-/// dropped with no fate said is the pump dead, which the caller
-/// reports as an error. Nothing takes a message back once admitted.
+/// theirs, and hand back what is to come of it — [`Admitted`]: its
+/// fate, `Delivered` once the agent's program has it, or the error —
+/// however long the run takes to start, to be activated, and its loop
+/// to take the batch — and its echo. A sender dropped with no fate
+/// said is the pump dead, which the caller reports as an error.
+/// Nothing takes a message back once admitted.
 ///
 /// The order the messages are admitted in is the order the agent
 /// takes them in: the caller admits in the order its connection sent
@@ -87,14 +104,15 @@ struct Sent {
 /// [`pump`] keep it. The first message admitted where no pump runs
 /// starts one, here, before anything is waited on, as rule 1 of
 /// [`Live::admit`](crate::daemon::Live::admit) states.
-pub async fn admit(daemon: &Arc<Daemon>, agent: Agent, what: What, sender: Creator) -> oneshot::Receiver<Fate> {
+pub async fn admit(daemon: &Arc<Daemon>, agent: Agent, what: What, sender: Creator) -> Admitted {
     let (fate, heard) = oneshot::channel();
+    let (echo, echoed) = oneshot::channel();
     let id = agent.id;
     let key = uuid::Uuid::new_v4().to_string();
-    if daemon.live.admit(id, Waiting { agent, key, what, sender, fate }).await {
+    if daemon.live.admit(id, Waiting { agent, key, what, sender, fate, echo }).await {
         tokio::spawn(watched(Arc::clone(daemon), id));
     }
-    heard
+    Admitted { fate: heard, echo: echoed }
 }
 
 /// The agent's [`pump`], in a task of its own, watched: a pump that
@@ -226,7 +244,7 @@ async fn pump(daemon: Arc<Daemon>, id: AgentId) {
         let mut requests: Vec<(enqueue::request::Item, Sent)> = Vec::new();
         for waiting in batch {
             events::record(&daemon, &waiting.sender, &run.sender).await;
-            run.messages.lock().await.insert(waiting.key.clone(), Message::new(waiting.sender));
+            run.messages.lock().await.insert(waiting.key.clone(), Message::new(waiting.sender, waiting.echo));
             match waiting.what {
                 What::Chat(content) => {
                     let message = enqueue::request::Message { key: waiting.key.clone(), content };

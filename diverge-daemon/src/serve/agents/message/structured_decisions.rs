@@ -1,58 +1,14 @@
-//! A structured decision put to an agent.
+//! A structured decision, held to what the agent's image says and to
+//! what its questions must be.
 
-use std::sync::Arc;
-
-use diverge_sdk::daemon::endpoints::agents::message::structured_decisions::client::request;
-use diverge_sdk::daemon::endpoints::agents::message::structured_decisions::server::response::Frame;
+use diverge_sdk::daemon::endpoints::agents::message::server::response::Frame;
 use diverge_sdk::shared::containers::info::{Document, FalseOr};
-use diverge_sdk::shared::containers::structured_decisions::validate;
-use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use diverge_sdk::shared::containers::structured_decisions::{Question, validate};
+use rmcp::model::ContentBlock;
 
-use super::{Refused, judged, undocumented};
-use crate::containers::message;
-use crate::daemon::Daemon;
-use crate::judge::Who;
-use crate::serve::{Turn, reply};
+use super::undocumented;
+use crate::serve::reply;
 use crate::store::agents;
-
-/// Deliver the decision and finish the scope: the answer, then the
-/// finish. `turn` is the request's place in the order its connection
-/// sent it, which the decision is admitted in.
-pub async fn handle(scope: ScopeHandle, frame: request::Frame, turn: Turn, who: Who, daemon: &Arc<Daemon>) {
-    let answer = serve(&scope, frame, turn, who, daemon).await;
-    reply::reply(&scope, &answer).await;
-    scope.send_response_finish().await;
-}
-
-/// `Forbidden` with no `message` grant at all, or for an agent the
-/// grants do not reach; the error for an agent that is not there; the
-/// refusal [`held`] makes of the decision; else the decision admitted
-/// to the agent's outbox — the one chat messages are admitted to, in
-/// the one order — the scope open until its fate is known:
-/// `Delivered` once the agent's program has it, which is when the run
-/// it starts has begun, after everything admitted before it has
-/// finished; or the error. The admission follows the rules a chat
-/// message's does: the lookups at once, then the [`Turn`], then only
-/// the fate waited for.
-async fn serve(scope: &ScopeHandle, frame: request::Frame, mut turn: Turn, who: Who, daemon: &Arc<Daemon>) -> Frame {
-    let (agent, sender, document) = match judged(scope, &frame.agent, who, daemon).await {
-        Ok(judged) => judged,
-        Err(Refused::Forbidden) => return Frame::Forbidden,
-        Err(Refused::Error(error)) => return Frame::Error(error),
-    };
-    if let Err(answer) = held(&agent, document.as_ref(), &frame) {
-        return answer;
-    }
-    turn.come().await;
-    let what = message::What::Decision { content: frame.content, questions: frame.questions };
-    let fate = message::admit(daemon, agent, what, sender).await;
-    drop(turn);
-    match fate.await {
-        Ok(message::Fate::Delivered) => Frame::Delivered,
-        Ok(message::Fate::Error(error)) => Frame::Error(error),
-        Err(_) => Frame::Error(reply::failure(&"the decision's delivery ended before its fate was known")),
-    }
-}
 
 /// The decision held to what the agent's image's document says and to
 /// what a decision's questions must be, before it is admitted: `Ok`
@@ -75,7 +31,7 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, mut turn: Turn, who: 
 ///    [`StructuredDecisions::lacking`](diverge_sdk::shared::containers::info::StructuredDecisions::lacking)
 ///    states; anything lacking is `UnsupportedModalities`, saying what
 ///    and where.
-fn held(agent: &agents::Agent, document: Option<&Document>, frame: &request::Frame) -> Result<(), Frame> {
+pub fn held(agent: &agents::Agent, document: Option<&Document>, content: &[ContentBlock], questions: &[Question]) -> Result<(), Frame> {
     // Rule 1.
     let Some(document) = document else {
         return Err(Frame::Error(undocumented(agent)));
@@ -85,10 +41,10 @@ fn held(agent: &agents::Agent, document: Option<&Document>, frame: &request::Fra
         return Err(Frame::NoStructuredDecisions);
     };
     // Rule 3.
-    if let Err(invalid) = validate(&frame.questions) {
+    if let Err(invalid) = validate(questions) {
         return Err(Frame::Error(reply::questions(&invalid)));
     }
     // Rule 4.
-    let lacking = decisions.lacking(&frame.content, &frame.questions);
+    let lacking = decisions.lacking(content, questions);
     if lacking.is_empty() { Ok(()) } else { Err(Frame::UnsupportedModalities(lacking)) }
 }

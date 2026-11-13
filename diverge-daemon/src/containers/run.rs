@@ -21,7 +21,7 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, MetaObject, PaginatedRequestParams,
     ReadResourceRequestParams, ReadResourceResult,
 };
-use tokio::sync::{Mutex, Notify, watch};
+use tokio::sync::{Mutex, Notify, oneshot, watch};
 use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
@@ -146,7 +146,9 @@ pub struct Gate {
 }
 
 /// One message enqueued on an agent's run, as its `messages` keep it.
-/// The rules, so the map holds only what can still be named:
+/// The rules, so the map holds only what can still be named — and so
+/// an entry's leaving, with `echo` never said, is the message never
+/// echoed, which a watched message is answered by: see rule 4.
 ///
 /// 1. **Kept from the enqueue.** An entry is made when the message is
 ///    taken into a batch, before the batch goes out.
@@ -160,7 +162,15 @@ pub struct Gate {
 ///    pump, at every `inactive`, removes each delivered entry it marked
 ///    at an earlier one, and marks the delivered rest: an entry leaves
 ///    at the latest one loop after the loop that took it.
-#[derive(Debug, Clone)]
+/// 4. **The echo is said once, and an entry gone unsaid never is.**
+///    The run's pump says `echo` — the `logs_index` of the item —
+///    as it keeps the first item under the message's key: a chat
+///    message's first user part, a structured decision's own item.
+///    An entry that leaves first — by rule 2, by rule 3, or with the
+///    run, whose end empties the map — drops it unsaid, and the
+///    message is echoed no more: an item under a key the map does not
+///    hold is kept as any other chunk, with no sender.
+#[derive(Debug)]
 pub struct Message {
     /// Who sent it.
     pub sender: Creator,
@@ -168,12 +178,14 @@ pub struct Message {
     pub delivered: bool,
     /// Whether an `inactive` has passed since it was delivered: rule 3.
     pub swept: bool,
+    /// Where its echo is said, until it is: rule 4.
+    pub echo: Option<oneshot::Sender<u64>>,
 }
 
 impl Message {
     /// A message just enqueued: rule 1.
-    pub fn new(sender: Creator) -> Self {
-        Message { sender, delivered: false, swept: false }
+    pub fn new(sender: Creator, echo: oneshot::Sender<u64>) -> Self {
+        Message { sender, delivered: false, swept: false, echo: Some(echo) }
     }
 }
 
