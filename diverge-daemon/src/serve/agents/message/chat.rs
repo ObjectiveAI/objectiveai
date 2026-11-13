@@ -1,21 +1,18 @@
-//! A message to an agent.
+//! A chat message to an agent.
 
-use diverge_sdk::daemon::creator::Creator;
-use diverge_sdk::daemon::endpoints::agents::message::client::request;
-use diverge_sdk::daemon::endpoints::agents::message::server::response::Frame;
-use diverge_sdk::daemon::grant::agents::Over;
-use diverge_sdk::daemon::reference;
+use diverge_sdk::daemon::endpoints::agents::message::chat::client::request;
+use diverge_sdk::daemon::endpoints::agents::message::chat::server::response::Frame;
 use diverge_sdk::shared::containers::info::{Document, FalseOr};
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
 use std::sync::Arc;
 
-use super::state;
+use super::{Refused, judged, undocumented};
 use crate::containers::message;
 use crate::daemon::Daemon;
-use crate::judge::{self, Standing, Who};
+use crate::judge::Who;
 use crate::serve::{Turn, reply};
-use crate::store::{self, agents, agents_templates, image_info};
+use crate::store::agents;
 
 /// Deliver the message and finish the scope: the answer, then the
 /// finish. `turn` is the request's place in the order its connection
@@ -55,13 +52,14 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, turn: Turn, who: 
 async fn serve(scope: &ScopeHandle, frame: request::Frame, mut turn: Turn, who: Who, daemon: &Arc<Daemon>) -> Frame {
     let (agent, sender, document) = match judged(scope, &frame.agent, who, daemon).await {
         Ok(judged) => judged,
-        Err(answer) => return answer,
+        Err(Refused::Forbidden) => return Frame::Forbidden,
+        Err(Refused::Error(error)) => return Frame::Error(error),
     };
     if let Err(answer) = held(&agent, document.as_ref(), &frame) {
         return answer;
     }
     turn.come().await;
-    let fate = message::admit(daemon, agent, frame.content, sender).await;
+    let fate = message::admit(daemon, agent, message::What::Chat(frame.content), sender).await;
     drop(turn);
     match fate.await {
         Ok(message::Fate::Delivered) => Frame::Delivered,
@@ -88,44 +86,11 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, mut turn: Turn, who: 
 ///    each.
 fn held(agent: &agents::Agent, document: Option<&Document>, frame: &request::Frame) -> Result<(), Frame> {
     let Some(document) = document else {
-        return Err(Frame::Error(reply::image(&format!(
-            "the agent's template `{}` is gone, or its image has no document on record",
-            agent.template
-        ))));
+        return Err(Frame::Error(undocumented(agent)));
     };
     let FalseOr::Is(chat) = &document.chat else {
         return Err(Frame::NoChat);
     };
     let lacking = chat.prompt_modalities.lacking(&frame.content);
     if lacking.is_empty() { Ok(()) } else { Err(Frame::UnsupportedModalities(lacking)) }
-}
-
-/// The agent `reference` names, who sends to it, and the document on
-/// record for its template's image — `None` when the template is gone
-/// or its image has none on record — once the grants
-/// let the message through — the scope then told so; else the answer:
-/// `Forbidden`, the error for an agent that is not there, or the
-/// store's failure.
-async fn judged(scope: &ScopeHandle, reference: &reference::Agent, who: Who, daemon: &Arc<Daemon>) -> Result<(agents::Agent, Creator, Option<Document>), Frame> {
-    let failed = |error: store::Error| Frame::Error(reply::failure(&error));
-    let mut conn = daemon.store.acquire().await.map_err(failed)?;
-    let Some(standing) = Standing::of(&mut conn, who).await.map_err(failed)? else {
-        return Err(Frame::Forbidden);
-    };
-    if !judge::agents::holds(&standing, Over::Message) {
-        return Err(Frame::Forbidden);
-    }
-    let Some(agent) = agents::by_reference(&mut conn, reference, false).await.map_err(failed)? else {
-        return Err(Frame::Error(reply::failure(&"the agent named is none the daemon has")));
-    };
-    let document = match agents_templates::by_id(&mut conn, &agent.template, false).await.map_err(failed)? {
-        Some(record) => image_info::by_digest(&mut conn, &record.template.image.digest).await.map_err(failed)?,
-        None => None,
-    };
-    drop(conn);
-    if !judge::agents::over(&standing, Over::Message, &agent, state(daemon, agent.id).await) {
-        return Err(Frame::Forbidden);
-    }
-    scope.allowed().await;
-    Ok((agent, standing.creator.clone(), document))
 }

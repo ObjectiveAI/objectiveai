@@ -85,6 +85,18 @@ pub fn image(what: &str) -> Error {
     }))
 }
 
+/// The wire's error for a structured decision whose questions are not
+/// valid: one shape, `{"kind":"questions","question":…,"error":…}`,
+/// naming the question at fault by its id — empty where the fault is
+/// the list's — and saying why. Nothing was sent.
+pub fn questions(invalid: &diverge_sdk::shared::containers::structured_decisions::Invalid) -> Error {
+    Error(serde_json::json!({
+        "kind": "questions",
+        "question": invalid.question,
+        "error": invalid.reason,
+    }))
+}
+
 /// The wire's error for a record's secrets that are not its
 /// template's: one shape, `{"kind":"secrets","error":…}`, naming the
 /// secret missing or not declared — or, at a template's create, the

@@ -35,7 +35,7 @@ use crate::judge::Who;
 /// request that was not served.
 pub async fn dispatch(scope: ScopeHandle, payload: &[u8], mut turn: Turn, who: Who, daemon: &Arc<Daemon>) {
     let request = ClientRequest::decode(payload).unwrap_or_else(|never| match never {});
-    if !matches!(request, ClientRequest::AgentsMessage(_)) {
+    if !matches!(request, ClientRequest::AgentsMessageChat(_) | ClientRequest::AgentsMessageStructuredDecisions(_)) {
         turn.pass();
     }
     crate::commands::record(&scope, &request, payload, &who, daemon).await;
@@ -47,7 +47,10 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], mut turn: Turn, who: W
         ClientRequest::AgentsCreate(frame) => agents::create::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsGet(frame) => agents::get::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsDelete(frame) => agents::delete::handle(scope, frame, who, daemon).await,
-        ClientRequest::AgentsMessage(frame) => agents::message::handle(scope, frame, turn, who, daemon).await,
+        ClientRequest::AgentsMessageChat(frame) => agents::message::chat::handle(scope, frame, turn, who, daemon).await,
+        ClientRequest::AgentsMessageStructuredDecisions(frame) => {
+            agents::message::structured_decisions::handle(scope, frame, turn, who, daemon).await
+        }
         ClientRequest::AgentsList(frame) => agents::list::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsEdit(frame) => agents::edit::handle(scope, frame, who, daemon).await,
         ClientRequest::AgentsTag(frame) => agents::tag::handle(scope, frame, who, daemon).await,

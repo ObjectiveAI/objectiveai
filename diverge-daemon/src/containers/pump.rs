@@ -11,7 +11,7 @@ use futures_util::StreamExt as _;
 
 use super::lifecycle::{self, End};
 use super::mcp;
-use super::{AgentRun, Ended, activate, stop};
+use super::{AgentRun, Decisions, Ended, activate, stop};
 use crate::daemon::Daemon;
 use crate::logs;
 use crate::store::AgentId;
@@ -43,14 +43,34 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
         match event {
             Ok(Event::Chunk(mut chunk)) => {
                 chunk.attest(&run.attestation);
-                let item = match user_key(&chunk) {
-                    Some(key) => match run.messages.lock().await.get(key).map(|message| message.sender.clone()) {
-                        Some(sender) => Item::User(log::User { sender, chunk }),
-                        None => Item::Chunk(chunk),
-                    },
-                    None => Item::Chunk(chunk),
-                };
-                let _ = append(&daemon, &run, item).await;
+                match chunk {
+                    // A structured decision, or its answers: numbered,
+                    // under the one lock, so the ids follow the order
+                    // the items are written in.
+                    AgenticLoopChunk::UserStructuredDecisions(chunk) => {
+                        let sender = run.messages.lock().await.get(&chunk.decision.key).map(|message| message.sender.clone());
+                        let mut decisions = run.decisions.lock().await;
+                        let id = numbering(&daemon, &run, &mut decisions).await.decision();
+                        let item = Item::UserStructuredDecisions(log::UserStructuredDecisions { id, sender, chunk });
+                        let _ = append(&daemon, &run, item).await;
+                    }
+                    AgenticLoopChunk::StructuredDecisionsResponse(chunk) => {
+                        let mut decisions = run.decisions.lock().await;
+                        let id = numbering(&daemon, &run, &mut decisions).await.response();
+                        let item = Item::StructuredDecisionsResponse(log::StructuredDecisionsResponse { id, chunk });
+                        let _ = append(&daemon, &run, item).await;
+                    }
+                    chunk => {
+                        let item = match user_key(&chunk) {
+                            Some(key) => match run.messages.lock().await.get(key).map(|message| message.sender.clone()) {
+                                Some(sender) => Item::User(log::User { sender, chunk }),
+                                None => Item::Chunk(chunk),
+                            },
+                            None => Item::Chunk(chunk),
+                        };
+                        let _ = append(&daemon, &run, item).await;
+                    }
+                }
             }
             Ok(Event::Active) => {
                 run.loop_active.send_replace(true);
@@ -100,6 +120,33 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
     }
     run.end_as(End::Unexpected(ended.reason())).await;
     stop::end_agent(daemon, run);
+}
+
+/// Where the numbering of the agent's structured decisions stands,
+/// read back from its log the first time a run needs it: the highest
+/// id any decision or response there has, and the latest decision's
+/// where no response follows it. A log that cannot be read numbers
+/// from nothing, which is `0` again: the items are kept either way.
+async fn numbering<'a>(daemon: &Daemon, run: &AgentRun, decisions: &'a mut Option<Decisions>) -> &'a mut Decisions {
+    if decisions.is_none() {
+        let mut read = Decisions::default();
+        let kept = logs::read(&daemon.logs, run.id, 1, u64::MAX).await.unwrap_or_default();
+        for entry in kept {
+            match entry.item {
+                Item::UserStructuredDecisions(item) => {
+                    read.highest = Some(read.highest.map_or(item.id, |highest| highest.max(item.id)));
+                    read.open = Some(item.id);
+                }
+                Item::StructuredDecisionsResponse(item) => {
+                    read.highest = Some(read.highest.map_or(item.id, |highest| highest.max(item.id)));
+                    read.open = None;
+                }
+                _ => {}
+            }
+        }
+        *decisions = Some(read);
+    }
+    decisions.get_or_insert_default()
 }
 
 /// One item onto the run's log — the one it took at its start — under

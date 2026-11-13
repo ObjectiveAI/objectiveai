@@ -255,6 +255,8 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
             tasks: Mutex::new(Vec::new()),
             edits: Mutex::new(()),
             epoch: daemon.live.epoch().await,
+            index: Mutex::new(0),
+            decisions: Mutex::new(None),
             log: daemon.live.log(&daemon.store, agent.id).await,
             ending: Mutex::new(None),
             ended: watch::channel(false).0,

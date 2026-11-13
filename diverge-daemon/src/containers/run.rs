@@ -89,6 +89,15 @@ pub struct AgentRun {
     /// what the agent's outbox pump, waiting on a batch's answer,
     /// activates the run again on — see [`message`](super::message).
     pub unfed: Notify,
+    /// The index the next enqueue on the run's scope takes: `0` at the
+    /// start, one more for each, chat batches and structured decisions
+    /// alike. See [`next_index`](Self::next_index).
+    pub index: Mutex<u64>,
+    /// The ids the log gives structured decisions and their responses,
+    /// as far as this run has read them: `None` until the first is
+    /// written, when they are read back from the log. See
+    /// [`Decisions`].
+    pub decisions: Mutex<Option<Decisions>>,
     /// The tasks that are the run's: the pump and the idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// Taken for the length of one edit of the record while it runs:
@@ -167,7 +176,55 @@ impl Message {
     }
 }
 
+/// Where the numbering of an agent's structured decisions stands in
+/// its log: what the rules of
+/// [`UserStructuredDecisions`](diverge_sdk::daemon::agent_log::UserStructuredDecisions)
+/// need to give the next one its id.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Decisions {
+    /// The highest id any decision or response in the log has, or
+    /// `None` where none has one.
+    pub highest: Option<u64>,
+    /// The id of the latest decision, while no response has taken it.
+    pub open: Option<u64>,
+}
+
+impl Decisions {
+    /// One more than the highest id, `0` where there is none: taken,
+    /// and now the highest.
+    fn fresh(&mut self) -> u64 {
+        let id = self.highest.map_or(0, |highest| highest + 1);
+        self.highest = Some(id);
+        id
+    }
+
+    /// Rule 1: a decision's id, which the next response takes.
+    pub fn decision(&mut self) -> u64 {
+        let id = self.fresh();
+        self.open = Some(id);
+        id
+    }
+
+    /// Rules 2 and 3: a response's id — the open decision's, taken, or
+    /// a fresh one.
+    pub fn response(&mut self) -> u64 {
+        match self.open.take() {
+            Some(id) => id,
+            None => self.fresh(),
+        }
+    }
+}
+
 impl AgentRun {
+    /// The index the next enqueue takes, and the counter moved past it.
+    /// Only the agent's outbox pump asks, one request at a time, so the
+    /// indexes are handed out in the order the requests are made.
+    pub async fn next_index(&self) -> u64 {
+        let mut index = self.index.lock().await;
+        let taken = *index;
+        *index += 1;
+        taken
+    }
     /// Rule 3 of [`Message`], at an `inactive`: every delivered entry
     /// marked at an earlier one removed, and the delivered rest marked.
     pub async fn sweep_messages(&self) {
