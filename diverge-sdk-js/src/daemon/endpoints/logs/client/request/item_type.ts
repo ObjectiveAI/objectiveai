@@ -16,6 +16,8 @@ export const ItemType = z.enum([
   "user_audio_content",
   "user_resource",
   "user_resource_link",
+  "user_structured_decisions",
+  "structured_decisions_response",
   "assistant_reasoning",
   "assistant_text_content",
   "assistant_image_content",

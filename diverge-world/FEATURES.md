@@ -336,6 +336,10 @@ The log is read from the start and then followed live.
 - **Senders:** user parts are grouped per sender and labelled with who
   sent them (an account, another agent or a tool).
 - **Errors:** errors and refusals are shown in red.
+- **Structured decisions:** a decision put to the agent and the
+  agent's answers each show as a plain card of their contents, with
+  the id the log gave them. The world sends chat only; it has no way
+  to put a decision.
 
 ### Messaging an agent
 

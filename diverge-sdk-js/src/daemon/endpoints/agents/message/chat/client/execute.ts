@@ -1,7 +1,7 @@
 // Performing the exchange: one request, one answer.
 
-import type { Handle } from "../../../../../wire/client/handle.js";
-import * as one_shot from "../../../../../daemon/client/one_shot.js";
+import type { Handle } from "../../../../../../wire/client/handle.js";
+import * as one_shot from "../../../../../../daemon/client/one_shot.js";
 import * as request from "./request/index.js";
 import * as response from "../server/response/index.js";
 

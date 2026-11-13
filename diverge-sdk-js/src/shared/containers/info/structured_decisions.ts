@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { Modalities } from "./modalities.js";
+import { Modality } from "./modality.js";
 
 /**
  * How an agent's program makes structured decisions: two members,
@@ -16,3 +17,15 @@ export const StructuredDecisions = z.strictObject({
   choice_modalities: Modalities,
 });
 export type StructuredDecisions = z.infer<typeof StructuredDecisions>;
+
+/**
+ * What a decision carries that an image does not take, by where it
+ * carries it: each list in the order image, audio, file.
+ */
+export const Lacking = z.object({
+  /** Carried by the prompt — the content and the instructions — and not taken there. */
+  prompt: z.array(Modality),
+  /** Carried by the choices — the options' descriptions and the levels — and not taken there. */
+  choice: z.array(Modality),
+});
+export type Lacking = z.infer<typeof Lacking>;

@@ -1,9 +1,9 @@
-// Sending an agent a message.
+// Sending an agent a chat message.
 
 import { z } from "zod";
-import { json, tagged } from "../../../../../../wire/encode.js";
-import { Relay } from "../../../../../../shared/relay.js";
-import { Agent } from "../../../../../../daemon/reference/agent.js";
+import { json, tagged } from "../../../../../../../wire/encode.js";
+import { Relay } from "../../../../../../../shared/relay.js";
+import { Agent } from "../../../../../../../daemon/reference/agent.js";
 import { ContentBlockSchema } from "@modelcontextprotocol/core";
 
 /**

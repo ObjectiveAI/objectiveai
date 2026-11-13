@@ -97,6 +97,8 @@ kinds — `assistant_reasoning`, `assistant_text_content`,
 `assistant_tool_call`, `assistant_refusal` — plus `notification`.
 Never `user`, `usage` or `tool_response`: the delivered messages,
 the accounting and the tools' answers are the container's to say.
+Nor `user_structured_decisions` or `structured_decisions_response`:
+this agent makes no structured decisions.
 One forbidden chunk refuses the whole output. An empty array is a
 turn that said nothing: no rest, and the queue's last look. The
 script may return its chunks (last expression) or print them; the

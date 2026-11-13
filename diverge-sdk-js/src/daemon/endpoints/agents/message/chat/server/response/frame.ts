@@ -1,9 +1,9 @@
 // A message's answer.
 
 import { z } from "zod";
-import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js";
-import { Modality } from "../../../../../../shared/containers/info/modality.js";
-import { Error } from "../../../../../../shared/error.js";
+import { DecodeError, jsonOf, splitTag } from "../../../../../../../wire/decode.js";
+import { Modality } from "../../../../../../../shared/containers/info/modality.js";
+import { Error } from "../../../../../../../shared/error.js";
 
 /**
  * A message's answer: delivered, forbidden, a failure, or the refusal

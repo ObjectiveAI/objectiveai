@@ -1,4 +1,4 @@
-// What a run streams: the agentic loop's chunks, one of fourteen
+// What a run streams: the agentic loop's chunks, one of sixteen
 // kinds, and the fold that joins the streamed pieces of one.
 
 export * from "./chunk.js";
@@ -16,5 +16,7 @@ export * from "./user_image_content_chunk.js";
 export * from "./user_audio_content_chunk.js";
 export * from "./user_resource_chunk.js";
 export * from "./user_resource_link_chunk.js";
+export * from "./user_structured_decisions_chunk.js";
+export * from "./structured_decisions_response_chunk.js";
 export * from "./usage_chunk.js";
 export * from "./notification_chunk.js";
