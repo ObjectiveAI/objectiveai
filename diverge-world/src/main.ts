@@ -1,6 +1,6 @@
 // The page: one Phaser game filling the window. The backdrop scene
 // draws the endless grid beneath; the board scene draws every entity
-// over it; the UI scene takes the keys. The outline floats over the
+// over it; the UI scene takes the keys. The outliner floats over the
 // board in HTML, and the tab strip along the top adds a board per daemon
 // opened, and switches among them. The daemon is reached through
 // `lib/wire.ts` once there is something to show. (The hex map's scenes,
@@ -10,7 +10,7 @@ import "../../diverge-theme/theme.css";
 import "./main.css";
 import * as Phaser from "phaser";
 import { int } from "./lib/theme";
-import { outline } from "./outline/outline";
+import { outliner } from "./outliner/outliner";
 import { Backdrop } from "./scenes/backdrop";
 import { Board } from "./scenes/board";
 import { Ui } from "./scenes/ui";
@@ -41,4 +41,4 @@ const game = new Phaser.Game({
   scene: [Backdrop, Board, Ui],
 });
 tabs(game);
-outline(game);
+outliner(game);

@@ -1,4 +1,4 @@
-// The outline: every node on the board, in HTML over the canvas — a card
+// The outliner: every node on the board, in HTML over the canvas — a card
 // that floats wherever it is dragged, folds to its header or to the
 // kinds' shapes, and docks down the window's left as a rail.
 
@@ -10,7 +10,7 @@ import { ARRANGE, type Bounds, FOCUS, HOVER, KINDS, type Kinds, LINES, type Line
 import { TABS } from "../tabs/tabs";
 import type { Kind } from "../world/model";
 import { glyph, kindIcon, lineIcon } from "./icons";
-import "./outline.css";
+import "./outliner.css";
 
 /** The card's and the rail's width (the viewer's rail), the widest a card is resized to, and the shapes' column's. */
 const WIDTH = 244;
@@ -75,14 +75,14 @@ function button(classes: string, label: string, focus: string, inner: string): H
   return b;
 }
 
-/** The form the outline takes: open; folded to its header; folded to the kinds' shapes; folded to one button. */
+/** The form the outliner takes: open; folded to its header; folded to the kinds' shapes; folded to one button. */
 type Form = "open" | "header" | "shapes" | "button";
 
 /** The window's edge a floating card was last let go nearest. */
 type Edge = "left" | "right" | "top" | "bottom";
 
 /**
- * Start the outline over `game`.
+ * Start the outliner over `game`.
  *
  * The rules:
  *
@@ -91,7 +91,7 @@ type Edge = "left" | "right" | "top" | "bottom";
  *    keys as the rest of the page does. A press or a wheel on it never
  *    reaches the board; its bounds are told the board all the same
  *    (`OUTLINER`), with whether it is held.
- * 2. Open, it is a header — Outline, how many nodes, Arrange (`ARRANGE`),
+ * 2. Open, it is a header — Outliner, how many nodes, Arrange (`ARRANGE`),
  *    fold, dock — then what the world has to say (`STATUS`), quietly;
  *    then what to show on the board, as chips: each type of line with its
  *    sample and count (`LINES`), each kind by its shape (`KINDS`), pressed
@@ -110,7 +110,7 @@ type Edge = "left" | "right" | "top" | "bottom";
  * 5. Folded, it is its header alone; or the kinds' shapes, each still a
  *    chip that shows or hides its kind, upright at a side edge and lying
  *    along the top or bottom edge where it was let go nearest those; or
- *    one button, Outline and how many nodes, which opens it again where
+ *    one button, Outliner and how many nodes, which opens it again where
  *    it stands. The first button of each opens it again.
  * 6. Dragged by its header it floats anywhere in the window under the
  *    strip; let go near an edge, it snaps `EDGE` in; let go near the
@@ -133,7 +133,7 @@ type Edge = "left" | "right" | "top" | "bottom";
  *    scrolled, so a busy daemon neither scrolls it back nor drops the
  *    row under the mouse.
  */
-export function outline(game: Phaser.Game): void {
+export function outliner(game: Phaser.Game): void {
   const registry = game.registry;
   let form: Form = "open";
   let docked = false;
@@ -145,8 +145,8 @@ export function outline(game: Phaser.Game): void {
   const folded = new Set<string>();
   // Rule 1.
   const root = document.createElement("aside");
-  root.className = "outline";
-  root.setAttribute("aria-label", "Outline");
+  root.className = "outliner";
+  root.setAttribute("aria-label", "Outliner");
   const zone = document.createElement("div");
   zone.className = "dock-zone";
   zone.textContent = "Drop to dock";
@@ -172,7 +172,7 @@ export function outline(game: Phaser.Game): void {
     root.dataset.docked = String(docked);
     root.dataset.along = String(form === "shapes" && w === null);
     root.classList.toggle("held", held);
-    document.documentElement.style.setProperty("--outline-left", docked ? `${w ?? COLUMN}px` : "0px");
+    document.documentElement.style.setProperty("--outliner-left", docked ? `${w ?? COLUMN}px` : "0px");
     if (docked) {
       Object.assign(root.style, { left: "0px", top: `${TABS}px`, width: `${w ?? COLUMN}px`, height: `${window.innerHeight - TABS}px`, maxHeight: "" });
     } else {
@@ -209,7 +209,7 @@ export function outline(game: Phaser.Game): void {
     }
     drawn = showing;
     const scrolled = root.querySelector<HTMLElement>(".list")?.scrollTop ?? 0;
-    const back = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".outline [data-focus]")?.dataset.focus;
+    const back = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".outliner [data-focus]")?.dataset.focus;
     const kindChip = (kind: Kind) => {
       const on = kinds === undefined || kinds[kind];
       const b = button(`chip kind fam-${FAMILY[kind]}`, `${on ? "Hide" : "Show"} ${kindName(kind)}`, `kind:${kind}`, kindIcon(kind));
@@ -219,8 +219,8 @@ export function outline(game: Phaser.Game): void {
     };
     root.replaceChildren();
     if (form === "button") {
-      // Rule 5: one button; a drag moves it, a press opens the outline where it stands.
-      const pill = button("pill", "Open the outline", "btn:pill", `${glyph("list")}<span class="title">Outline</span><span class="n">${outline.length}</span>`);
+      // Rule 5: one button; a drag moves it, a press opens the outliner where it stands.
+      const pill = button("pill", "Open the outliner", "btn:pill", `${glyph("list")}<span class="title">Outliner</span><span class="n">${outline.length}</span>`);
       pill.addEventListener("click", () => {
         if (dragged) dragged = false;
         else setForm("open");
@@ -230,7 +230,7 @@ export function outline(game: Phaser.Game): void {
       // Rule 5: the column.
       const strip = document.createElement("div");
       strip.className = "strip";
-      const open = button("icon", "Open the outline", "btn:open", glyph("unfold"));
+      const open = button("icon", "Open the outliner", "btn:open", glyph("unfold"));
       open.addEventListener("click", () => setForm("open"));
       const rule = document.createElement("div");
       rule.className = "rule";
@@ -242,7 +242,7 @@ export function outline(game: Phaser.Game): void {
       head.className = "head";
       const title = document.createElement("span");
       title.className = "title";
-      title.textContent = "Outline";
+      title.textContent = "Outliner";
       const count = document.createElement("span");
       count.className = "count";
       count.textContent = String(outline.length);

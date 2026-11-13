@@ -8,9 +8,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   `diverge-theme/theme.css` first, `main.css` holding the world's own page rules beside it — every colour, size and space comes from its roles — and `lib/theme.ts`
   resolves a role (`int`, `css`) for the canvas and xterm, since a role is often a `color-mix` only the page can resolve;
   `data-input` on the root says whether the keys or the mouse are in use, so hover marks nothing while the keys do and
-  focus looks as hover does (no ring, no box round a row). The one menu is the outline (`outline/outline.ts`), HTML
+  focus looks as hover does (no ring, no box round a row). The one menu is the outliner (`outliner/outliner.ts`), HTML
   over the canvas: a card that floats where its header is dragged, snaps to edges, folds to its header, to the kinds'
-  shapes (upright at a side edge, lying along the top or bottom) or to one button, resizes by its corner's grip, and docks as a rail down the left (`--outline-left` on the root, which the sheet starts beside) — Arrange,
+  shapes (upright at a side edge, lying along the top or bottom) or to one button, resizes by its corner's grip, and docks as a rail down the left (`--outliner-left` on the root, which the sheet starts beside) — Arrange,
   fold and dock in its header, line types and kinds as show/hide chips (`LINES`, `KINDS`), then every node by family,
   a row's press (`FOCUS`) flying the board's camera to it and opening its sheet, its hover or focus (`HOVER`) focusing
   it; the board tells it the nodes (`OUTLINE`) and the open one (`SELECTED`) through the registry, and it tells the
@@ -54,7 +54,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   status, a daemon's `as <our subject> · connected|disconnected`; each tab starts reading the first time it is shown, and
   the tab last chosen carries to the next sheet.
 - **A board per daemon, by its route** (`src/tabs/tabs.ts`, `scenes/board.ts`): the tab strip, HTML along the top
-  (`TABS` tall; the outline starts beneath it), is Home — the `board` scene, route `[]` — then one tab per daemon
+  (`TABS` tall; the outliner starts beneath it), is Home — the `board` scene, route `[]` — then one tab per daemon
   opened (`OPEN` from a daemon's sheet, with `{ route, labels }`): a `Board` added at runtime as `board:<id>/<id>…`,
   given the route, with its own follow, nodes, camera and sheet, and `ui` brought back to the top. Switching sleeps the
   board shown (its sheet closes; its lists stay open), sets `ACTIVE` and wakes the target; ✕ stops and removes the
@@ -80,7 +80,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   that reopens reconciled against what it held, the world handed to `scenes/board.ts` at most once a frame once every
   list was whole once. The board draws the first world, then diffs every later one by key (`apply`): new entities are
   nodes at `placeOne`, gone ones are removed (their sheet closed), kept ones relabelled; the edges are replaced
-  (`links.setEdges`), the lights reapplied (`light`), the outline's counts reset; pulses take the same events stream
+  (`links.setEdges`), the lights reapplied (`light`), the outliner's counts reset; pulses take the same events stream
   (`pulses.told`) after the world holding their line is drawn.
 - **The hex world is the daemon drawn once** (`scenes/world.ts`, unlisted): eleven lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its

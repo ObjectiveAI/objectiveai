@@ -1,10 +1,10 @@
-// The UI scene: the keys. The outline (`outline/outline.ts`) is HTML
+// The UI scene: the keys. The outliner (`outliner/outliner.ts`) is HTML
 // over the canvas; the keyboard does what its presses do.
 
 import * as Phaser from "phaser";
 import { TYPES } from "../grid/edges";
 import { KIND_ORDER } from "./kinds";
-import { flipKind, flipLine } from "../outline/outline";
+import { flipKind, flipLine } from "../outliner/outliner";
 import { ARRANGE } from "./status";
 
 /**
@@ -20,7 +20,7 @@ const KEYS = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "N
  * The rules:
  *
  * 1. Each of `KEYS` shows or hides its kind or type of line, as the
- *    outline's chips do; the `A` key arranges, as its Arrange does. The
+ *    outliner's chips do; the `A` key arranges, as its Arrange does. The
  *    keys are not printed.
  */
 export class Ui extends Phaser.Scene {

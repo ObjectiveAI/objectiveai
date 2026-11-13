@@ -14,7 +14,7 @@ is named, so the two can be checked against each other.
   colours as every panel, nothing glowing.
 - A line traces round a node while it works, and a short stroke runs
   along a line as each event happens.
-- An outline lists every node by family — clicking one flies the view to
+- An outliner lists every node by family — clicking one flies the view to
   it and opens its sheet — shows and hides each kind and each type of
   line, with counts, and can arrange the board. It floats where you drag
   it, folds small, and docks down the window's left.
@@ -127,7 +127,7 @@ is named, so the two can be checked against each other.
 - **Pan:** drag the empty board with any mouse button.
 - **Zoom:** the mouse wheel, from a quarter size to three times, around
   the pointer.
-- **Not over the outline:** a drag that starts on the outline, or the
+- **Not over the outliner:** a drag that starts on the outliner, or the
   wheel over it, does not move the view.
 - **Bounds:** the view's middle can roam twice the width and height of
   the area the nodes cover, around its middle, and no further — so you
@@ -171,29 +171,29 @@ same way.
   daemons it has records of; opening one of those goes one hop
   further (`A › B`).
 - **The same app.** Inside a tab everything works as at Home — the
-  board, the outline, every sheet tab, downloads and uploads, consoles
+  board, the outliner, every sheet tab, downloads and uploads, consoles
   and frontends — on that daemon. Our daemon passes each request on
   (its `relay`, the route of daemon record IDs), connecting as our
   account there.
 - **Switching.** Click a tab. The one left closes its sheet but keeps
   everything else — its lists stay open, its nodes where they were
   dragged, its view where it was — so switching back loses nothing.
-  The outline shows the tab shown.
+  The outliner shows the tab shown.
 - **Shared settings.** Which kinds and which types of line are shown is
   the same in every tab.
 - **Closing.** **✕** on a tab closes it, its lists and its sheet; if it
   was shown, the tab to its left is shown. Home has no ✕.
 - **Refused.** A daemon our daemon cannot reach, or the account may not
-  relay to, stays "waiting for the daemon" in the outline, under its
+  relay to, stays "waiting for the daemon" in the outliner, under its
   header.
 - **Through the strip:** a click on it never presses a node or the
-  outline beneath.
+  outliner beneath.
 
 ---
 
-## The outline
+## The outliner
 
-`outline/outline.ts`, `outline/outline.css`, `scenes/ui.ts`
+`outliner/outliner.ts`, `outliner/outliner.css`, `scenes/ui.ts`
 
 The one menu, in HTML over the board: a card on the theme's ground with
 the strong edge, at the top right at first, under the tab strip. It
@@ -202,7 +202,7 @@ on it, or the wheel over it, does not move the view.
 
 ### Header
 
-- **Outline**, how many nodes the board holds, then three buttons:
+- **Outliner**, how many nodes the board holds, then three buttons:
   **Arrange** (see Arrange below), **fold**, and **dock** (or **float**,
   when docked). Folded to its header, its buttons are **unfold**, **fold
   to shapes**, **fold to a button** and **dock**.
@@ -248,7 +248,7 @@ on it, or the wheel over it, does not move the view.
 - **Fold** shrinks it to its header; there, **unfold** opens it again,
   **fold to shapes** shrinks it to the kinds' shapes — each still a
   show/hide chip, an arrow first to open it — and **fold to a button**
-  shrinks it to one button, **Outline** and how many nodes, which opens
+  shrinks it to one button, **Outliner** and how many nodes, which opens
   it where it stands. A drag moves the button; a press opens it.
 - **The shapes stand or lie:** upright down a side edge, and lying along
   the top or bottom edge when let go nearest it.
@@ -582,7 +582,7 @@ refused. An administrator's log is the daemon's own admin log.
   a tab not shown keeps them open too.
 - **Home's requests are unchanged.** A request at Home carries no
   `relay`; one in a daemon's tab carries the route to it.
-- **The outline's counts are live**, as the board is.
+- **The outliner's counts are live**, as the board is.
 - **Reconnecting.** The connection is held by the app's Rust and redials
   by itself as `viewer.yaml` says.
 - **Nothing is saved.** The app keeps no files of its own.

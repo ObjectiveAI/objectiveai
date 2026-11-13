@@ -1,4 +1,4 @@
-// The outline's marks, as inline SVG drawn in `currentColor`, so each
+// The outliner's marks, as inline SVG drawn in `currentColor`, so each
 // takes its colour from the page's styles: every kind's shape small,
 // each type of line's sample, and the few glyphs its buttons carry.
 

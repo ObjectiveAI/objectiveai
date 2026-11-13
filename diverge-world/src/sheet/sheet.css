@@ -8,8 +8,8 @@
    plain edge; rule 8: it takes every press made on it. */
 .sheet {
   position: fixed;
-  /* Beside the outline when it is docked as a rail (`--outline-left`, set by outline.ts). */
-  left: var(--outline-left, 0px);
+  /* Beside the outliner when it is docked as a rail (`--outliner-left`, set by outliner.ts). */
+  left: var(--outliner-left, 0px);
   right: 0;
   bottom: 0;
   display: flex;
