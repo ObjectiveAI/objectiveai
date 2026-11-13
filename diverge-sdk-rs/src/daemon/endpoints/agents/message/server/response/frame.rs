@@ -147,9 +147,11 @@ pub enum Frame {
     /// The request carries what the agent's image does not take: by
     /// [`Lacking`], the modalities its prompt carries and the image's
     /// `prompt_modalities` state as `false`, and — a structured
-    /// decision's — those its choices carry and `choice_modalities`
-    /// state as `false`. At least one of the two lists is not empty; a
-    /// chat message's `choice` always is. Tag `4`.
+    /// decision's — those its questions' instructions carry and
+    /// `instruction_modalities` state as `false`, and those its
+    /// choices carry and `choice_modalities` state as `false`. At
+    /// least one of the three lists is not empty; a chat message's
+    /// `instruction` and `choice` always are. Tag `4`.
     ///
     /// The whole request is refused, the text in it included.
     UnsupportedModalities(Lacking),
