@@ -256,10 +256,15 @@ records the caller the daemon attested. A dependency tool's log is readable whet
 
 ## A tool's permissions
 
-A tool's program declares, each time its container starts, what it may ask of the daemon: a list of grants
-that name nothing. They reach by tags, or `"any"`, or over agents by two special words: `"attached"` (the
-agents attached to this tool, or for a dependency the agents that declare it) and `"never_active"` (agents
-that have never run). Example, the alarm tool: `[{"agents":{"actions":["message"],"within":"attached"}}]`.
+A tool's program declares, each time its container starts, what it may ask of the daemon: a list of grants.
+They reach by tags, or `"any"`, or over agents by three special forms: `"attached"` (the
+agents attached to this tool, or for a dependency the agents that declare it), `"never_active"` (agents
+that have never run), and `{"agents":[{"template":"<id>","index":<n>}, …]}` (exactly the agents listed).
+Example, the alarm tool: `[{"agents":{"actions":["message"],"within":"attached"}}]`.
+
+- Nothing else is ever named. The listed form is for a tool whose arguments are a list of agents: the
+  program declares the agents its arguments gave it, so the list differs from one tool to the next and is
+  never fixed in the image.
 
 - You do not set these; the image does. They are reported as `permissions` on the tool's list item after its
   first start (absent before, or when it declares none).

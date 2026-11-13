@@ -17,7 +17,9 @@ use crate::run::{Emitter, Error};
 pub type Stop = fn(&Value) -> bool;
 
 /// Never: the stream runs to its finish — a logs request, which the
-/// daemon finishes at the log's end or, watching, at its `count`.
+/// daemon finishes at the log's end or, watching, at its `count`; an
+/// agents message, which it finishes at the fate or, watching, at the
+/// end of the message's run.
 pub fn never(_: &Value) -> bool {
     false
 }

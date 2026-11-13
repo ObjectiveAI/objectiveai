@@ -3,8 +3,11 @@
 use diverge_sdk::daemon::endpoints::standalone_tools::create::client::request;
 use diverge_sdk::daemon::endpoints::standalone_tools::create::server::response::Frame;
 use diverge_sdk::daemon::grant::standalone_tools::Make;
+use std::sync::Arc;
+
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
+use crate::containers::{self, images};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner::{self, Checked, Mounted, Secrets};
@@ -12,7 +15,7 @@ use crate::serve::reply;
 use crate::store::{self, tools, tools_templates};
 
 /// Answer the create and finish the scope.
-pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
+pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
     let answer = match serve(frame, who, daemon).await {
         Ok(answer) => answer,
         Err(error) => Frame::Error(reply::failure(&error)),
@@ -29,7 +32,38 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// tool made, its index the next for its template,
 /// nothing running: the container runs while an attached agent is
 /// active.
-async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
+///
+/// The template's image is held to its document before anything is
+/// made, and before the transaction that makes it begins, so nothing
+/// of the store is held while a provider or a daemon is waited for:
+///
+/// 1. The grant and the template are read first, on a connection
+///    given back at once; a caller without the grant, or a template
+///    that is not there, is answered then, and nothing is asked.
+/// 2. The image's document is found as [`images::document`] finds it —
+///    the record, else whoever holds the image, the document then
+///    left on record. An image with none is the `image` error.
+/// 3. Then the create, as stated above, its checks made again in its
+///    own transaction.
+async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
+    // Rule 1.
+    let image = {
+        let mut conn = daemon.store.acquire().await?;
+        let Some(standing) = Standing::of(&mut conn, who.clone()).await? else {
+            return Ok(Frame::Forbidden);
+        };
+        if !judge::standalone_tools::make(&standing, Make::Create) {
+            return Ok(Frame::Forbidden);
+        }
+        let Some(template) = tools_templates::by_id(&mut conn, &frame.inner.template, false).await? else {
+            return Ok(Frame::Error(reply::failure(&"the tool template named is none the daemon has")));
+        };
+        containers::image(&template.template.image)
+    };
+    // Rule 2.
+    if let Err(why) = images::document(daemon, &image).await? {
+        return Ok(Frame::Error(reply::image(&why)));
+    }
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
         return Ok(Frame::Forbidden);

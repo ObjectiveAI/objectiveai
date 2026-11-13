@@ -26,8 +26,19 @@
 //! messages is on the wire at a time, and batches that come back —
 //! the run closed under them, `409` — go back to the front, ahead of
 //! anything that reached the driver after them, and start the next
-//! loop, joined. The daemon sends one batch at a time, each after the
-//! last was answered, so in practice the queue holds at most one.
+//! loop, joined.
+//!
+//! A batch is chat messages, or one structured decision, and the two
+//! are handed over differently. Every enqueue carries an `index`, and
+//! the driver queues the batches in the order of their indexes,
+//! whatever order they reach it in. Chat batches at the head of the
+//! queue go as above. A structured decision at the head waits until
+//! the program has no run open, starts a `/run` of its own, alone,
+//! and nothing — chat or decision — is handed over until that run has
+//! ended. So `chat, chat, decision, decision, chat, chat` is: both
+//! chats, joined; the first decision once that loop has ended; the
+//! second once the first's run has; both chats, joined, once the
+//! second's has.
 //!
 //! What the loop says rides the begin scope's main stream, chunk by
 //! chunk, verbatim, between the proxy's own word that the loop began

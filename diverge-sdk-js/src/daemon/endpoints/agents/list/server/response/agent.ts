@@ -21,7 +21,7 @@ export const Agent = z.object({
   name: z.string().optional(),
   /** The template it was made from, by id: the hash a `templates.create` answered, and what a `templates.list` names it by. */
   template: z.string(),
-  /** Its number among all agents of the caller's ever made from that template, deleted ones included: the first made is `1`, each after is one more, and no number is given twice. The template and the index together name the agent once and for all, where a name is free again once the agent is deleted. */
+  /** Its number among all agents the daemon ever made from that template, deleted ones included: the first made is `1`, each after is one more, and no number is given twice. The template and the index together name the agent once and for all, where a name is free again once the agent is deleted. */
   index: z.number().int().nonnegative(),
   /** Who made it: the client, over an endpoint, or the agent or the tool of the client's that did so through the daemon. One `Creator`, the direct maker; the maker's own maker is on the maker's list item. */
   creator: Creator,

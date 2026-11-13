@@ -1,6 +1,6 @@
 //! A run activated: its secrets taken and fed before work reaches it
-//! — an agent's feed is the go as well, sent and answered before its
-//! batch of messages leaves; and gone inactive: what it made of them
+//! — an agent's feed is the go as well, sent after the requests it
+//! is to start the run on; and gone inactive: what it made of them
 //! written back.
 
 use diverge_sdk::daemon::creator::Creator;
@@ -26,29 +26,29 @@ pub enum Activated {
     Ending,
 }
 
-/// The agent's run activated for the batch about to be sent to it —
-/// its proxy's gate opened, which is the go: the proxy launches the
-/// loop on the first batch that reaches an open gate, and hands a
-/// loop in flight every batch after. Called by the agent's outbox
-/// pump alone, with the run's `pending` held — see
+/// The agent's run activated for the requests just sent to it — its
+/// proxy's gate opened, which is the go: the proxy keeps what reaches
+/// a shut gate, launches the run on all of it when the feed lands,
+/// and hands a loop in flight every batch after. Called for each turn
+/// of the agent's outbox pump, once the turn's requests are on the
+/// wire and with the run's `pending` held — see
 /// [`message`](super::message) — under the run's gate lock, so an
 /// activation, an inactive and the idle clock's last look are served
 /// one after the other:
 ///
 /// 1. A run the daemon is ending — the gate's `ending`, set under
-///    this lock by [`idle`](super::idle)'s last look, or by the pump
-///    for a run it could not feed again — is not activated:
-///    [`Ending`](Activated::Ending), and nothing is fed. The clock
-///    looked before the pump held the run, so the pump's hold came
-///    too late to stop it; a hold it saw stops it instead, and this
-///    is then never the answer.
+///    this lock by [`idle`](super::idle)'s last look, or for a run
+///    that could not be fed — is not activated:
+///    [`Ending`](Activated::Ending), and nothing is fed. The pump
+///    sends nothing to a run it finds ending, so this is the answer
+///    only where the run began to end after the turn's requests left:
+///    a feed that failed under another turn's.
 /// 2. A gate open already is left so: nothing is done, and the batch
 ///    is the loop's, or the next one's.
 /// 3. Else the run is fed: its values taken and fed as rule 3 of
 ///    [`activate`] says, where its program registered any secret; an
 ///    empty feed, where it registered nothing. The gate is open once
-///    the provider's `Fed` is back, which is waited for: the batch
-///    leaves only after it.
+///    the provider's `Fed` is back.
 /// 4. A take or a feed that fails leaves the gate shut, releases
 ///    whatever was taken, and is the failure, kind `secrets`.
 pub async fn activate_agent(daemon: &Daemon, run: &AgentRun) -> Result<Activated, Error> {

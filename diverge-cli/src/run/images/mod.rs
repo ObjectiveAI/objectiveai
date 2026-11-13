@@ -7,12 +7,15 @@ use clap::Subcommand;
 
 use crate::run::{Emitter, Error, Target};
 
+pub mod build;
 pub mod info;
 pub mod oci;
 
 /// The requests over images.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Images {
+    /// Build an image on a provider, from a Containerfile.
+    Build(build::Arguments),
     /// Reading an image's DIVERGE.md, from a container of it running or
     /// from a provider that can obtain it.
     Info(info::Arguments),
@@ -25,6 +28,7 @@ pub enum Images {
 /// The request put, by its subcommand.
 pub async fn run(command: Images, target: &Target<'_>, emitter: &mut Emitter) -> Result<(), Error> {
     match command {
+        Images::Build(arguments) => build::run(arguments, target, emitter).await,
         Images::Info(arguments) => info::run(arguments, target, emitter).await,
         Images::Oci(arguments) => oci::run(arguments, target, emitter).await,
     }

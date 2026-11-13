@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct Agent {
     /// The template it was made from, by id.
     pub template: String,
-    /// Its number among all agents of the caller's ever made from
+    /// Its number among all agents the daemon ever made from
     /// that template, as its list item carries it.
     pub index: u64,
     /// Its name, as its create gave it, if it gave one. Absent when

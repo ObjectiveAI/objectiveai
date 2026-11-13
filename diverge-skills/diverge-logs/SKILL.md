@@ -99,6 +99,8 @@ Every entry has `logs_index`, `created` and `type`. The common ones:
 | `assistant_tool_call` | The agent called a tool. | `id`, `name`, `arguments` |
 | `tool_response` | That call's result. | `id` (the call's), `content`, `isError` |
 | `assistant_refusal` | The model declined. | `text` |
+| `user_structured_decisions` | A structured decision that landed, whole. | `id` (the log's number for it), `key`, `content`, `questions`, `sender` |
+| `structured_decisions_response` | The agent's answers to one. | `id`, `decisions`: question id → `{"noul":n}`, `{"probabilities":{value:n}}` or `{"score":n,"probabilities":[n…]}` |
 | `usage` | Token usage so far. | `prompt_tokens`, `completion_tokens`, `total_tokens` |
 | `notification` | Something about the run itself. | `message`, `is_fatal` |
 | `error` | A run that would not start, or a message the agent refused. | `error` (free-form) |
@@ -118,6 +120,12 @@ Reading rules:
   started are joined into its first turn, so several keys can precede one reply.
 - A reply may come as several `assistant_text_content` entries; join the texts between an `active` and the
   next `inactive`. Entries with `parent_tool_call_id` belong to a sub-agent spawned by that tool call.
+- **Matching a decision to its answers**: both carry a numeric `id` the daemon assigns as it writes. A
+  decision takes the next id (one more than the highest before it, `0` first). The first response after a
+  decision takes that decision's id. Any other response (a second one, or one with no decision before it)
+  takes the next id. So `decision, response, response, decision, response` reads `0, 0, 1, 2, 2`: a
+  response answers the decision with the same `id`, and a response whose id no decision has was
+  unprompted. `"type":"structured_decisions_response"` in the logs request narrows to the answers.
 - `_meta["diverge.network"]` on a chunk is the daemon's attestation of which agent spoke.
 
 ### What a tool log holds
@@ -240,11 +248,10 @@ diverge run logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L>2
 diverge run logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L>30 ? L-30 : 1))'}' \
   --jq '.item.agent | [.logs_index, .type, (.text // .name // .reason // "")] | join(" ")'
 
-# Send a message and wait for the reply to finish
-L=$(diverge run agents get '{"agent":{"name":"echo"}}' --jq '.found.logs_index')
-diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"hello"}]}'
-diverge run --timeout 300 logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L+1))',"type":"inactive","watch":true,"count":1}'
-diverge run logs '{"of":{"type":"agent","name":"echo"},"logs_index_from":'$((L+1))',"type":"assistant_text_content"}' --jq '.item.agent.text'
+# Send a message and print the reply: "watch" streams the log entries of that message's run, from the
+# message itself to the run's `inactive`, and exits (see `diverge-agents`, Watching)
+diverge run --timeout 300 agents message '{"agent":{"name":"echo"},"type":"chat","watch":true,"content":[{"type":"text","text":"hello"}]}' \
+  --jq '.item.agent | select(.type=="assistant_text_content") | .text'
 
 # Who messaged this agent, when, and what
 diverge run logs '{"of":{"type":"agent","name":"echo"},"type":"user_text_content"}' \

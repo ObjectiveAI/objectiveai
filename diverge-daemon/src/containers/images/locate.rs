@@ -51,6 +51,10 @@ pub struct Source {
     pub scope: execute::ExecuteHandle,
 }
 
+/// Every ask of who can supply an image, each answering its source,
+/// held, or `None`: what [`asks`] makes, taken as each answers.
+pub type Asks = FuturesUnordered<BoxFuture<'static, Option<Source>>>;
+
 /// The one source that can supply `image`, its scope held, or `None`.
 ///
 /// The rules:
@@ -75,9 +79,26 @@ pub struct Source {
 ///    forbidden, an error and a scope that would not open are all no;
 ///    no scope answering held is `None`, after the last has answered.
 pub async fn locate(daemon: &Arc<Daemon>, image: &Image, reach: &Reach, ignore: &[Identity]) -> Option<Source> {
+    let mut asking = asks(daemon, image, reach, ignore).await;
+    // Rules 3 and 4.
+    while let Some(answered) = asking.next().await {
+        let Some(source) = answered else {
+            continue;
+        };
+        cancel_rest(asking);
+        return Some(source);
+    }
+    None
+}
+
+/// Rules 1 and 2 of [`locate`]: every ask, made and not yet awaited,
+/// so that all of them run at once as the set is taken from. Each
+/// answers its source when its scope answered held, and `None` for
+/// everything else, rule 4.
+pub async fn asks(daemon: &Arc<Daemon>, image: &Image, reach: &Reach, ignore: &[Identity]) -> Asks {
     // Rule 1.
     let own = daemon.authenticator.own().cloned();
-    let mut asking: FuturesUnordered<BoxFuture<'static, Option<Source>>> = FuturesUnordered::new();
+    let asking: Asks = FuturesUnordered::new();
     let frame = Arc::new(request::Frame(oci::has::request::Request { image: image.clone() }));
     for identity in daemon.live.connected_providers().await {
         let reached = match reach {
@@ -133,21 +154,21 @@ pub async fn locate(daemon: &Arc<Daemon>, image: &Image, reach: &Reach, ignore: 
             .boxed(),
         );
     }
-    // Rules 3 and 4.
-    while let Some(answered) = asking.next().await {
-        let Some(source) = answered else {
-            continue;
-        };
-        tokio::spawn(async move {
-            while let Some(answered) = asking.next().await {
-                if let Some(late) = answered {
-                    let _ = late.scope.cancel().await;
-                }
+    asking
+}
+
+/// Rule 3 of [`locate`], for the asks left once an answer is had: they
+/// go on in a task of their own, and each that answers held is
+/// cancelled as it answers, so no scope is left held with nobody to
+/// take from it.
+pub fn cancel_rest(mut asking: Asks) {
+    tokio::spawn(async move {
+        while let Some(answered) = asking.next().await {
+            if let Some(late) = answered {
+                let _ = late.scope.cancel().await;
             }
-        });
-        return Some(source);
-    }
-    None
+        }
+    });
 }
 
 /// Every remote daemon's record: none where the store cannot be read,

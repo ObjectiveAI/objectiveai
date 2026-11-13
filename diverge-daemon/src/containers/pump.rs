@@ -8,10 +8,11 @@ use diverge_sdk::provider::endpoints::containers::agents::run::client::execute::
 use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use diverge_sdk::provider::endpoints::containers::client::WaitError;
 use futures_util::StreamExt as _;
+use tokio::sync::oneshot;
 
 use super::lifecycle::{self, End};
 use super::mcp;
-use super::{AgentRun, Ended, activate, stop};
+use super::{AgentRun, Decisions, Ended, activate, stop};
 use crate::daemon::Daemon;
 use crate::logs;
 use crate::store::AgentId;
@@ -43,14 +44,35 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
         match event {
             Ok(Event::Chunk(mut chunk)) => {
                 chunk.attest(&run.attestation);
-                let item = match user_key(&chunk) {
-                    Some(key) => match run.messages.lock().await.get(key).map(|message| message.sender.clone()) {
-                        Some(sender) => Item::User(log::User { sender, chunk }),
-                        None => Item::Chunk(chunk),
-                    },
-                    None => Item::Chunk(chunk),
-                };
-                let _ = append(&daemon, &run, item).await;
+                match chunk {
+                    // A structured decision, or its answers: numbered,
+                    // under the one lock, so the ids follow the order
+                    // the items are written in.
+                    AgenticLoopChunk::UserStructuredDecisions(chunk) => {
+                        let (sender, echo) = echoed(&run, &chunk.decision.key).await;
+                        let mut decisions = run.decisions.lock().await;
+                        let id = numbering(&daemon, &run, &mut decisions).await.decision();
+                        let item = Item::UserStructuredDecisions(log::UserStructuredDecisions { id, sender, chunk });
+                        say(echo, kept(&daemon, &run, item).await);
+                    }
+                    AgenticLoopChunk::StructuredDecisionsResponse(chunk) => {
+                        let mut decisions = run.decisions.lock().await;
+                        let id = numbering(&daemon, &run, &mut decisions).await.response();
+                        let item = Item::StructuredDecisionsResponse(log::StructuredDecisionsResponse { id, chunk });
+                        let _ = append(&daemon, &run, item).await;
+                    }
+                    chunk => {
+                        let (sender, echo) = match user_key(&chunk) {
+                            Some(key) => echoed(&run, key).await,
+                            None => (None, None),
+                        };
+                        let item = match sender {
+                            Some(sender) => Item::User(log::User { sender, chunk }),
+                            None => Item::Chunk(chunk),
+                        };
+                        say(echo, kept(&daemon, &run, item).await);
+                    }
+                }
             }
             Ok(Event::Active) => {
                 run.loop_active.send_replace(true);
@@ -102,10 +124,63 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
     stop::end_agent(daemon, run);
 }
 
+/// Where the numbering of the agent's structured decisions stands,
+/// read back from its log the first time a run needs it: the highest
+/// id any decision or response there has, and the latest decision's
+/// where no response follows it. A log that cannot be read numbers
+/// from nothing, which is `0` again: the items are kept either way.
+async fn numbering<'a>(daemon: &Daemon, run: &AgentRun, decisions: &'a mut Option<Decisions>) -> &'a mut Decisions {
+    if decisions.is_none() {
+        let mut read = Decisions::default();
+        let kept = logs::read(&daemon.logs, run.id, 1, u64::MAX).await.unwrap_or_default();
+        for entry in kept {
+            match entry.item {
+                Item::UserStructuredDecisions(item) => {
+                    read.highest = Some(read.highest.map_or(item.id, |highest| highest.max(item.id)));
+                    read.open = Some(item.id);
+                }
+                Item::StructuredDecisionsResponse(item) => {
+                    read.highest = Some(read.highest.map_or(item.id, |highest| highest.max(item.id)));
+                    read.open = None;
+                }
+                _ => {}
+            }
+        }
+        *decisions = Some(read);
+    }
+    decisions.get_or_insert_default()
+}
+
+/// Who sent the message enqueued under `key`, and — for the first item
+/// kept under it — where its echo is said: rule 4 of
+/// [`Message`](super::Message). Neither, for a key the run does not
+/// hold.
+async fn echoed(run: &AgentRun, key: &str) -> (Option<diverge_sdk::daemon::creator::Creator>, Option<oneshot::Sender<u64>>) {
+    match run.messages.lock().await.get_mut(key) {
+        Some(message) => (Some(message.sender.clone()), message.echo.take()),
+        None => (None, None),
+    }
+}
+
+/// The echo said, where this item is one and it was kept: its
+/// `logs_index`. An item the log did not keep is no echo, and the
+/// sender is dropped unsaid.
+fn say(echo: Option<oneshot::Sender<u64>>, index: Option<u64>) {
+    if let (Some(echo), Some(index)) = (echo, index) {
+        let _ = echo.send(index);
+    }
+}
+
 /// One item onto the run's log — the one it took at its start — under
-/// its live lock, and the watchers told.
+/// its live lock, and the watchers told: its `logs_index`, or `None`
+/// where the log kept nothing.
+async fn kept(daemon: &Daemon, run: &AgentRun, item: Item) -> Option<u64> {
+    lifecycle::note(daemon.logs.clone(), run.id, Arc::clone(&run.log), item).await
+}
+
+/// One item onto the run's log, as [`kept`] keeps it.
 pub async fn append(daemon: &Daemon, run: &AgentRun, item: Item) -> Result<(), logs::Error> {
-    let _ = lifecycle::note(daemon.logs.clone(), run.id, Arc::clone(&run.log), item).await;
+    let _ = kept(daemon, run, item).await;
     Ok(())
 }
 

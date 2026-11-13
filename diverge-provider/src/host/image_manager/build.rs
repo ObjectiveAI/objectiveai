@@ -151,7 +151,14 @@ impl Job {
         );
         let file = tool_path(containerfile);
         let auth_file = tool_path(self.deployer.auth_file());
-        let command = podman::command([
+        // Rule of the hosts with a machine: the build runs in the
+        // machine, where the paths above are paths. See
+        // [`podman::inside`].
+        #[cfg(target_os = "linux")]
+        let build = podman::command;
+        #[cfg(not(target_os = "linux"))]
+        let build = podman::inside;
+        let command = build([
             "build",
             "--tag",
             &reference,

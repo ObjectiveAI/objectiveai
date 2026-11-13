@@ -17,7 +17,7 @@ use futures_util::future;
 use tokio::sync::{Mutex, watch};
 
 use crate::containers::answerers::Answerer;
-use crate::containers::images::Pulls;
+use crate::containers::images::{self, Pulls};
 use crate::containers::fuse::Mounts;
 use crate::containers::lifecycle::End;
 use crate::containers::capable::Needs;
@@ -45,7 +45,8 @@ use crate::store::{self, AgentId, DependencyToolId, hash};
 /// supervisor's next start up — every tool left told its
 /// attachments changed, and the services served the same way. A
 /// template declared twice — one id twice — or one whose secrets are
-/// not names, or not names the agent binds, a tool container asking,
+/// not names, or not names the agent binds, or one whose image has no
+/// document the daemon can read, a tool container asking,
 /// an agent gone, a store that refuses the records, no provider to
 /// run on, a path of the agent's that cannot be served, or a provider
 /// that will not run one — every candidate tried — or a service whose
@@ -86,6 +87,19 @@ pub async fn deploy(answerer: &Answerer, id: String, templates: Vec<Template>) -
             return Err(error(&template_id, &reason));
         }
         declared.push((template_id, template));
+    }
+    // Every dependency's image has a document, found as
+    // `images::document` finds it and left on record: asked of all of
+    // them at once, since no one's answer bears on another's. The
+    // first, in the order declared, that has none refuses the
+    // declaration before anything is recorded or started.
+    let documents = future::join_all(declared.iter().map(|(_, template)| images::document(daemon, &template.image))).await;
+    for ((template_id, _), document) in declared.iter().zip(documents) {
+        match document {
+            Ok(Ok(_)) => {}
+            Ok(Err(reason)) => return Err(error(template_id, &reason)),
+            Err(failure) => return Err(error(template_id, &failure.to_string())),
+        }
     }
     let (tools, left) = record(daemon, agent, agent_key, &creator, &declared)
         .await

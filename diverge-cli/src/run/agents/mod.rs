@@ -53,7 +53,8 @@ pub enum Agents {
     Get(get::Arguments),
     /// Listing a caller's agents.
     List(list::Arguments),
-    /// Sending an agent a message.
+    /// Asking an agent something: a chat message, or a structured
+    /// decision.
     Message(message::Arguments),
     /// Putting tags on an agent.
     Tag(tag::Arguments),

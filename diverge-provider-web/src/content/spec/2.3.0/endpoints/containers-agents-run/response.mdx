@@ -141,7 +141,16 @@ follows the finish.
   enqueue gave it, consecutive in the message's order. The first
   chunks the server sends after the id are the user parts of the
   message the loop started on, or of every message it started on,
-  in the order sent. A message's user parts mark it landing, and a
+  in the order sent. A structured decision of the client's lands as
+  exactly one chunk, of type `user_structured_decisions`, which
+  carries the decision's `key`, `content` and `questions` as the
+  enqueue gave them, and is the first chunk the server sends of the
+  run that the decision started. A chunk of type
+  `structured_decisions_response` carries the agent's answers in its
+  member `decisions`, an object with one member for each question the
+  program answered, named by the question's `id`. The server relays
+  both as the proxy sent them and reads neither. A message's user
+  parts mark it landing, and a
   `notification` chunk whose `is_fatal` is `true` marks a loop that
   ended in failure. No chunk marks the end of a loop: the byte `9`
   does.
@@ -291,6 +300,36 @@ and by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/respo
 and by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/tool_response_chunk.rs`:
 
 ```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/tool_response_chunk.rs
+```
+
+and by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/user_structured_decisions_chunk.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/user_structured_decisions_chunk.rs
+```
+
+and by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/structured_decisions_response_chunk.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/structured_decisions_response_chunk.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/structured_decisions/decision.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/structured_decisions/decision.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/structured_decisions/question.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/structured_decisions/question.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/structured_decisions/choice_option.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/structured_decisions/choice_option.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/structured_decisions/answer.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/structured_decisions/answer.rs
 ```
 
 and by `diverge-sdk-rs/src/provider/endpoints/containers/agents/run/server/response/notification_chunk.rs`:

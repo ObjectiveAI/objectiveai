@@ -21,7 +21,7 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ListToolsResult, MetaObject, PaginatedRequestParams,
     ReadResourceRequestParams, ReadResourceResult,
 };
-use tokio::sync::{Mutex, Notify, watch};
+use tokio::sync::{Mutex, Notify, oneshot, watch};
 use tokio::task::AbortHandle;
 
 use super::fuse::Mounts;
@@ -76,9 +76,10 @@ pub struct AgentRun {
     /// each: what a user part is logged as. See [`Message`] for when
     /// one leaves.
     pub messages: Arc<Mutex<HashMap<String, Message>>>,
-    /// The batch of messages on its way to the run: entered by the
-    /// agent's outbox pump once it has the run, before it activates
-    /// it, and left when the batch is answered — see
+    /// The requests on their way to the run: entered by the agent's
+    /// outbox pump each turn, once it has the run and before it
+    /// activates it, and left when every request of that turn is
+    /// answered; several turns may hold it at once — see
     /// [`message`](super::message). What the idle clock waits on, and
     /// what an inactive asks before it activates the run again.
     pub pending: Arc<Inflight>,
@@ -89,6 +90,15 @@ pub struct AgentRun {
     /// what the agent's outbox pump, waiting on a batch's answer,
     /// activates the run again on — see [`message`](super::message).
     pub unfed: Notify,
+    /// The index the next enqueue on the run's scope takes: `0` at the
+    /// start, one more for each, chat batches and structured decisions
+    /// alike. See [`next_index`](Self::next_index).
+    pub index: Mutex<u64>,
+    /// The ids the log gives structured decisions and their responses,
+    /// as far as this run has read them: `None` until the first is
+    /// written, when they are read back from the log. See
+    /// [`Decisions`].
+    pub decisions: Mutex<Option<Decisions>>,
     /// The tasks that are the run's: the pump and the idle clock.
     pub tasks: Mutex<Vec<AbortHandle>>,
     /// Taken for the length of one edit of the record while it runs:
@@ -136,7 +146,9 @@ pub struct Gate {
 }
 
 /// One message enqueued on an agent's run, as its `messages` keep it.
-/// The rules, so the map holds only what can still be named:
+/// The rules, so the map holds only what can still be named — and so
+/// an entry's leaving, with `echo` never said, is the message never
+/// echoed, which a watched message is answered by: see rule 4.
 ///
 /// 1. **Kept from the enqueue.** An entry is made when the message is
 ///    taken into a batch, before the batch goes out.
@@ -150,7 +162,15 @@ pub struct Gate {
 ///    pump, at every `inactive`, removes each delivered entry it marked
 ///    at an earlier one, and marks the delivered rest: an entry leaves
 ///    at the latest one loop after the loop that took it.
-#[derive(Debug, Clone)]
+/// 4. **The echo is said once, and an entry gone unsaid never is.**
+///    The run's pump says `echo` — the `logs_index` of the item —
+///    as it keeps the first item under the message's key: a chat
+///    message's first user part, a structured decision's own item.
+///    An entry that leaves first — by rule 2, by rule 3, or with the
+///    run, whose end empties the map — drops it unsaid, and the
+///    message is echoed no more: an item under a key the map does not
+///    hold is kept as any other chunk, with no sender.
+#[derive(Debug)]
 pub struct Message {
     /// Who sent it.
     pub sender: Creator,
@@ -158,16 +178,68 @@ pub struct Message {
     pub delivered: bool,
     /// Whether an `inactive` has passed since it was delivered: rule 3.
     pub swept: bool,
+    /// Where its echo is said, until it is: rule 4.
+    pub echo: Option<oneshot::Sender<u64>>,
 }
 
 impl Message {
     /// A message just enqueued: rule 1.
-    pub fn new(sender: Creator) -> Self {
-        Message { sender, delivered: false, swept: false }
+    pub fn new(sender: Creator, echo: oneshot::Sender<u64>) -> Self {
+        Message { sender, delivered: false, swept: false, echo: Some(echo) }
+    }
+}
+
+/// Where the numbering of an agent's structured decisions stands in
+/// its log: what the rules of
+/// [`UserStructuredDecisions`](diverge_sdk::daemon::agent_log::UserStructuredDecisions)
+/// need to give the next one its id.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Decisions {
+    /// The highest id any decision or response in the log has, or
+    /// `None` where none has one.
+    pub highest: Option<u64>,
+    /// The id of the latest decision, while no response has taken it.
+    pub open: Option<u64>,
+}
+
+impl Decisions {
+    /// One more than the highest id, `0` where there is none: taken,
+    /// and now the highest.
+    fn fresh(&mut self) -> u64 {
+        let id = self.highest.map_or(0, |highest| highest + 1);
+        self.highest = Some(id);
+        id
+    }
+
+    /// Rule 1: a decision's id, which the next response takes.
+    pub fn decision(&mut self) -> u64 {
+        let id = self.fresh();
+        self.open = Some(id);
+        id
+    }
+
+    /// Rules 2 and 3: a response's id — the open decision's, taken, or
+    /// a fresh one.
+    pub fn response(&mut self) -> u64 {
+        match self.open.take() {
+            Some(id) => id,
+            None => self.fresh(),
+        }
     }
 }
 
 impl AgentRun {
+    /// The index the next enqueue takes, and the counter moved past it.
+    /// Only the agent's outbox pump asks, one request at a time and in
+    /// the order the messages were admitted, so the indexes are that
+    /// order — which is what orders them at the container's proxy, since
+    /// the pump waits for no answer before it sends the next.
+    pub async fn next_index(&self) -> u64 {
+        let mut index = self.index.lock().await;
+        let taken = *index;
+        *index += 1;
+        taken
+    }
     /// Rule 3 of [`Message`], at an `inactive`: every delivered entry
     /// marked at an earlier one removed, and the delivered rest marked.
     pub async fn sweep_messages(&self) {

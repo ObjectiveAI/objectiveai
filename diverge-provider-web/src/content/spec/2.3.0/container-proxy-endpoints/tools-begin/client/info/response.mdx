@@ -16,16 +16,29 @@ draft: false
   response precedes states that the server did not serve the
   question.
 - **The document.** The byte `0` is followed by exactly one JSON
-  object of three or four members, which the server reads from the file. The
+  object of at least three and at most six members, which the server reads from the file. The
   file begins with a line that is exactly `---`; the lines after it,
   up to the next line that is exactly `---`, are the frontmatter. The
   frontmatter is exactly one JSON object with the members `name`, a
   string, which the server sends as `name`, the image's own name; and
   `schema`, a JSON object, which the server sends as `schema`, the
-  JSON Schema of the container's `arguments`; and at most one further
-  member, `frontend`, a boolean. The frontmatter has no other member.
+  JSON Schema of the container's `arguments`; and at most three further
+  members: `frontend`, a boolean; `chat`; and `structured_decisions`.
+  The value of `chat` is the boolean `false` or an object of exactly
+  one member, `prompt_modalities`. The value of
+  `structured_decisions` is the boolean `false` or an object of
+  exactly three members, `prompt_modalities`, `instruction_modalities` and `choice_modalities`.
+  Each of those four members is an object of exactly three members,
+  `image`, `audio` and `file`, each a boolean. The frontmatter has no
+  other member, and a frontmatter in which `chat` or
+  `structured_decisions` is `true` is not a document.
   The server sends `frontend` with the value `true` when the
-  frontmatter's `frontend` is `true`, and omits it otherwise. Every byte
+  frontmatter's `frontend` is `true`, and omits it otherwise. The
+  server sends `chat` with the frontmatter's object when the
+  frontmatter's `chat` is an object, and omits it otherwise. The
+  server sends `structured_decisions` with the frontmatter's object
+  when the frontmatter's `structured_decisions` is an object, and
+  omits it otherwise. Every byte
   after the closing line is `body`, a string, verbatim. The server
   reads the file as UTF-8 and reads no member further.
 - **Missing.** The byte `1` states that the image ships no
@@ -54,4 +67,24 @@ and by `diverge-sdk-rs/src/shared/containers/info/response/frame.rs`:
 and the document by `diverge-sdk-rs/src/shared/containers/info/document.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/containers/info/document.rs
+```
+
+`chat` and `structured_decisions` are defined by `diverge-sdk-rs/src/shared/containers/info/false_or.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/false_or.rs
+```
+
+by `diverge-sdk-rs/src/shared/containers/info/chat.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/chat.rs
+```
+
+by `diverge-sdk-rs/src/shared/containers/info/structured_decisions.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/structured_decisions.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/info/modalities.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/modalities.rs
 ```

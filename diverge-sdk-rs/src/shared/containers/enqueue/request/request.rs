@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Error;
 
-use super::Message;
+use super::Item;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
@@ -50,10 +50,35 @@ use crate::wire::encode::{Encode, Writer};
 /// program joins its messages in that order, as one user turn. A
 /// caller that sends one batch at a time, each after the last was
 /// answered, has its messages taken in the order it sent them.
+///
+/// # Chat, or a decision
+///
+/// A request hands the agent one [`Item`]: a batch of chat messages,
+/// which everything above is about, or one structured decision. A
+/// decision is not queued onto a running loop. It waits until the
+/// agent's program is idle — no run open — and starts a run of its
+/// own, and while that run is open nothing else is handed over, chat
+/// included: its fate is `delivered` when the program accepts that
+/// run. So a decision is taken alone, after everything before it has
+/// finished, and finishes before anything after it starts.
+///
+/// # The index
+///
+/// A caller sends a second request without waiting for the first's
+/// answer, and each is a channel of its own, so nothing on the wire
+/// orders them. The `index` does: a caller numbers its requests on one
+/// run scope from `0`, one more each, chat and decisions alike, and
+/// the proxy hands the items over strictly in that order — one that
+/// arrives ahead of an index not yet seen waits for it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Request {
-    /// The batch's messages, in order, each under its key.
-    pub messages: Vec<Message>,
+    /// This request's place among the requests of its run scope: `0`
+    /// for the first, one more for each after, shared by chat and
+    /// decisions.
+    pub index: u64,
+    /// What is handed over: see [`Item`]. Flat beside the index.
+    #[serde(flatten)]
+    pub item: Item,
 }
 
 /// Its JSON, and nothing in front of it. The tag that says which

@@ -1,6 +1,7 @@
-//! Permissions that name nothing: the grants a tool's program declares
-//! for itself at its registration, and the actions every grant of the
-//! daemon's is made of.
+//! Permissions that name nothing but, at most, the agents a program
+//! was given: the grants a tool's program declares for itself at its
+//! registration, and the actions every grant of the daemon's is made
+//! of.
 //!
 //! A GRANT is one permission over one kind of thing the daemon holds
 //! — agents, agent templates, standalone tools, their templates,
@@ -30,7 +31,16 @@
 //! account or a role appears anywhere, and no route: a tool's image is
 //! meant to travel — run by one caller and another, declaring the same
 //! everywhere — and a name is one daemon's word for
-//! one thing, while a tag is a convention a template may assume. The
+//! one thing, while a tag is a convention a template may assume.
+//!
+//! One form is the exception, and it is over agents alone:
+//! `{"agents":[…]}`, exactly the agents listed, each by its template
+//! and index ([`agents::Key`]). It is for a program whose ARGUMENTS
+//! are a list of agents, and it does not break the rule the others
+//! keep: the image still declares nothing of its own choosing. The
+//! program reads the agents out of the arguments it was registered
+//! with and declares those, so the same image declares one list here
+//! and another there, and is held to whichever it was given. The
 //! database and the events, of each of which there is one, and images,
 //! which are named and never held, are a bare array of actions each,
 //! as they are for the daemon.

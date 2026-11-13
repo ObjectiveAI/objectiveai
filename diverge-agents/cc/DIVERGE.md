@@ -1,6 +1,14 @@
 ---
 {
   "name": "cc",
+  "chat": {
+    "prompt_modalities": {
+      "image": true,
+      "audio": false,
+      "file": false
+    }
+  },
+  "structured_decisions": false,
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Agent",

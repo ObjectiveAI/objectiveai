@@ -2,21 +2,20 @@
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 use crate::shared::relay::Relay;
 
 use crate::daemon::reference;
 
-/// Ask the daemon to send an agent a message.
+use super::Message;
+
+/// Ask the daemon to ask an agent something.
 ///
 /// The name is the one a [`create`](crate::daemon::endpoints::agents::create)
-/// gave the agent. The content is the message, as the provider's
-/// enqueue carries one: a list of MCP content blocks, in order, which
-/// the daemon relays to the agent's container verbatim and does not
-/// read. What the agent makes of a block is its image's; an image
-/// that cannot take one refuses the whole message, and the scope's
-/// error carries its words.
+/// gave the agent. What is asked is the frame's `type` and the members
+/// of that kind, beside its own: see [`Message`]. What the agent makes
+/// of a block it is sent is its image's; an image that cannot take one
+/// refuses the whole request, and the scope's error carries its words.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
@@ -24,8 +23,15 @@ pub struct Frame {
     /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
-    /// The message's content, in order.
-    pub content: Vec<ContentBlock>,
+    /// What is asked: its `type`, and that kind's members.
+    #[serde(flatten)]
+    pub message: Message,
+    /// Whether to watch: `true` has the answer be the part of the
+    /// agent's log that is the request's, as the
+    /// [response](super::super::server::response::Frame) states.
+    /// Absent or `false`, the answer is the request's fate alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub watch: Option<bool>,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,

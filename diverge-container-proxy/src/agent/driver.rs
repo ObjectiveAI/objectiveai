@@ -2,12 +2,12 @@
 //! state, the gate, and every decision about what the agent's server
 //! is asked.
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
-use diverge_sdk::shared::containers::enqueue::request::Message;
+use diverge_sdk::shared::containers::enqueue::request::{Item, Message};
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::shared::error::Error;
 use tokio::sync::{mpsc, oneshot};
@@ -25,15 +25,25 @@ struct Delivering {
     outcome: oneshot::Receiver<Outcome>,
 }
 
-/// Whether a loop runs.
+/// What a run was started on, which is what may join it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    /// Chat messages: a loop, which chat messages join by `/enqueue`.
+    Chat,
+    /// One structured decision: nothing joins it, chat or decision.
+    Decision,
+}
+
+/// Whether a run is open.
 enum Run {
-    /// No loop. The next batch starts one.
+    /// No run. The head of the queue starts one.
     Idle,
-    /// `/run` is on the wire, with these batches' messages as its
-    /// content; their fates follow its answer.
-    Starting(Vec<Batch>),
-    /// A loop runs, and its chunks are being relayed.
-    Active,
+    /// `/run` is on the wire, with these batches as its content — the
+    /// chat batches joined, or the one decision; their fates follow
+    /// its answer.
+    Starting(Vec<Batch>, Mode),
+    /// A run is open, and its chunks are being relayed.
+    Active(Mode),
 }
 
 /// A feed the server sent and the driver has not put on the wire.
@@ -55,27 +65,35 @@ struct Feeding {
 /// 2. A batch is in exactly one place until its fate is sent: the
 ///    queue, the batches being delivered, or a starting run's. A
 ///    batch is never split, and its messages stay in its order.
-/// 3. The queue is in the order the batches reached the driver,
-///    always: a new batch goes to the back, and the batches that come
-///    back go to the front, in the order they held, ahead of
-///    everything that reached the driver after them. The daemon sends
-///    one batch at a time, each after the last was answered, so in
-///    practice the queue holds at most one.
-/// 4. Everything sent is sent whole: the `/run` takes the whole
-///    queue, and so does the `/enqueue` — every batch's messages,
-///    joined in order, which the agent's server takes as one user
-///    turn.
-/// 5. At most one call carrying messages is on the wire — a `/run` or
+/// 3. The queue is in the order of the batches' indexes, always. A
+///    batch reaches the driver with the index its enqueue carried,
+///    and joins the back of the queue only once every index before
+///    its own has: one that arrives early waits in `arrived`. The
+///    batches that come back go to the front, in the order they held,
+///    ahead of everything queued after them.
+/// 4. What is sent is the head of the queue, by what the head is. A
+///    run of chat batches at the head, as far as the first structured
+///    decision, is sent whole and joined — in a `/run`, or in an
+///    `/enqueue` to a chat run — every batch's messages in order,
+///    which the agent's server takes as one user turn. A structured
+///    decision at the head is sent alone, in a `/run` of its own, and
+///    only to a program with no run open: it waits for the run in
+///    flight to end, whatever that run was started on.
+/// 5. While a structured decision's run is open nothing is sent:
+///    no chat batch joins it and no decision follows it until it has
+///    ended. So a decision is handed over after everything before it
+///    has finished, and finishes before anything after it starts.
+/// 6. At most one call carrying messages is on the wire — a `/run` or
 ///    an `/enqueue` — so the agent's server receives every batch in
 ///    order, and batches that come back are never overtaken by a
 ///    newer one.
-/// 6. A batch's fate is the answer to the call that carried it, and
+/// 7. A batch's fate is the answer to the call that carried it, and
 ///    the batches in one call share it: `Delivered` on the `/run`'s
 ///    `2xx` or the `/enqueue`'s `204`, the error on a refusal. Nothing
 ///    is withdrawn, and no fate waits for a turn.
-/// 7. The driver never awaits the agent's server: every call is a
+/// 8. The driver never awaits the agent's server: every call is a
 ///    task of its own, reporting back on a channel.
-/// 8. The gate is the driver's: a run is launched, or a batch
+/// 9. The gate is the driver's: a run is launched, or a batch
 ///    delivered, only while `fed`. It is shut at the begin, whatever
 ///    the program declared. It opens in the step that reads a feed's
 ///    success — the same step that answers the server's `Fed` — save
@@ -83,13 +101,19 @@ struct Feeding {
 ///    step that reads the loop's end — the same step that writes
 ///    `Inactive` — so the server never hears `Fed` for a gate that
 ///    then shuts behind it.
-/// 9. What the driver writes on the begin scope's main stream is
+/// 10. What the driver writes on the begin scope's main stream is
 ///    `Inactive`, with the rotating secrets collected, and — when the
 ///    collect failed — the one `Error` that ends the run, after which
 ///    the begin loop finishes the scope. The `Active` and the chunks
 ///    are [`run::relay`]'s.
 struct Driver {
     queue: VecDeque<Batch>,
+    /// Batches that reached the driver ahead of an index not yet
+    /// seen, by index: invariant 3.
+    arrived: BTreeMap<u64, Batch>,
+    /// The index the next batch to join the queue carries: `0` at the
+    /// begin, one more for each that has joined.
+    next: u64,
     delivering: Option<Delivering>,
     run: Run,
     /// The loop in flight closed under an `/enqueue`, or would not
@@ -126,7 +150,9 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> 
 ///
 /// The rules, by event:
 ///
-/// 1. An enqueue's batch goes to the back of the queue.
+/// 1. An enqueue's batch joins the back of the queue when its index
+///    is the next, and every batch waiting on it after it; one ahead
+///    of its turn waits.
 /// 2. The `/run`'s answer: a `2xx` delivers every batch it carried
 ///    and starts the relay; anything else answers every one with the
 ///    error.
@@ -149,9 +175,11 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> 
 ///
 /// The post-step runs after EVERY event. While an `/enqueue` is on
 /// the wire it sends nothing; otherwise, behind an open gate and with
-/// a queue, it launches `/run` with the whole of it when no loop
-/// runs, and sends the whole of it as one `/enqueue` while one runs
-/// and is not closed. That is what closes the race between a batch
+/// a queue, it sends the head of it as invariants 4 and 5 state: with
+/// no run open, a `/run` — on the chat batches at the head, joined,
+/// or on the one structured decision there; with a chat run open and
+/// not closed, one `/enqueue` of the chat batches at the head, where
+/// there are any; and nothing while a decision's run is open. That is what closes the race between a batch
 /// and the loop's end: a loop ending before its batch's `409` leaves
 /// the batch on the wire — and nothing launched — until the outcome
 /// puts it back at the front of the queue, and the next post-step
@@ -164,6 +192,8 @@ pub fn driver(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool) -> 
 async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mut commands: mpsc::UnboundedReceiver<Cmd>) {
     let mut driver = Driver {
         queue: VecDeque::new(),
+        arrived: BTreeMap::new(),
+        next: 0,
         delivering: None,
         run: Run::Idle,
         closed: false,
@@ -182,14 +212,22 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
         tokio::select! {
             command = commands.recv() => match command {
                 None => break,
-                Some(Cmd::Enqueue(batch)) => driver.queue.push_back(batch),
+                Some(Cmd::Enqueue(index, batch)) => {
+                    // Rule 1: held until its turn, then queued with
+                    // every batch that waited on it.
+                    driver.arrived.insert(index, batch);
+                    while let Some(batch) = driver.arrived.remove(&driver.next) {
+                        driver.queue.push_back(batch);
+                        driver.next += 1;
+                    }
+                }
                 Some(Cmd::Feed { values, reply }) => driver.feeds.push_back(Feed { values, reply }),
             },
             started = wait(starting.as_mut()), if starting.is_some() => {
                 starting = None;
-                let batches = match std::mem::replace(&mut driver.run, Run::Idle) {
-                    Run::Starting(batches) => batches,
-                    Run::Idle | Run::Active => Vec::new(),
+                let (batches, mode) = match std::mem::replace(&mut driver.run, Run::Idle) {
+                    Run::Starting(batches, mode) => (batches, mode),
+                    Run::Idle | Run::Active(_) => (Vec::new(), Mode::Chat),
                 };
                 match started {
                     Ok(Ok(response)) => {
@@ -197,7 +235,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
                             let _ = batch.fate.send(Fate::Delivered);
                         }
                         ended = Some(run::relay(Arc::clone(&proxy), response, Arc::clone(&scope), word.take()));
-                        driver.run = Run::Active;
+                        driver.run = Run::Active(mode);
                     }
                     Ok(Err(error)) => {
                         for batch in batches {
@@ -257,7 +295,7 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
                         // on the batches. A loop that has ended already
                         // is not closed: the flag is the loop in flight's,
                         // and would otherwise shut the next one.
-                        driver.closed = matches!(driver.run, Run::Active);
+                        driver.closed = matches!(driver.run, Run::Active(_));
                         // Back at the front, in the order they held:
                         // the last first, so the first ends up first,
                         // ahead of anything that came after them.
@@ -296,19 +334,40 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
         // delivered, or a feed put on the wire.
         if driver.delivering.is_none() && driver.fed && !driver.queue.is_empty() {
             match driver.run {
+                // Invariant 4: no run open, so the head starts one —
+                // the one decision there, alone, or the chat batches
+                // as far as the first decision, joined.
                 Run::Idle => {
-                    let batches: Vec<Batch> = driver.queue.drain(..).collect();
-                    starting = Some(run::start(Arc::clone(&proxy), messages(&batches)));
-                    driver.run = Run::Starting(batches);
+                    let decision = match driver.queue.front().map(|batch| &batch.item) {
+                        Some(Item::StructuredDecisions(decision)) => Some(decision.clone()),
+                        _ => None,
+                    };
+                    match decision {
+                        Some(decision) => {
+                            let batches: Vec<Batch> = driver.queue.pop_front().into_iter().collect();
+                            starting = Some(run::start(Arc::clone(&proxy), Item::StructuredDecisions(decision)));
+                            driver.run = Run::Starting(batches, Mode::Decision);
+                        }
+                        None => {
+                            let batches = chats(&mut driver.queue);
+                            starting = Some(run::start(Arc::clone(&proxy), Item::Chat { messages: messages(&batches) }));
+                            driver.run = Run::Starting(batches, Mode::Chat);
+                        }
+                    }
                 }
-                Run::Active if !driver.closed => {
-                    let batches: Vec<Batch> = driver.queue.drain(..).collect();
-                    driver.delivering = Some(Delivering {
-                        outcome: super::deliver(Arc::clone(&proxy), messages(&batches)),
-                        batches,
-                    });
+                // Invariant 4: a chat run takes the chat batches at
+                // the head, and a decision there waits for its end.
+                Run::Active(Mode::Chat) if !driver.closed => {
+                    let batches = chats(&mut driver.queue);
+                    if !batches.is_empty() {
+                        driver.delivering = Some(Delivering {
+                            outcome: super::deliver(Arc::clone(&proxy), messages(&batches)),
+                            batches,
+                        });
+                    }
                 }
-                Run::Starting(_) | Run::Active => {}
+                // Invariant 5: a decision's run takes nothing.
+                Run::Starting(..) | Run::Active(_) => {}
             }
         }
         if feeding.is_none() {
@@ -322,11 +381,29 @@ async fn drive(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, registering: bool, mu
     }
 }
 
-/// The batches as the loop is asked them: every message of every
+/// The chat batches at the head of the queue, taken: every one as far
+/// as the first structured decision, in order. None where the head is
+/// a decision.
+fn chats(queue: &mut VecDeque<Batch>) -> Vec<Batch> {
+    let mut taken = Vec::new();
+    while queue.front().is_some_and(|batch| !batch.is_decision()) {
+        taken.extend(queue.pop_front());
+    }
+    taken
+}
+
+/// Chat batches as the loop is asked them: every message of every
 /// batch, under its key, the batches in the order the queue held them
-/// and each batch's messages in its own.
+/// and each batch's messages in its own. A structured decision among
+/// them has no messages and adds none; [`chats`] hands this none.
 fn messages(batches: &[Batch]) -> Vec<Message> {
-    batches.iter().flat_map(|batch| batch.messages.iter().cloned()).collect()
+    batches
+        .iter()
+        .flat_map(|batch| match &batch.item {
+            Item::Chat { messages } => messages.clone(),
+            Item::StructuredDecisions(_) => Vec::new(),
+        })
+        .collect()
 }
 
 /// The slot's answer, or forever when there is no slot: a branch

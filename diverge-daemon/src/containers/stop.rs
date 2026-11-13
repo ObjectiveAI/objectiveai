@@ -89,6 +89,9 @@ async fn down_agent(daemon: &Daemon, run: Arc<AgentRun>) {
     for task in run.tasks.lock().await.drain(..) {
         task.abort();
     }
+    // Rule 4 of `Message`: the run's pump is ended, so nothing more is
+    // echoed, and every message not echoed is told so now.
+    run.messages.lock().await.clear();
     let end = run.end().await;
     lifecycle::undeployed(daemon.logs.clone(), run.id, Arc::clone(&run.log), run.epoch, end.reason()).await;
     run.loop_active.send_replace(false);

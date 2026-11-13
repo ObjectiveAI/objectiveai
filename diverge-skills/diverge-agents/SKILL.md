@@ -1,6 +1,6 @@
 ---
 name: diverge-agents
-description: Diverge agents through the `diverge run agents` commands — agent templates (`agents templates create|get|list|delete|tag|untag`; the template body with image, memory, disk, arguments, secrets; the template id as a hash), agents (`agents create|get|list|edit|delete|tag|untag`, provider pin, volume mounts, FUSE mounts, secret bindings), sending an agent a message (`agents message`, content blocks, delivery order, idle stop and restart), MCP as an agent (`agents connect list-tools|call-tool|list-resources|read-resource`), files in an agent's container (`agents filetree|download|upload|transfer`), `agents exec`, `agents terminal`, `agents frontend`, agent references (`{"name":…}` vs `{"template":…,"index":…}`), and the agent lifecycle its log shows (deployed, active, inactive, undeployed). Load it when asked to make, run, message, inspect, change, debug or delete a Diverge agent or agent template.
+description: Diverge agents through the `diverge run agents` commands — agent templates (`agents templates create|get|list|delete|tag|untag`; the template body with image, memory, disk, arguments, secrets; the template id as a hash), agents (`agents create|get|list|edit|delete|tag|untag`, provider pin, volume mounts, FUSE mounts, secret bindings), asking an agent something with `agents message` (`type` `chat`: content blocks, delivery order, idle stop and restart; `type` `structured_decisions`: a prompt and typed questions — noul, choice, score — answered with numbers in the log; `watch` to get back the agent's log for that request), MCP as an agent (`agents connect list-tools|call-tool|list-resources|read-resource`), files in an agent's container (`agents filetree|download|upload|transfer`), `agents exec`, `agents terminal`, `agents frontend`, agent references (`{"name":…}` vs `{"template":…,"index":…}`), and the agent lifecycle its log shows (deployed, active, inactive, undeployed). Load it when asked to make, run, message, inspect, change, debug or delete a Diverge agent or agent template.
 ---
 
 # Diverge agents
@@ -72,7 +72,7 @@ diverge run agents templates create '{
 | `description` | Free text for whoever creates agents from it (which mounts it needs, and so on). In the hash. Optional. |
 
 Answers: `{"created":"<id>"}`, `{"exists":"<id>"}` (the same template was made before; not a failure),
-`"forbidden"`, `{"error":…}`. The **id** is the lowercase hex SHA-256 of the template's canonical JSON
+`"forbidden"`, `{"error":…}`. The image is not checked here; `agents create` checks it. The **id** is the lowercase hex SHA-256 of the template's canonical JSON
 (64 characters). Capture it:
 
 ```bash
@@ -194,8 +194,18 @@ diverge run agents untag  '{"agent":{"name":"echo"},"tags":["blue"]}'          #
 
 ## Messaging
 
+One command, `agents message`, asks an agent one of two things, by the body's `type`, both under the one
+`message` grant:
+
+- `"type":"chat"`: a message that joins the agent's conversation. Everything below, up to
+  [Structured decisions](#structured-decisions), is about chat.
+- `"type":"structured_decisions"`: a prompt and typed questions, answered with numbers.
+
+Add `"watch":true` to either to get the agent's log for that request back in place of the one-line fate:
+see [Watching](#watching).
+
 ```bash
-diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"hello"}]}'
+diverge run agents message '{"agent":{"name":"echo"},"type":"chat","content":[{"type":"text","text":"hello"}]}'
 # "delivered"
 ```
 
@@ -211,7 +221,8 @@ diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","
 
 Rules:
 
-- **One request, one answer**: `"delivered"`, `"forbidden"` or `{"error":…}`. `delivered` means the agent's
+- **One request, one answer** (unwatched): `"delivered"`, `"forbidden"`, `"no_chat"`,
+  `{"unsupported_modalities":{"prompt":[…],"instruction":[],"choice":[]}}` or `{"error":…}`. `delivered` means the agent's
   program accepted the message (the loop it started took it, or it went onto the program's own queue). It
   does not mean the agent has answered. The answer is in the log.
 - **Nothing takes a message back.** There is no cancel and no dequeue.
@@ -225,11 +236,99 @@ Rules:
 - **Idle stop**: once the agent is inactive and unused for the daemon's `idle_seconds` (default 10), its
   container is stopped. The record, the conversation and anything on mounted volumes persist; the next
   message starts it again. Files written only to the container's own disk are gone with the container.
+- **What the agent takes**: the daemon holds the message to the `chat` of the agent's image's `DIVERGE.md`
+  before sending anything. `"no_chat"`: the image does not chat, and no message is taken.
+  `{"unsupported_modalities":{"prompt":["audio"],"instruction":[],"choice":[]}}`: the message carries an image, audio or a file (a resource with
+  `blob` that is neither `image/*` nor `audio/*`) that the image's `prompt_modalities` says `false` to; the
+  whole message is refused. Either way nothing was started and the agent's log has no line of it. Text, a
+  text resource and a resource link are always taken.
 - **Errors**: no such agent is an `{"error":…}` here (not `"not_found"`); so is an image that refuses a block
   kind it cannot take (the whole message is refused), and a run that could not start (missing secret value,
   a dependency that did not deploy, no capable provider). The same failure is kept in the agent's log.
 - A first message that fails with "connection ended before the channel answered" usually means dependency
   tools were still deploying. Send it again.
+
+### Structured decisions
+
+```bash
+diverge run agents message '{
+  "agent": {"name": "judge"},
+  "type": "structured_decisions",
+  "content": [{"type":"text","text":"Review this pull request."}],
+  "questions": [
+    {"id":"risk","type":"noul","instructions":[{"type":"text","text":"How risky is merging it, from 0 to 1?"}]},
+    {"id":"verdict","type":"choice","instructions":[{"type":"text","text":"What should happen?"}],
+     "options":[{"value":"merge"},{"value":"revise","description":[{"type":"text","text":"Send it back with comments."}]}]},
+    {"id":"quality","type":"score","instructions":[{"type":"text","text":"Rate the code."}],
+     "levels":[[{"type":"text","text":"Poor"}],[{"type":"text","text":"Fine"}],[{"type":"text","text":"Excellent"}]]}
+  ]
+}'
+# "delivered"
+```
+
+`content` is the prompt, the same blocks as chat. Each question has an `id` (the key its answer comes back
+under), a `type`, and `instructions` (content blocks):
+
+| `type` | adds | answered with |
+|---|---|---|
+| `noul` | nothing | `{"noul": 0.25}` |
+| `choice` | `options`: each `{"value": "<text>", "description"?: [blocks]}` | `{"probabilities": {"<value>": 0.7, …}}` |
+| `score` | `levels`: each a list of blocks | `{"score": 3.4, "probabilities": [0.1, 0.2, …]}` |
+
+Rules:
+
+- **Unwatched, the answer is the decision's fate, not the agent's answers**: `"delivered"`, `"forbidden"`,
+  `"no_structured_decisions"`, `{"unsupported_modalities":{"prompt":[…],"instruction":[…],"choice":[…]}}` or `{"error":…}`.
+  The agent's answers are in its log (see `diverge-logs`); `"watch":true` streams them to you.
+- **The image must declare them.** `"no_structured_decisions"` when the image's `DIVERGE.md` says
+  `structured_decisions: false` (every image in this repository does, so nothing here answers one yet).
+- **The questions are validated before anything is sent**; a fault is
+  `{"error":{"kind":"questions","question":"<id>","error":"…"}}`:
+  - at least one question; ids non-empty and distinct;
+  - `instructions` non-empty;
+  - a choice has at least two options, each `value` non-empty and distinct within the question, each
+    `description` absent or non-empty;
+  - a score has at least two levels, each non-empty.
+  - "Non-empty" means at least one block that is not an empty text block. Whitespace counts and nothing
+    is trimmed; any image, audio, resource or link counts.
+- **Modalities**: `content` is held to the image's `structured_decisions.prompt_modalities`; every
+  question's `instructions` to its `instruction_modalities`; every option `description` and every score
+  level to its `choice_modalities`. The answer lists what was carried and not taken, by where.
+- **Order**: chat messages and decisions to one agent are taken in the order they were sent, whichever
+  each is. A decision is not queued onto a running turn: it waits until the agent has finished everything
+  before it and is idle, runs alone, and finishes before anything after it starts. So `"delivered"` for a
+  decision can come long after it was sent, and a chat sent after a decision waits for the decision to
+  finish.
+- Nothing takes a decision back.
+
+### Watching
+
+`"watch":true` ties what you sent to what the agent did with it. The command then prints the part of the
+agent's log that belongs to your request, one line per entry, in the same `{"item":{"agent":{…}}}` shape
+`diverge run logs` prints, and exits by itself:
+
+```bash
+diverge run agents message '{"agent":{"name":"echo"},"type":"chat","watch":true,
+  "content":[{"type":"text","text":"hello"}]}' \
+  --jq '.item.agent | select(.type=="assistant_text_content") | .text'
+```
+
+- **The first line is your request, echoed**: for chat, its first `user_*` entry; for a decision, its
+  `user_structured_decisions` entry (its `id` is the one the answer carries). No `"delivered"` is printed.
+- **Then every entry the log takes after it**, yours or not (the agent's text, tool calls, errors, another
+  sender's message that joined the same run), through the last:
+  - chat: the first `inactive` after the echo, which is the end of the run your message landed in;
+  - decision: the `structured_decisions_response` with the echoed decision's `id`. If the agent never
+    answers, the first `inactive`. The last line's `type` tells you which.
+- **Nothing is printed before the echo.** A message waiting for the container to start, or behind a
+  decision, prints nothing until it is taken up; entries from runs before its own are not yours and are
+  not printed. A chat that joins a run already going gets that run from its echo on, not from its start.
+- **A request that never reaches an echo prints one line**: the refusal or `{"error":…}` it would have had
+  unwatched (a run that could not start is an `{"error":…}` with the start's own reason), or `"dropped"`.
+- **`"dropped"`**: the agent's program accepted the request and its run ended (or went idle twice) without
+  ever echoing it. It will not show up later: a request belongs to the one run it was delivered into.
+  Treat it as not handled and send it again.
+- Stopping the command (or `--timeout`) ends the watch only. The request still goes to the agent.
 
 Read the reply:
 

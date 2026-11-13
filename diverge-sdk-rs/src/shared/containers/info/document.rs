@@ -3,16 +3,22 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::ParseError;
+use super::{Chat, FalseOr, ParseError, StructuredDecisions};
 
 /// `/DIVERGE.md`, parsed: the image's name, the arguments' JSON
-/// Schema, whether its program serves a frontend, and the text beneath
+/// Schema, whether its program serves a frontend, how an agent's
+/// program chats and makes structured decisions, and the text beneath
 /// them.
 ///
 /// The frontmatter is one JSON object with the members `name` and
-/// `schema`, and `frontend` where the program serves one — raw JSON,
+/// `schema`, `frontend` where the program serves one, and, in an
+/// agent's image, `chat` and `structured_decisions` — raw JSON,
 /// which is YAML's flow style and so reads as a frontmatter anywhere
-/// one is expected. The body is the image's
+/// one is expected. An agent's frontmatter and a tool's differ by
+/// those two members alone, and the document is one type: an image is
+/// asked for its document by its digest, by a caller that does not
+/// know which of the two it is. A tool's image states neither, which
+/// reads as `false`. The body is the image's
 /// prose: what it runs and the secrets it declares, kept as the author
 /// left it. The provider carries and does not read any of it; a caller
 /// reads the name to call the image something and the schema to learn
@@ -37,6 +43,16 @@ pub struct Document {
     /// where the frontmatter says so. Absent, `false`.
     #[serde(default, skip_serializing_if = "is_false")]
     pub frontend: bool,
+    /// Whether an agent's program chats — takes a message and answers
+    /// it — and how: `false`, or a [`Chat`]. Never `true`. Absent,
+    /// `false`.
+    #[serde(default, skip_serializing_if = "FalseOr::is_false")]
+    pub chat: FalseOr<Chat>,
+    /// Whether an agent's program makes structured decisions, and how:
+    /// `false`, or a [`StructuredDecisions`]. Never `true`. Absent,
+    /// `false`.
+    #[serde(default, skip_serializing_if = "FalseOr::is_false")]
+    pub structured_decisions: FalseOr<StructuredDecisions>,
     /// Everything after the closing `---` line, verbatim: leading
     /// blank lines, trailing newline and all.
     pub body: String,
@@ -55,6 +71,10 @@ struct Frontmatter {
     schema: Value,
     #[serde(default, skip_serializing_if = "is_false")]
     frontend: bool,
+    #[serde(default, skip_serializing_if = "FalseOr::is_false")]
+    chat: FalseOr<Chat>,
+    #[serde(default, skip_serializing_if = "FalseOr::is_false")]
+    structured_decisions: FalseOr<StructuredDecisions>,
 }
 
 /// Whether one line, as [`str::split_inclusive`] on `\n` yields it, is
@@ -77,7 +97,10 @@ impl Document {
     ///    [`ParseError::Unterminated`].
     /// 3. The frontmatter parses as JSON into one object with the
     ///    members `name`, a string, and `schema`, and perhaps
-    ///    `frontend`, a boolean, `false` when absent; no other member.
+    ///    `frontend`, a boolean, `false` when absent, and perhaps
+    ///    `chat` and `structured_decisions`, each `false` or an object
+    ///    as [`FalseOr`] reads one, `false` when absent; no other
+    ///    member.
     ///    Otherwise [`ParseError::Json`] — a member missing, a member
     ///    more or a member of the wrong type included.
     /// 4. `schema` is an object, since a JSON Schema is one; any other
@@ -96,19 +119,20 @@ impl Document {
         loop {
             let line = lines.next().ok_or(ParseError::Unterminated)?;
             if is_fence(line) {
-                let Frontmatter { name, schema, frontend } = serde_json::from_str(&text[start..end]).map_err(ParseError::Json)?;
+                let Frontmatter { name, schema, frontend, chat, structured_decisions } = serde_json::from_str(&text[start..end]).map_err(ParseError::Json)?;
                 if !schema.is_object() {
                     return Err(ParseError::NotObject);
                 }
                 let body = text[end + line.len()..].to_owned();
-                return Ok(Document { name, schema, frontend, body });
+                return Ok(Document { name, schema, frontend, chat, structured_decisions, body });
             }
             end += line.len();
         }
     }
 
     /// Write the document back as its text: `---`, the frontmatter —
-    /// the name, the schema, and `frontend` when it is `true` —
+    /// the name, the schema, `frontend` when it is `true`, and `chat`
+    /// and `structured_decisions` when they are not `false` —
     /// pretty-printed, `---`, and the body,
     /// each fence on a line of its own. One shape is written and read:
     /// the assembler that makes an image's file and any later writer
@@ -122,7 +146,13 @@ impl Document {
     /// does not fail, and the signature carries what the serializer
     /// says rather than asserting it.
     pub fn render(&self) -> Result<String, serde_json::Error> {
-        let frontmatter = Frontmatter { name: self.name.clone(), schema: self.schema.clone(), frontend: self.frontend };
+        let frontmatter = Frontmatter {
+            name: self.name.clone(),
+            schema: self.schema.clone(),
+            frontend: self.frontend,
+            chat: self.chat,
+            structured_decisions: self.structured_decisions,
+        };
         let frontmatter = serde_json::to_string_pretty(&frontmatter)?;
         Ok(format!("---\n{frontmatter}\n---\n{}", self.body))
     }

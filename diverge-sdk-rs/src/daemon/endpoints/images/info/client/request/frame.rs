@@ -3,17 +3,24 @@
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use serde::{Deserialize, Serialize};
+use crate::shared::Identity;
 use crate::shared::containers::request::Image;
 use crate::shared::relay::Relay;
 
 /// Ask the daemon for an image's `/DIVERGE.md`: see [`Image`]. The
 /// digest is the image; the references are where a provider may fetch
-/// it from, when nothing of it runs.
+/// it from, when nothing of it runs. See [`info`](super::super::super)
+/// for whom the daemon asks.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
     /// The image: see [`Image`].
     pub image: Image,
+    /// The remote daemons the daemon does not ask, by the identities
+    /// they answer as. A daemon asking another sends every identity it
+    /// was itself told to ignore, and its own. Absent, none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ignore: Vec<Identity>,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,

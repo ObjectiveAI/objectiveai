@@ -846,6 +846,10 @@ impl From<Option<agents::message::server::response::Frame>> for MessageOutcome {
             None => MessageOutcome::Cancelled,
             Some(Frame::Forbidden) => MessageOutcome::Forbidden,
             Some(Frame::Error(error)) => MessageOutcome::Error { message: error_text(&error) },
+            Some(Frame::NoChat) => MessageOutcome::Error { message: "this agent does not take messages".to_string() },
+            Some(Frame::UnsupportedModalities(modalities)) => MessageOutcome::Error {
+                message: format!("this agent does not take {modalities:?}"),
+            },
         }
     }
 }

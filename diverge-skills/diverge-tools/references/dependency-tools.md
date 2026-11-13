@@ -35,7 +35,7 @@ the agent image's `DIVERGE.md` (`diverge run images info`, `diverge-images`).
 
 | member | meaning |
 |---|---|
-| `image` | digest and references, as in any template. References are not in the id. |
+| `image` | digest and references, as in any template. References are not in the id. The image must ship a valid `DIVERGE.md` that the daemon can read; otherwise the registration fails and the agent does not start. |
 | `memory`, `disk` | bytes |
 | `arguments` | handed to the tool's program verbatim; the tool image's `DIVERGE.md` gives the schema |
 | `secrets` | names only. Every name must also be declared by the **agent's** template; the value comes from the vault key the agent binds that name to. Otherwise the registration fails. |

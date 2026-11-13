@@ -33,7 +33,8 @@ pub enum ClientRequest<'a> {
     AgentsGet(agents::get::client::request::Frame),
     /// Tag `2`. Delete an agent.
     AgentsDelete(agents::delete::client::request::Frame),
-    /// Tag `3`. Send an agent a message.
+    /// Tag `3`. Ask an agent something: a chat message, or a
+    /// structured decision.
     AgentsMessage(agents::message::client::request::Frame),
     /// Tag `5`. List the caller's agents, narrowed, and keep the list.
     AgentsList(agents::list::client::request::Frame),
@@ -277,6 +278,8 @@ pub enum ClientRequest<'a> {
     ProvidersDaemonsMessage(providers::daemons::message::client::request::Frame),
     /// Tag `145`. Whether the daemon can supply an image, and its parts.
     ImagesOci(images::oci::client::request::Frame),
+    /// Tag `157`. Build an image on a provider, from a Containerfile.
+    ImagesBuild(images::build::client::request::Frame),
     /// Tag `146`. Hold another daemon's standalone tool under a name.
     ConnectedStandaloneToolsCreate(connected_standalone_tools::create::client::request::Frame),
     /// Tag `147`. Get one connected tool.
@@ -438,6 +441,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsMessage(frame) => frame.encode(out),
             ClientRequest::ImagesOci(frame) => frame.encode(out),
+            ClientRequest::ImagesBuild(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsCreate(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsGet(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsList(frame) => frame.encode(out),
@@ -837,6 +841,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             145 => images::oci::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesOci)
                 .ok(),
+            157 => images::build::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesBuild)
+                .ok(),
             146 => connected_standalone_tools::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ConnectedStandaloneToolsCreate)
                 .ok(),
@@ -1003,6 +1010,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(_) => f.write_str("providers daemons listen"),
             ClientRequest::ProvidersDaemonsMessage(_) => f.write_str("providers daemons message"),
             ClientRequest::ImagesOci(_) => f.write_str("images oci"),
+            ClientRequest::ImagesBuild(_) => f.write_str("images build"),
             ClientRequest::ConnectedStandaloneToolsCreate(_) => f.write_str("connected standalone tools create"),
             ClientRequest::ConnectedStandaloneToolsGet(_) => f.write_str("connected standalone tools get"),
             ClientRequest::ConnectedStandaloneToolsList(_) => f.write_str("connected standalone tools list"),
@@ -1148,6 +1156,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/daemons/listen" => Some(143),
         "providers/daemons/message" => Some(144),
         "images/oci" => Some(145),
+        "images/build" => Some(157),
         "connected_standalone_tools/create" => Some(146),
         "connected_standalone_tools/get" => Some(147),
         "connected_standalone_tools/list" => Some(148),
@@ -1290,6 +1299,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsListen(_) => "providers/daemons/listen",
             ClientRequest::ProvidersDaemonsMessage(_) => "providers/daemons/message",
             ClientRequest::ImagesOci(_) => "images/oci",
+            ClientRequest::ImagesBuild(_) => "images/build",
             ClientRequest::ConnectedStandaloneToolsCreate(_) => "connected_standalone_tools/create",
             ClientRequest::ConnectedStandaloneToolsGet(_) => "connected_standalone_tools/get",
             ClientRequest::ConnectedStandaloneToolsList(_) => "connected_standalone_tools/list",

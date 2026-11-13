@@ -30,7 +30,7 @@ pub struct Agent {
     /// [`templates::list`](crate::daemon::endpoints::agents::templates::list)
     /// names it by.
     pub template: String,
-    /// Its number among all agents of the caller's ever made from
+    /// Its number among all agents the daemon ever made from
     /// that template, deleted ones included: the first made is `1`,
     /// each after is one more, and no number is given twice. The
     /// template and the index together name the agent once and for

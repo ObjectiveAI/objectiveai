@@ -1,4 +1,4 @@
-//! One grant's worth over agents, naming none of them.
+//! One grant's worth over agents.
 
 use serde::{Deserialize, Serialize};
 
@@ -10,11 +10,11 @@ use super::{Make, Over, Within};
 /// [`permission`](crate::shared::permission) states them: a bare array
 /// of [`Make`] actions; an object of [`Over`] actions and how far they
 /// reach — every agent, the tool's attached agents, those never active,
-/// or by tags; or an object
+/// the agents listed, or by tags; or an object
 /// of tagging actions, how far they reach, and which tags. An object
 /// that is none of these — an action of one shape among another's, a
 /// member missing, a `within` that is not `"any"`, `"attached"`,
-/// `"never_active"` or a [`Tags`] — does not decode.
+/// `"never_active"`, `{"agents":[…]}` or a [`Tags`] — does not decode.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
@@ -24,13 +24,13 @@ pub enum Permission {
     Make(Vec<Make>),
     /// Over agents that exist: the [`Over`] actions held, reaching
     /// every one of them, the tool's attached agents, those never active,
-    /// or only those
+    /// the agents listed, or only those
     /// the [`Tags`] let through, read as a test.
     Over {
         /// The actions.
         actions: Vec<Over>,
-        /// How far: `"any"`, `"attached"`, `"never_active"`, or the tags as
-        /// a test. See
+        /// How far: `"any"`, `"attached"`, `"never_active"`, the agents
+        /// listed, or the tags as a test. See
         /// [`Within`].
         within: Within,
     },

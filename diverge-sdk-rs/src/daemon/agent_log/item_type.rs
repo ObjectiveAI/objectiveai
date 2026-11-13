@@ -72,6 +72,10 @@ pub enum ItemType {
     /// One resource link of a delivered message.
     #[serde(rename = "user_resource_link")]
     UserResourceLink,
+    #[serde(rename = "user_structured_decisions")]
+    UserStructuredDecisions,
+    #[serde(rename = "structured_decisions_response")]
+    StructuredDecisionsResponse,
     /// The agent's reasoning.
     #[serde(rename = "assistant_reasoning")]
     AssistantReasoning,
@@ -120,6 +124,8 @@ impl ItemType {
     /// The kind of `item`.
     pub fn of(item: &Item) -> ItemType {
         match item {
+            Item::UserStructuredDecisions(_) => ItemType::UserStructuredDecisions,
+            Item::StructuredDecisionsResponse(_) => ItemType::StructuredDecisionsResponse,
             Item::User(user) => ItemType::of_chunk(&user.chunk),
             Item::Chunk(chunk) => ItemType::of_chunk(chunk),
             Item::Error(_) => ItemType::Error,
@@ -145,6 +151,8 @@ impl ItemType {
             AgenticLoopChunk::UserAudioContent(_) => ItemType::UserAudioContent,
             AgenticLoopChunk::UserResource(_) => ItemType::UserResource,
             AgenticLoopChunk::UserResourceLink(_) => ItemType::UserResourceLink,
+            AgenticLoopChunk::UserStructuredDecisions(_) => ItemType::UserStructuredDecisions,
+            AgenticLoopChunk::StructuredDecisionsResponse(_) => ItemType::StructuredDecisionsResponse,
             AgenticLoopChunk::Usage(_) => ItemType::Usage,
             AgenticLoopChunk::Notification(_) => ItemType::Notification,
         }
@@ -158,6 +166,8 @@ impl ItemType {
             ItemType::UserAudioContent => "user_audio_content",
             ItemType::UserResource => "user_resource",
             ItemType::UserResourceLink => "user_resource_link",
+            ItemType::UserStructuredDecisions => "user_structured_decisions",
+            ItemType::StructuredDecisionsResponse => "structured_decisions_response",
             ItemType::AssistantReasoning => "assistant_reasoning",
             ItemType::AssistantTextContent => "assistant_text_content",
             ItemType::AssistantImageContent => "assistant_image_content",

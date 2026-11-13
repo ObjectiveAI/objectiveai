@@ -1,29 +1,36 @@
-// Sending an agent a message.
+// Asking an agent something.
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
 import { Relay } from "../../../../../../shared/relay.js";
 import { Agent } from "../../../../../../daemon/reference/agent.js";
-import { ContentBlockSchema } from "@modelcontextprotocol/core";
+import { Message } from "./message.js";
 
 /**
- * Ask the daemon to hand an agent a message: content blocks, MCP's
- * own, relayed to the container verbatim and not read. The agent's
- * container is started for it if it does not run. The one answer
- * comes when the message's fate is known — handed to the agent's
- * program, or refused — which may be long after the ask; nothing
- * times it out, and nothing takes the message back. An image that
- * cannot take a block refuses the whole message, and the error
- * carries its words.
+ * Ask the daemon to ask an agent something: the agent, what is asked
+ * — the `type` and that kind's members, beside the frame's own: see
+ * `Message` — and whether to watch. The agent's container is started
+ * for it if it does not run. Unwatched, the one answer comes when
+ * the request's fate is known — handed to the agent's program, or
+ * refused — which may be long after the ask; watched, the answer is
+ * the items of the agent's log that are the request's. Nothing times
+ * it out, and nothing takes the request back.
  */
-export const Frame = z.object({
-  /** The agent: by name, or by template and index. */
-  agent: Agent,
-  /** The message: content blocks, as MCP writes them. */
-  content: z.array(ContentBlockSchema),
-  /** Served by another daemon: see `Relay`. Absent, served here. */
-  relay: Relay.optional(),
-});
+export const Frame = z.intersection(
+  z.object({
+    /** The agent: by name, or by template and index. */
+    agent: Agent,
+    /**
+     * Whether to watch: `true` has the answer be the part of the
+     * agent's log that is the request's, as the response states.
+     * Absent or `false`, the answer is the request's fate alone.
+     */
+    watch: z.boolean().optional(),
+    /** Served by another daemon: see `Relay`. Absent, served here. */
+    relay: Relay.optional(),
+  }),
+  Message,
+);
 export type Frame = z.infer<typeof Frame>;
 
 /** This frame's tag among the scope-opening requests: one byte at the front of the payload. */

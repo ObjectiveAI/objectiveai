@@ -1,10 +1,11 @@
 //! Message request data.
 //!
-//! What a caller hands the daemon to send an agent a message: the
-//! agent's name, and the content. There is nothing to establish and
-//! nothing to resume, which is why this is one type and not a module
-//! of them.
+//! What a caller hands the daemon to ask an agent something: the
+//! agent, what is asked — a [`Message`] of one of two kinds — and
+//! whether to watch.
 
 mod frame;
+mod message;
 
 pub use frame::*;
+pub use message::*;

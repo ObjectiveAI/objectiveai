@@ -5,7 +5,7 @@ import type { daemon } from "@diverge/sdk";
 import { fileTypeFromBuffer } from "file-type";
 
 /** One content block of a message, MCP's own, as `agents message` sends it. */
-export type Block = daemon.endpoints.agents.message.client.request.Frame["content"][number];
+export type Block = daemon.endpoints.agents.message.client.request.Message["content"][number];
 
 /** What a file is drawn and sent as: an image, a sound, or any other file. */
 export type Kind = "image" | "audio" | "file";

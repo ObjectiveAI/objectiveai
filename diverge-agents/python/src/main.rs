@@ -196,6 +196,21 @@ async fn run(
     State(client): State<Arc<Client>>,
     Json(request): Json<run_endpoint::request::Request>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Refusal> {
+    // The run is a chat run, or it is refused: this agent's image
+    // declares no structured decisions, so a decision is never taken.
+    // Refused before anything is claimed, so nothing is to undo.
+    let request = match request {
+        run_endpoint::request::Request::Chat { messages } => enqueue::request::Request { messages },
+        run_endpoint::request::Request::StructuredDecisions(_) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "kind": "content",
+                    "error": "structured decisions are not supported by this agent",
+                })),
+            ));
+        }
+    };
     if !registration::registered() {
         return Err((
             StatusCode::CONFLICT,

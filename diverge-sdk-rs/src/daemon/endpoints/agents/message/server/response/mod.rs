@@ -1,5 +1,5 @@
-//! The message response: delivered, forbidden, or a failure — or, for a
-//! cancel in time, none.
+//! The message response: its fate, or — watched — what the agent's log
+//! took of it.
 
 mod frame;
 

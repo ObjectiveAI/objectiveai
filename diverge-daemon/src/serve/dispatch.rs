@@ -175,6 +175,7 @@ pub async fn dispatch(scope: ScopeHandle, payload: &[u8], mut turn: Turn, who: W
         ClientRequest::EventsList(frame) => events::list::handle(scope, frame, who, daemon).await,
         ClientRequest::ImagesInfo(frame) => images::info::handle(scope, frame, who, daemon).await,
         ClientRequest::ImagesOci(frame) => images::oci::handle(scope, frame, who, daemon).await,
+        ClientRequest::ImagesBuild(frame) => images::build::handle(scope, frame, who, daemon).await,
         ClientRequest::Info(_) => info::handle(scope).await,
         ClientRequest::Logs(frame) => logs::handle(scope, frame, who, daemon).await,
         ClientRequest::Invalid(_) => scope.send_response_finish().await,

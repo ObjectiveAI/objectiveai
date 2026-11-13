@@ -1,6 +1,6 @@
 ---
 name: diverge-images
-description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its podman cache, a listed registry, the caller), how to build an image into the provider's podman store and read its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images info` and `diverge run images oci` commands, and a reference of every image in the repository — the five agent-loop images (python, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
+description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its podman cache, a listed registry, the caller), how to build an image on a provider with `diverge run images build` and get its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images info` and `diverge run images oci` commands, and a reference of every image in the repository — the five agent-loop images (python, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
 ---
 
 # Diverge images
@@ -52,8 +52,8 @@ under its `info`'s `capabilities`). A provider passes when
 - An image whose references name only unlisted registries fails it ("the provider pulls from no
   registry the image's references name").
 - When no connected provider passes, the daemon falls back to asking whether a provider's Store or a
-  remote daemon holds the image. For an image you built by hand into the provider's podman cache that
-  fallback finds nothing, so the start fails.
+  remote daemon holds the image. An image built with `diverge run images build` is in the Store and is
+  found this way.
 
 So even for an image that exists only in the provider's local cache, put a reference naming a listed
 registry in the body, for example `{"registry":"docker.io","name":"diverge-local/python"}`. Nothing is
@@ -79,57 +79,78 @@ For a run, the provider looks in this order and takes the first that has the dig
 A registry is preferred to the caller, and the caller's Store to both. The provider tells the daemon
 which source answered; no CLI answer reports it, so read it off the order above.
 
-## Building an image into the provider's store
+## Building an image
 
-This is the normal way to make a local image usable: build it **inside the podman the provider
-drives**, under an ordinary name, and pass its digest. The provider must be running (on Windows and
-macOS that is what keeps its podman machine up).
+`diverge run images build` builds an image from a Containerfile on a provider, into the daemon's Store
+there. This is the only way to build one: the provider's container runtime is the provider's own, and
+an image put into it by any other means is not in the Store.
 
 ```bash
-# Windows / macOS: the provider drives a podman machine named diverge-provider through the
-# rootful connection diverge-provider-root, with its data under <root>/provider/podman_data.
-PD="$HOME/.diverge/provider/podman_data"; command -v cygpath >/dev/null && PD="$(cygpath -w "$PD")"
-pp() { XDG_DATA_HOME="$PD" XDG_CONFIG_HOME="$PD" podman --connection diverge-provider-root "$@"; }
-# Linux (the provider runs as root, no machine):
-# pp() { sudo podman --root "<root>/provider/podman_data" "$@"; }
-
-cd <workspace>                       # the repository root: it is the build context for every image
-pp build --label diverge.network/keep=true \
-   -t localhost/diverge-local/python:dev \
-   -f diverge-agents/python/Containerfile . > build-python.log 2>&1
-
-pp image inspect --format '{{.Digest}}' localhost/diverge-local/python:dev     # sha256:…
-pp image ls --no-trunc --format '{{.Repository}}:{{.Tag}} {{.Digest}}'          # every image
+diverge run images build '{
+  "provider": {"issuer": "http://127.0.0.1:14981", "subject": "provider"},
+  "containerfile": "FROM docker.io/library/alpine\nCOPY DIVERGE.md /DIVERGE.md\n",
+  "description": "my image",
+  "context": {"volume": "my-source", "path": ["tool"]}
+}' > build.log
+# {"output":"[1/2] STEP 1/6: FROM …"}        one line per line the build says
+# {"built":{"digest":"sha256:…","bytes":7675239}}
 ```
 
-Rules:
+- **`provider`**: which provider builds and holds the image, by its identity (`diverge run providers list`).
+- **`containerfile`**: the Containerfile's whole text, not a path.
+- **`context`**: a directory of a volume on that same provider, as `{"volume":"<name>","path":[…]}`. The
+  Containerfile's `COPY` and `ADD` read from it. Omit it for a Containerfile that copies nothing.
+- **`description`**: optional, one short line (132 characters at most), kept beside the image.
+- **The last line is the result**:
+  - `{"built":{"digest":…,"bytes":…}}`: the image is in the Store. The digest is what a template names.
+  - `{"exists":{"digest":…}}`: the build produced a digest already in the Store; nothing was added.
+  - `"insufficient_capacity"`: the Store is full. `"context_held"`: something has the context volume to
+    itself. `"unsupported"`: the provider has no Store (no `images` in its `provider.yaml`).
+  - `"forbidden"`: no `build` grant over images, or no `mount` grant over the context volume.
+    `"not_found"`: no such provider, or no such volume on it.
+  - `{"error":…}`: the build failed; the `output` lines before it say why.
+- A build cannot be cancelled. Stopping the command leaves it running on the provider.
+- Each image that compiles Rust takes roughly ten minutes. Run builds one at a time, in the background,
+  with output to a file.
 
-- **Build context is the workspace root (`.`)** for every Containerfile in the repository
-  (`diverge-agents/*/Containerfile`, `diverge-examples/agents/*/Containerfile`, `diverge-examples/tools/*/Containerfile`). Each copies `diverge-sdk-rs/`,
-  its own crate and `Cargo.lock`.
-- **Never tag an image under `127.0.0.1:`**. The cache lookup skips those names on purpose (they are
-  the provider's own per-pull registry names).
-- **`--label diverge.network/keep=true`** protects the image from the provider's cache eviction.
-  Images the provider did not record itself are evicted first once the cache passes the configured
-  `image_cache_disk`.
-- **Use the provider's podman, not your default one.** A plain `podman build` on Windows/macOS goes to
-  a different machine and the provider never sees the image. Always go through the `pp` helper.
-- **The digest must be recorded by podman.** The lookup is `podman image ls --filter digest=<d>`; an
-  image loaded with no digest recorded is not matched.
-- Each image compiles Rust inside the build and takes roughly ten minutes. Run builds one at a time,
-  in the background, with output to a file.
+### Getting source in front of a build
+
+A build reads its context from a volume. For source on the provider's own host, list the folder as a
+fixed, read-only volume in `provider.yaml` and restart the provider:
+
+```bash
+diverge provider config patch '[{"op":"add","path":"/volumes/fixed/-","value":
+  {"name":"my-source","path":"C:/path/to/source","bytes":34359738368,"mode":"read_only"}}]'
+```
+
+The provider needs a Store to build into. If `diverge run providers list` shows `"images_store":false`:
+
+```bash
+diverge provider config patch '[{"op":"add","path":"/images","value":
+  {"path":"C:/Users/me/.diverge/provider/images-store","capacity":34359738368}}]'
+```
+
+Otherwise create a volume and upload the source to it (`diverge-files`).
+
+### Rules
+
+- **A Containerfile sees only its context.** One that copies from several folders needs a context that
+  holds them all: the Containerfiles in this repository (`diverge-agents/*/Containerfile`,
+  `diverge-examples/*/*/Containerfile`) take the repository root as their context.
+- **The Store is the daemon's.** An image built here runs for this daemon on that provider with nothing
+  pulled. Another daemon does not see it.
 - **Rebuild images whenever the inside-container contract changes** (the SDK's
   `container_proxy::inside`, the container proxy, or the loop crate). An image built against an older
   contract deploys but misbehaves against the current proxy (refused enqueues, a channel that finishes
   with no answer). The container proxy itself is never part of an image; the provider mounts it in.
-- On Git Bash, `podman exec <ctr> /some/path` has its path rewritten; prefix that one command with
-  `MSYS_NO_PATHCONV=1`.
+- **A rebuild is a new digest.** Templates name digests, so a rebuilt image needs a new template.
 
-Then use the digest in a template (see `diverge-agents` / `diverge-tools`):
+Then use the digest in a template (see `diverge-agents` / `diverge-tools`). An image the daemon holds in
+a Store is found by its digest, so it needs no `references`:
 
 ```json
 {"type":"agent",
- "image":{"digest":"sha256:…","references":[{"registry":"docker.io","name":"diverge-local/python"}]},
+ "image":{"digest":"sha256:…"},
  "memory":536870912,"disk":1073741824,
  "arguments":{"python":"[{\"type\":\"assistant_text_content\",\"text\":\"hello\"}]"}}
 ```
@@ -160,7 +181,9 @@ The parse rules, in the order they are checked:
    unterminated frontmatter.
 3. The frontmatter is **one JSON object** (JSON is valid YAML flow style) with these members and no
    other: `name` (string, required), `schema` (required), `frontend` (boolean, optional, `false` when
-   absent). A missing member, an extra member or a wrong type is an error.
+   absent), and, for an agent's image, `chat` and `structured_decisions` (each `false` or an object,
+   never `true`; optional, `false` when absent). A missing member, an extra member or a wrong type is
+   an error.
 4. `schema` must be a JSON object: it is the **JSON Schema of the image's `arguments`**, not of the
    whole template.
 5. The body is everything after the closing fence, verbatim.
@@ -174,6 +197,32 @@ What each member means:
   `templates create`.
 - `frontend` — `true` when the program serves a web UI beneath `/frontend` (see the `frontend`
   commands in `diverge-agents` / `diverge-tools`).
+- `chat` — an agent's image only. `false`, or `{"prompt_modalities": {"image": …, "audio": …, "file": …}}`:
+  what a message to the agent may carry beside text, all three booleans required. Text is always
+  taken and is not listed. `file` is an embedded resource that is neither an image nor audio.
+- `structured_decisions` — an agent's image only. `false`, or
+  `{"prompt_modalities": {…}, "instruction_modalities": {…}, "choice_modalities": {…}}`, each the same
+  three booleans: what the decision's `content`, its questions' `instructions`, and its choices (option
+  descriptions and score levels) may carry beside text.
+- An agent's image declares at least one of the two; a tool's image states neither.
+- **The document is required.** `agents create`, `standalone-tools create` and an agent's dependency
+  declaration each read the image's document and refuse an image that ships none, that nobody in
+  reach holds, or whose document does not parse. An agent is also refused when its image declares
+  neither `chat` nor `structured_decisions`. A template is not checked: `templates create` takes any
+  image.
+- **Both are enforced** on `agents message`: `chat` for a request of type `chat`, and
+  `structured_decisions` for one of type `structured_decisions` (see `diverge-agents`). A request for a mode the image says
+  `false` to is refused by the daemon and never reaches the container.
+- **What a program is handed.** Its `POST /run` body is tagged: `{"type":"chat","messages":[…]}` or
+  `{"type":"structured_decisions","key":…,"content":[…],"questions":[…]}`. A program that declares
+  structured decisions answers that run by echoing the decision as one `user_structured_decisions` chunk,
+  saying its answers in one `structured_decisions_response` chunk, and ending the stream. `POST /enqueue`
+  is chat only: the proxy never enqueues a decision, and hands a program nothing while a decision's run is
+  open.
+- **Echo what you take.** A program says a request back as it takes it up: a chat message as its user
+  parts, a decision as its `user_structured_decisions` chunk, each under the `key` it was handed. The echo
+  is how the daemon logs the request with its sender, and how a sender watching (`"watch":true`) finds its
+  request in the log. A request accepted and never echoed is answered `"dropped"` to a watcher.
 - The body states, in prose, the tools the image serves and the **secrets it declares** with their
   modes. Read it before writing a template.
 
@@ -199,27 +248,40 @@ One answer:
 
 | answer | meaning |
 |---|---|
-| `{"info":{"name":…,"schema":{…},"frontend":true,"body":"…"}}` | the document, parsed (`frontend` absent when false) |
+| `{"info":{"name":…,"schema":{…},"frontend":true,"chat":{…},"body":"…"}}` | the document, parsed (`frontend`, `chat` and `structured_decisions` each absent when false) |
 | `"missing"` | the image ships no `/DIVERGE.md` |
-| `"no_source"` | no container of the image runs and no connected provider can obtain it; nothing was asked |
+| `"no_source"` | no container of the image runs, and no connected provider or remote daemon holds it |
 | `"forbidden"` | the account holds no `{"images":["info"]}` grant |
 | `{"error":…}` | a failure, in the provider's words where it said any; nothing is retried |
 
 How the daemon finds it, in order:
 
-1. Its own record of the digest. Once an `info` or a `missing` has been found for a digest it is
-   recorded and answered from the record from then on (a digest never changes what it ships).
+1. Its own record of the digest. Once a document has been found for a digest it is recorded and
+   answered from the record from then on (a digest never changes what it ships). Only a document is
+   recorded: a `missing`, a `no_source` and an `error` are asked again.
 2. A running container of that digest (an agent's or a tool's the daemon runs itself): one is chosen
    and asked on its run's info channel. References are not compared, and the asker's grants over
    agents or tools do not narrow this.
-3. Otherwise a connected provider that lists a registry one of the references names (the same test a
-   run makes), or failing that a provider whose Store holds the image. That provider reads the file
-   out of the image **without running it**.
-4. No provider either way is `no_source`.
+3. Otherwise every connected provider and every remote daemon is asked **at once** whether it holds
+   the image (the cheap question `images oci` asks; nothing is pulled). The first that does is asked
+   for the document: a provider reads the file out of the image **without running it**; a remote
+   daemon answers `images info` itself, by these same rules. One that fails is passed over for the
+   next holder.
+4. With no holder, every connected provider is asked for the document outright, all at once. This
+   finds an image that is only in a provider's local podman cache, which the "holds" question does
+   not look in.
+5. Nothing found is `no_source`, or the last failure heard.
 
-Pitfalls: an image that is only in a provider's local cache needs a `references` entry naming a
-listed registry, exactly as a template does, or the answer is `no_source`. A `no_source` or an
-`error` is not recorded, so asking again later can succeed.
+Notes:
+
+- A remote daemon is asked as the account this daemon holds there, which needs `{"images":["info"]}`
+  on that daemon (and the `oci` grant for the "holds" question). Without it that daemon is passed over.
+- The request's optional `ignore` (identities of daemons not to ask) is the loop guard daemons use
+  among themselves; leave it out.
+- **`agents create` and `standalone-tools create` run this search** for the template's image and
+  refuse an image with no document, so the first create of a new image can take as long as a
+  provider needs to pull it. Asking `images info` beforehand records the document, and the create
+  then answers from the record.
 
 Grant: `{"images":["info"]}` (a bare array; there is no `within`, since images are not records).
 
@@ -334,18 +396,19 @@ template declares. Details and lifecycle are in `diverge-tools`; the entry shape
 | symptom | cause and fix |
 |---|---|
 | Start error "the provider pulls from no registry the image's references name" or "the image names no registry" | The image body has no `references` entry naming a registry the provider lists. Add one (`docker.io` for the default provider). |
-| Start error saying the image is unavailable | The digest is not in the **provider's** podman store (it was built with another podman connection), or it is only tagged under `127.0.0.1:`, or no digest was recorded for it. Rebuild through the provider's podman and re-read the digest. |
+| Start error saying the image is unavailable | The digest is not in the daemon's Store on that provider and no listed registry serves it. Build it with `diverge run images build` on that provider and use the digest it prints. |
 | The image deploys but its program misbehaves against the proxy | The image predates the current inside-container contract. Rebuild it from current source. |
 | Start error naming a secret the template does not declare | The program's arguments select a secret (see the per-image reference) that the template's `secrets` omits. Add the name to the template (a new template id) and bind it on the create. |
-| `images info` answers `no_source` for a local image | No `references` entry names a listed registry and nothing of the image runs. Add the reference. |
+| `images info` answers `no_source` for a local image | No connected provider has the image in its cache, its Store or a listed registry, and no remote daemon holds it. Build it on a connected provider with `diverge run images build`. |
 | A rebuilt image has the same tag but templates still run the old one | Templates name digests. A rebuild is a new digest: make a new template with it. |
 
 ## Not verified
 
-- The provider protocol has `images::build`, `push`, `edit`, `stat`, `list` and `delete` over the
-  caller's Store, but the installed CLI exposes none of them under `diverge run images` (only `info`
-  and `oci`). Putting an image into the Store from the CLI is therefore not covered; build into the
-  provider's podman cache instead.
+- The provider protocol also has `images::push`, `edit`, `stat`, `list` and `delete` over the caller's
+  Store, but the CLI exposes only `build`, `info` and `oci` under `diverge run images`. Listing or
+  deleting what the Store holds from the CLI is therefore not covered.
+- Running a container from a Store image whose template names no `references` is from the daemon's
+  code (it asks who holds the digest when no registry matches), not run live.
 - macOS and Linux build commands are from code and the setup report, not run live.
 - `diverge-agents/cc` declares no secret and says Claude Code logs in by itself; how a login
   reaches the container (for example a mount of its credential directory) was not established.

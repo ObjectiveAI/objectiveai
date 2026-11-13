@@ -119,7 +119,7 @@ async fn read_through<B: Book, F: Encode>(
 /// waiting past a closed inbox would outlive its client until the
 /// record is deleted, and hold its connection's end with it. The
 /// finish is the handler's either way.
-async fn cancel(scope: &ScopeHandle, is_cancel: fn(&[u8]) -> bool) -> bool {
+pub async fn cancel(scope: &ScopeHandle, is_cancel: fn(&[u8]) -> bool) -> bool {
     loop {
         let Some(bytes) = scope.recv_channel_request().await else {
             return true;

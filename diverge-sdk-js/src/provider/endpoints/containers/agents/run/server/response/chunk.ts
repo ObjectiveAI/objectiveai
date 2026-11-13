@@ -1,4 +1,4 @@
-// One chunk of the agentic loop: one of fourteen kinds.
+// One chunk of the agentic loop: one of sixteen kinds.
 
 import { z } from "zod";
 import { AssistantAudioContentChunk } from "./assistant_audio_content_chunk.js";
@@ -8,12 +8,14 @@ import { AssistantRefusalChunk } from "./assistant_refusal_chunk.js";
 import { AssistantTextContentChunk } from "./assistant_text_content_chunk.js";
 import { AssistantToolCallChunk } from "./assistant_tool_call_chunk.js";
 import { NotificationChunk } from "./notification_chunk.js";
+import { StructuredDecisionsResponseChunk } from "./structured_decisions_response_chunk.js";
 import { ToolResponseChunk } from "./tool_response_chunk.js";
 import { UsageChunk } from "./usage_chunk.js";
 import { UserAudioContentChunk } from "./user_audio_content_chunk.js";
 import { UserImageContentChunk } from "./user_image_content_chunk.js";
 import { UserResourceChunk } from "./user_resource_chunk.js";
 import { UserResourceLinkChunk } from "./user_resource_link_chunk.js";
+import { UserStructuredDecisionsChunk } from "./user_structured_decisions_chunk.js";
 import { UserTextContentChunk } from "./user_text_content_chunk.js";
 
 /**
@@ -48,6 +50,8 @@ export const AgenticLoopChunk = z.discriminatedUnion("type", [
   UserAudioContentChunk,
   UserResourceChunk,
   UserResourceLinkChunk,
+  UserStructuredDecisionsChunk,
+  StructuredDecisionsResponseChunk,
   UsageChunk,
   NotificationChunk,
 ]);

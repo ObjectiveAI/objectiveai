@@ -1,17 +1,35 @@
-//! Sending an agent a message.
+//! Asking an agent something: a chat message, or a structured
+//! decision.
 //!
-//! A client names an agent of its own and hands the daemon a message
-//! for it — MCP content blocks, as an enqueue on the provider's wire
-//! carries them — and the scope stays open until the message's fate
-//! is known: the daemon answers that the agent's program has it, or
-//! that it failed, and the scope finishes. One question, one answer:
-//! the client opens no channel on the scope, and nothing takes a
-//! message back once sent. The daemon enqueues each message on the
-//! provider's wire under a key of its own minting, one per message.
+//! One request, whose `type` says which of the two things an agent's
+//! image may say it does in its `/DIVERGE.md`:
+//!
+//! - `chat` hands the agent a message — MCP content blocks — which
+//!   joins its conversation.
+//! - `structured_decisions` hands it a prompt and typed questions,
+//!   which it answers with numbers.
+//!
+//! Both go to the agent in the order the daemon admitted them,
+//! whichever kind each is. They are handed over differently: a chat
+//! message joins a loop that is running, and a structured decision
+//! waits for the agent to be idle, runs alone, and is finished before
+//! anything after it starts — see
+//! [`enqueue`](crate::shared::containers::enqueue).
+//!
+//! Unwatched, the request is one question and one answer, open until
+//! the fate is known: the agent's program has it, or it failed.
+//! Watched, the answer is the part of the agent's log that is the
+//! request's: the request as the agent echoed it, and everything the
+//! log took after, to the end of that run — see the
+//! [response](server::response::Frame). The daemon enqueues each
+//! request on the provider's wire under a key of its own minting, and
+//! nothing takes one back once sent.
+//!
+//! One grant covers both: `message`, over agents.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
-//! question is in [`client`] — and the daemon answers, so the answer
-//! is in [`server`]. Neither side holds both halves of the exchange.
+//! question and the cancel are in [`client`] — and the daemon answers,
+//! so the answer is in [`server`].
 
 pub mod client;
 pub mod server;

@@ -1,8 +1,9 @@
 //! The client side of a message: what a client sends.
 //!
-//! [`request`] is the whole of what goes on the wire. A client asks and
-//! then listens; it has nothing to send back, so there is no `response`
-//! here the way there is on the other side.
+//! [`request`] opens the scope, and [`channel_request`] is the one
+//! channel a client may open on it, the cancel of a watch. A client
+//! sends nothing else; there is no `response` here the way there is on
+//! the other side.
 //!
 //! # And a way to use it
 //!
@@ -10,6 +11,7 @@
 //! a [`Handle`](crate::wire::client::handle::Handle) and the request,
 //! and get the daemon's answer.
 
+pub mod channel_request;
 pub mod request;
 
 pub mod execute;

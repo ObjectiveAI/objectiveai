@@ -24,7 +24,7 @@ tables. Bare answers are JSON strings; answers with a payload are one-member obj
 
 | leaf | flags | body | answers |
 |---|---|---|---|
-| `create` | | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"` |
+| `create` | | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"`; `{"error":{"kind":"image",…}}` when the template's image has no valid `DIVERGE.md` the daemon can find |
 | `get` | | `{"tool":<tool>}` | `{"found":<item>}`, `"not_found"` |
 | `list` | `--watch` | filter + `count` | `{"added":<item>}`…, `"listed"`; with `--watch` also `{"changed"}`, `{"removed"}` |
 | `edit` | | `{"tool":<tool>,"patch":[…]}` | `"edited"`, `"not_found"`, `"active"`, `"in_use"` |

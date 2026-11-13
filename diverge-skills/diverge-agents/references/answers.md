@@ -36,14 +36,14 @@ Template list filter: `ids`, `creators`, `in_use` (bool: some agent was made fro
 
 | leaf | body | answers |
 |---|---|---|
-| `agents create` | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"` |
+| `agents create` | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"`; `{"error":{"kind":"image",…}}` when the template's image has no valid `DIVERGE.md` the daemon can find, or declares neither `chat` nor `structured_decisions` |
 | `agents get` | `{"agent":<ref>}` | `{"found":<agent>}`, `"not_found"` |
 | `agents list` (`--watch`) | filter + `count` | `{"added":<agent>}`…, `"listed"`, then with `--watch` `{"added"}`, `{"changed"}`, `{"removed"}` |
 | `agents edit` | `{"agent":<ref>,"patch":[…]}` | `"edited"`, `"not_found"`, `"active"`, `"in_use"` |
 | `agents delete` | `{"agent":<ref>}` | `"deleted"`, `"not_found"`, `"active"` |
 | `agents tag` | `{"agent":<ref>,"tags":[…]}` | `"tagged"`, `"not_found"` |
 | `agents untag` | `{"agent":<ref>,"tags":[…]}` | `"untagged"`, `"not_found"` |
-| `agents message` | `{"agent":<ref>,"content":[<block>…]}` | `"delivered"` (no `"not_found"`: an unknown agent is `{"error":…}`) |
+| `agents message` | `{"agent":<ref>,"type":"chat","content":[<block>…],"watch"?:true}` or `{"agent":<ref>,"type":"structured_decisions","content":[<block>…],"questions":[<question>…],"watch"?:true}` | `"delivered"`, `"no_chat"`, `"no_structured_decisions"`, `{"unsupported_modalities":{"prompt":[…],"instruction":[…],"choice":[…]}}`; invalid questions are `{"error":{"kind":"questions",…}}`; watching: `{"item":{"agent":{…}}}` lines, or `"dropped"` (no `"not_found"`: an unknown agent is `{"error":…}`) |
 
 A listed agent:
 

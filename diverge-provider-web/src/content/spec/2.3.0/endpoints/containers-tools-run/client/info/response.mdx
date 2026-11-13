@@ -16,14 +16,23 @@ draft: false
   response finish that no channel response precedes states that the
   proxy did not serve the question.
 - **The document.** The byte `0` is followed by exactly one JSON
-  object of three or four members. `name` is a string, the image's own name,
+  object of at least three and at most six members. `name` is a string, the image's own name,
   as the image states it. `schema` is the JSON Schema of the
   container's `arguments`, as the image states it, and is a JSON
   object. `body` is a string: the markdown text beneath the
   frontmatter in the image's `/DIVERGE.md`, verbatim. `frontend` is present only with the value
   `true`, and states that the image's program serves a frontend, as the
   [frontend](/container-proxy-endpoints/frontend/) endpoint provides; its absence states
-  that the program serves none. The server reads
+  that the program serves none. `chat` is present only with an object as its value,
+  and states how an agent's program chats: the object has exactly one
+  member, `prompt_modalities`. `structured_decisions` is present only
+  with an object as its value, and states how an agent's program makes
+  structured decisions: the object has exactly three members,
+  `prompt_modalities`, `instruction_modalities` and `choice_modalities`. Each of those four
+  members is an object of exactly three members, `image`, `audio` and
+  `file`, each a boolean. The absence of `chat` states that the
+  program does not chat, and the absence of `structured_decisions`
+  states that the program makes no structured decision. The server reads
   no member.
 - **Missing.** The byte `1` states that the image ships no
   `/DIVERGE.md`. Nothing follows the byte. That is a fact about the
@@ -41,4 +50,24 @@ The channel response is defined by `diverge-sdk-rs/src/shared/containers/info/re
 and the document by `diverge-sdk-rs/src/shared/containers/info/document.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/containers/info/document.rs
+```
+
+`chat` and `structured_decisions` are defined by `diverge-sdk-rs/src/shared/containers/info/false_or.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/false_or.rs
+```
+
+by `diverge-sdk-rs/src/shared/containers/info/chat.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/chat.rs
+```
+
+by `diverge-sdk-rs/src/shared/containers/info/structured_decisions.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/structured_decisions.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/info/modalities.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/modalities.rs
 ```

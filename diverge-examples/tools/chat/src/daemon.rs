@@ -128,7 +128,7 @@ impl Daemon {
         if let Some(known) = self.documents.lock().await.get(&image.digest) {
             return known.clone();
         }
-        let request = info::client::request::Frame { image: image.clone(), relay: None };
+        let request = info::client::request::Frame { image: image.clone(), ignore: Vec::new(), relay: None };
         let answer = info::client::execute::execute(handle, &request).await.ok()?;
         let (document, kept) = match answer {
             info::server::response::Frame::Info(document) => (Some(document), true),
@@ -147,7 +147,7 @@ impl Daemon {
     /// start away, so the message is sent and its answer read on a
     /// task of its own, and dropped.
     pub async fn notify(&self, client: &Client, to: &Participant) -> Result<(), Failure> {
-        let request = message::client::request::Frame { agent: to.reference(), content: vec![ContentBlock::text(NOTIFICATION)], relay: None };
+        let request = message::client::request::Frame { agent: to.reference(), message: message::client::request::Message::Chat { content: vec![ContentBlock::text(NOTIFICATION)] }, watch: None, relay: None };
         let handle = self.handle(client).await?;
         let held = self.handle.clone();
         tokio::spawn(async move {

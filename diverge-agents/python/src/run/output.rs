@@ -11,8 +11,8 @@ use super::{Envelope, Error};
 /// chunks instead of returning them — and nothing printed is
 /// [`NoOutput`](Error::NoOutput). The value must be a JSON array of
 /// chunks, and every chunk must be one the script is allowed to say:
-/// the six assistant kinds and notifications. A `user`, `usage` or
-/// `tool_response` chunk anywhere in it is
+/// the six assistant kinds and notifications. A `user`, `usage`,
+/// `tool_response` or structured decisions chunk anywhere in it is
 /// [`Forbidden`](Error::Forbidden), the whole output refused — the
 /// script may call tools, and only call them; the answers, the
 /// delivered messages and the accounting are the container's to
@@ -47,6 +47,8 @@ fn forbidden(chunk: &AgenticLoopChunk) -> Option<&'static str> {
         AgenticLoopChunk::UserAudioContent(_) => Some("user_audio_content"),
         AgenticLoopChunk::UserResource(_) => Some("user_resource"),
         AgenticLoopChunk::UserResourceLink(_) => Some("user_resource_link"),
+        AgenticLoopChunk::UserStructuredDecisions(_) => Some("user_structured_decisions"),
+        AgenticLoopChunk::StructuredDecisionsResponse(_) => Some("structured_decisions_response"),
         AgenticLoopChunk::Usage(_) => Some("usage"),
         AgenticLoopChunk::ToolResponse(_) => Some("tool_response"),
         AgenticLoopChunk::AssistantReasoning(_)

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Agent {
     /// The template the agent was made from, by id.
     pub template: String,
-    /// The agent's number among all agents of the client's ever made
+    /// The agent's number among all agents the daemon ever made
     /// from that template: the
     /// [`index`](crate::daemon::endpoints::agents::list::server::response::Agent::index)
     /// its list item carries. The template and the index name the

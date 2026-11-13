@@ -6,10 +6,10 @@ use sqlx::types::Json;
 
 use crate::store::Error;
 
-/// What is on record for the digest: `None` when nothing is;
-/// `Some(Some(document))` when the image ships that document;
-/// `Some(None)` when the image ships none.
-pub async fn by_digest(conn: &mut PgConnection, digest: &str) -> Result<Option<Option<Document>>, Error> {
+/// The document on record for the digest, or `None` when none is. A
+/// row with no document, which only a database older than the rule
+/// that only documents are recorded holds, is no record.
+pub async fn by_digest(conn: &mut PgConnection, digest: &str) -> Result<Option<Document>, Error> {
     let row = sqlx::query("SELECT document FROM diverge.image_info WHERE digest = $1")
         .bind(digest)
         .fetch_optional(&mut *conn)
@@ -17,7 +17,7 @@ pub async fn by_digest(conn: &mut PgConnection, digest: &str) -> Result<Option<O
     match row {
         Some(row) => {
             let document: Option<Json<Document>> = row.try_get("document")?;
-            Ok(Some(document.map(|Json(document)| document)))
+            Ok(document.map(|Json(document)| document))
         }
         None => Ok(None),
     }

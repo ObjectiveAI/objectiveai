@@ -336,6 +336,10 @@ The log is read from the start and then followed live.
 - **Senders:** user parts are grouped per sender and labelled with who
   sent them (an account, another agent or a tool).
 - **Errors:** errors and refusals are shown in red.
+- **Structured decisions:** a decision put to the agent and the
+  agent's answers each show as a plain card of their contents, with
+  the id the log gave them. The world sends chat only; it has no way
+  to put a decision.
 
 ### Messaging an agent
 
@@ -359,6 +363,10 @@ The log is read from the start and then followed live.
   until it is clicked.
 - **Kept:** closing or swapping the sheet neither withdraws nor loses a
   message; it shows again when the agent's sheet next opens.
+- **What the agent takes:** a message carrying an image, audio or a
+  file the agent's image says it does not take is refused by the
+  daemon before it is sent, and so is any message to an agent whose
+  image does not chat. It stays in red, saying which.
 - **Permission:** the account needs the grant to message the agent.
 
 ### A tool's log

@@ -46,7 +46,7 @@ impl Daemon {
     /// every other alarm back. The message is sent and its answer
     /// read on a task of its own, and dropped.
     pub async fn wake(&self, client: &Client, to: &Participant, note: &str) -> Result<(), Failure> {
-        let request = message::client::request::Frame { agent: to.reference(), content: vec![ContentBlock::text(message(note))], relay: None };
+        let request = message::client::request::Frame { agent: to.reference(), message: message::client::request::Message::Chat { content: vec![ContentBlock::text(message(note))] }, watch: None, relay: None };
         let handle = self.handle(client).await?;
         let held = self.handle.clone();
         tokio::spawn(async move {

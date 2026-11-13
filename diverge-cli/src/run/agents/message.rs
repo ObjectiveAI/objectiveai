@@ -1,4 +1,5 @@
-//! `diverge run agents message`: sending an agent a message, as
+//! `diverge run agents message`: asking an agent something — a chat
+//! message, or a structured decision — as
 //! [`message`](diverge_sdk::daemon::endpoints::agents::message) states
 //! it.
 
@@ -7,13 +8,15 @@ use diverge_sdk::daemon::endpoints::agents::message::{client::request, server::r
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Sending an agent a message.
+/// Asking an agent something: a chat message, or a structured
+/// decision.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
     /// What the request carries, as a JSON object: see
-    /// [`request::Frame`]; `relay` among its members has another daemon
-    /// serve it. Absent, `{}`.
+    /// [`request::Frame`] — the agent, the `type` and that kind's
+    /// members, and `watch`; `relay` among its members has another
+    /// daemon serve it. Absent, `{}`.
     #[arg(value_name = "BODY")]
     pub body: Option<String>,
     /// What is beneath the request: `request-schema`, the JSON Schema
@@ -23,7 +26,12 @@ pub struct Arguments {
     pub below: Option<Below>,
 }
 
-/// The request put, its one answer waited for and printed.
+/// The request put, and every answer printed as it comes, to the
+/// daemon's finish: one line, the request's fate, where it does not
+/// watch; and where it does, a line for each item the agent's log
+/// takes of it, from its echo to the end of its run — or the one line
+/// that it has none. The stream ends by itself either way, so nothing
+/// here cuts it.
 pub async fn run(
     arguments: Arguments,
     target: &Target<'_>,
@@ -40,5 +48,5 @@ pub async fn run(
     }
     let request: request::Frame = body(arguments.body.as_deref())?;
     let handle = target.dial().await?;
-    shape::one_shot::<_, response::Frame, _>(&handle, &request, emitter).await
+    shape::stream::<_, response::Frame, _>(&handle, &request, emitter, shape::never).await
 }
