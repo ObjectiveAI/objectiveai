@@ -1,33 +1,30 @@
-// Looking around the world: fit it to the window, drag to pan, the
-// wheel to zoom.
+// Looking around the world: fit it to the window; drag, or swipe two
+// fingers on a trackpad, to pan; a mouse wheel, or a pinch, to zoom.
 
 import * as Phaser from "phaser";
 import { density, onDensity } from "../lib/density";
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
-/** How much one notch of a mouse wheel zooms, and the most one wheel event may. */
+/** How much one notch of a mouse wheel zooms, and the most one pinch event may. */
 const STEP = 1.12;
-/** How much a smooth wheel (a trackpad) zooms per pixel scrolled, as a power of e; a pinch, per pixel pinched. */
-const SMOOTH = 0.0025;
+/** How much a pinch reported as a wheel with ctrl held zooms per pixel, as a power of e. */
 const PINCH = 0.01;
 /** One notch of a mouse wheel in WebKit, in pixels: a wheel whose every move is a whole number of these is a mouse's. */
 const NOTCH = 4.000244140625;
-/** A move at least this many pixels is a notch of a mouse wheel elsewhere. */
+/** A move up or down of at least this many whole pixels, and none sideways, is a notch of a mouse wheel elsewhere. */
 const CLICKY = 50;
 
-/**
- * How much one wheel event zooms, as a factor: a notch of a mouse wheel
- * `STEP`, a trackpad's scroll or pinch as far as it moves, never more
- * than `STEP`; a scroll with no move up or down, nothing.
- */
-function wheeled(event: WheelEvent | undefined, dy: number): number {
-  const pixels = event?.deltaMode === 1 ? dy * 16 : event?.deltaMode === 2 ? dy * window.innerHeight : dy;
-  if (pixels === 0) return 1;
-  const notches = Math.abs(pixels) / NOTCH;
-  if (Math.abs(pixels) >= CLICKY || Math.abs(notches - Math.round(notches)) < 1e-6) return pixels > 0 ? 1 / STEP : STEP;
-  return Math.min(STEP, Math.max(1 / STEP, Math.exp(-pixels * (event?.ctrlKey ? PINCH : SMOOTH))));
+/** Whether a wheel event is a mouse wheel's notch rather than a trackpad's two-finger scroll. */
+function notched(event: WheelEvent | undefined, dx: number, dy: number): boolean {
+  if (event !== undefined && event.deltaMode !== 0) return true;
+  if (dx !== 0 || dy === 0) return false;
+  const notches = Math.abs(dy) / NOTCH;
+  return Math.abs(notches - Math.round(notches)) < 1e-6 || (Math.abs(dy) >= CLICKY && Number.isInteger(dy));
 }
+
+/** A pinch as WebKit tells it: how far it has scaled since it began, about the point between the fingers. */
+type Gesture = UIEvent & { scale: number; clientX?: number; clientY?: number };
 /** How many times the world's own width and height the view's middle may roam, about the world's middle. */
 const REACH = 2;
 
@@ -49,10 +46,12 @@ export type Extent = { left: number; top: number; right: number; bottom: number 
  *    around it, and is centred.
  * 2. Dragging with any button pans, unless `held` says something else
  *    is being dragged or the press began where `blocks` says a menu is.
- * 3. The wheel zooms between `MIN_ZOOM` and `MAX_ZOOM`, holding still
- *    the point under the pointer, unless `blocks` says a menu is there:
- *    a mouse wheel `STEP` a notch, a trackpad as far as it scrolls or
- *    pinches (`wheeled`), a sideways scroll not at all.
+ * 3. Unless `blocks` says a menu is there: a mouse wheel zooms `STEP` a
+ *    notch (`notched`), holding still the point under the pointer; a
+ *    trackpad's two-finger scroll pans as far as the fingers move; a
+ *    pinch zooms as far as it pinches, about the point between the
+ *    fingers — WebKit's gesture events, or a wheel with ctrl held where
+ *    a pinch comes as one. Zoom stays between `MIN_ZOOM` and `MAX_ZOOM`.
  * 4. The middle of the view never leaves the world grown `REACH` times
  *    about its own middle: `extent` as it is at each pan and zoom, else
  *    the `width` by `height` it began.
@@ -84,18 +83,61 @@ export function controls(scene: Phaser.Scene, width: number, height: number, hel
     keepInside();
   });
 
-  // Rule 3.
-  scene.input.on("wheel", (pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
-    if (blocks(pointer.x / density(), pointer.y / density())) return;
-    const by = wheeled(pointer.event as WheelEvent | undefined, dy);
-    if (by === 1) return;
-    const before = camera.getWorldPoint(pointer.x, pointer.y);
-    camera.setZoom(clampZoom(camera.zoom * by));
+  // Rule 3: zoom to `to`, holding still the game's point `x`, `y`.
+  const zoomAt = (to: number, x: number, y: number) => {
+    const before = camera.getWorldPoint(x, y);
+    camera.setZoom(clampZoom(to));
     camera.preRender();
-    const after = camera.getWorldPoint(pointer.x, pointer.y);
+    const after = camera.getWorldPoint(x, y);
     camera.scrollX += before.x - after.x;
     camera.scrollY += before.y - after.y;
     keepInside();
+  };
+  let pinchFrom: number | null = null;
+  scene.input.on("wheel", (pointer: Phaser.Input.Pointer, _over: unknown, dx: number, dy: number) => {
+    if (blocks(pointer.x / density(), pointer.y / density())) return;
+    const event = pointer.event as WheelEvent | undefined;
+    if (event?.ctrlKey) {
+      if (pinchFrom === null) zoomAt(camera.zoom * Math.min(STEP, Math.max(1 / STEP, Math.exp(-dy * PINCH))), pointer.x, pointer.y);
+      return;
+    }
+    if (notched(event, dx, dy)) {
+      if (dy !== 0) zoomAt(dy > 0 ? camera.zoom / STEP : camera.zoom * STEP, pointer.x, pointer.y);
+      return;
+    }
+    // A wheel's move is in the page's pixels; the game's are the screen's.
+    camera.scrollX += (dx * density()) / camera.zoom;
+    camera.scrollY += (dy * density()) / camera.zoom;
+    keepInside();
+  });
+  const canvas = scene.game.canvas;
+  const between = (gesture: Gesture) => {
+    if (gesture.clientX === undefined || gesture.clientY === undefined) return { x: scene.input.activePointer.x, y: scene.input.activePointer.y };
+    const box = canvas.getBoundingClientRect();
+    return { x: (gesture.clientX - box.left) * density(), y: (gesture.clientY - box.top) * density() };
+  };
+  const pinchStart = (event: Event) => {
+    event.preventDefault();
+    const at = between(event as Gesture);
+    pinchFrom = scene.sys.isActive() && !blocks(at.x / density(), at.y / density()) ? camera.zoom : null;
+  };
+  const pinchChange = (event: Event) => {
+    event.preventDefault();
+    if (pinchFrom === null || !scene.sys.isActive()) return;
+    const at = between(event as Gesture);
+    zoomAt(pinchFrom * (event as Gesture).scale, at.x, at.y);
+  };
+  const pinchEnd = (event: Event) => {
+    event.preventDefault();
+    pinchFrom = null;
+  };
+  canvas.addEventListener("gesturestart", pinchStart);
+  canvas.addEventListener("gesturechange", pinchChange);
+  canvas.addEventListener("gestureend", pinchEnd);
+  scene.events.once(Phaser.Scenes.Events.DESTROY, () => {
+    canvas.removeEventListener("gesturestart", pinchStart);
+    canvas.removeEventListener("gesturechange", pinchChange);
+    canvas.removeEventListener("gestureend", pinchEnd);
   });
 
   // Rule 5.

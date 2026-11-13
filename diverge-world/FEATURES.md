@@ -124,12 +124,13 @@ is named, so the two can be checked against each other.
 
 ### Moving around (`scenes/camera.ts`)
 
-- **Pan:** drag the empty board with any mouse button.
-- **Zoom:** the mouse wheel a step a notch, a trackpad smoothly as far
-  as you scroll or pinch, from a quarter size to three times, around the
-  pointer. Scrolling sideways doesn't zoom.
+- **Pan:** drag the empty board with any mouse button, or swipe two
+  fingers on a trackpad.
+- **Zoom:** the mouse wheel, a step a notch, around the pointer; on a
+  trackpad, pinch, around your fingers. From a quarter size to three
+  times.
 - **Not over the outliner:** a drag that starts on the outliner, or the
-  wheel over it, does not move the view.
+  wheel, a swipe or a pinch over it, does not move the view.
 - **Bounds:** the view's middle can roam twice the width and height of
   the area the nodes cover, around its middle, and no further — so you
   can always reach every node however far you zoom.
