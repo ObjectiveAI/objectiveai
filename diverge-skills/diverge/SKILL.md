@@ -31,7 +31,7 @@ into tasks and run the protocol once per task.
 | Identity | One `(issuer, subject)` pair signed in under a root (`<root>/identities/`). Every handshake is mutual: both ends present an ID token. |
 | Daemon | `diverge-daemon` (WebSocket, default port 14980). The hub: keeps accounts, roles, provider records, templates, agents, tools, vault, events and logs in its own Postgres, and starts and stops containers on providers. |
 | Account | An identity the daemon admits as a client, holding **roles**; each role is a list of **grants**. Identities listed under `admins` in `daemon.yaml` are admitted without an account and hold every grant. |
-| Provider | `diverge-provider` (default port 14979). Runs containers for the identities it accepts; also serves volumes and an image store. A daemon holds a *record* of each provider it uses. |
+| Provider | `diverge-provider` (default port 14979). Runs containers with podman for the identities it accepts; also serves volumes and an image store. A daemon holds a *record* of each provider it uses. |
 | Container proxy | A small binary the provider mounts into every container. It carries messages, MCP, Postgres and secrets between the provider and the program inside. Never part of an image; never operated directly. |
 | Image | An OCI image, named by digest plus registry references, whose program speaks the container contract. It carries a `DIVERGE.md` stating its name and the schema of the arguments it takes. |
 | Template | An image plus memory, disk, arguments and the names of the secrets it needs. Its id is a hash of its content: creating the same template twice answers the same id. There are agent templates and standalone-tool templates. |
