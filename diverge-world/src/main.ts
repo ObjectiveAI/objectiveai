@@ -4,11 +4,13 @@
 // board in HTML, and the tab strip along the top adds a board per daemon
 // opened, and switches among them. The daemon is reached through
 // `lib/wire.ts` once there is something to show. (The hex map's scenes,
-// `Sea` and `World`, are kept beside them.)
+// `Sea` and `World`, are kept beside them.) The game draws in the screen's
+// own pixels, so the board is sharp on any screen (`lib/density.ts`).
 
 import "../../diverge-theme/theme.css";
 import "./main.css";
 import * as Phaser from "phaser";
+import { density, onDensity, watchDensity } from "./lib/density";
 import { int } from "./lib/theme";
 import { outliner } from "./outliner/outliner";
 import { Backdrop } from "./scenes/backdrop";
@@ -33,12 +35,31 @@ function hands(): void {
 }
 
 hands();
+const world = document.getElementById("world") as HTMLElement;
+/** The window's size in the screen's own pixels. */
+const size = () => ({ width: Math.round(world.clientWidth * density()), height: Math.round(world.clientHeight * density()) });
+/**
+ * The game is the window's size in the screen's pixels, shown at the
+ * page's: one of its pixels is one of the screen's, so nothing it draws
+ * is stretched. Its smaller copies of each texture (mipmaps) keep the
+ * nodes' shapes steady zoomed out.
+ */
 const game = new Phaser.Game({
   type: Phaser.AUTO,
-  parent: "world",
+  parent: world,
   backgroundColor: int("bg"),
-  scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
+  scale: { mode: Phaser.Scale.NONE, ...size(), zoom: 1 / density() },
+  render: { mipmapFilter: "LINEAR_MIPMAP_LINEAR" },
   scene: [Backdrop, Board, Ui],
 });
+/** The window resized, or moved to a screen of another density: the game follows. */
+const fit = () => {
+  const { width, height } = size();
+  game.scale.setZoom(1 / density());
+  game.scale.resize(width, height);
+};
+addEventListener("resize", fit);
+watchDensity();
+onDensity(fit);
 tabs(game);
 outliner(game);

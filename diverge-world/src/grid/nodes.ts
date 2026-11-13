@@ -2,12 +2,13 @@
 // wherever its owner wants it, coming and going as the world does.
 
 import * as Phaser from "phaser";
+import { density, onDensity } from "../lib/density";
 import type { Point } from "../world/geometry";
 import type { Entity } from "../world/model";
 import { css, faintWords, tone } from "./palette";
-import { nodeKey, REACH } from "./textures";
+import { DETAIL, nodeKey, REACH } from "./textures";
 
-/** How far, in pixels, a press may move and still be a click rather than a drag. */
+/** How far, in the page's pixels, a press may move and still be a click rather than a drag. */
 const CLICK = 6;
 
 /** What a dimmed node's shape and name are multiplied by. */
@@ -16,7 +17,7 @@ const DIM = 0.25;
 /** The most characters a label shows; a longer one ends in an ellipsis. */
 const LABEL = 18;
 
-/** A name's size on screen at any zoom, in pixels — the theme's smallest — and its gap under the shape. */
+/** A name's size on screen at any zoom, in the page's pixels — the theme's smallest — and its gap under the shape. */
 const NAME = 12;
 const UNDER = 6;
 
@@ -40,11 +41,12 @@ export const where = (node: Node): Point => ({ x: node.image.x, y: node.image.y 
 
 /**
  * Stand a node at `x`, `y`: its shape there, its name beneath. The name
- * is `NAME` pixels tall on screen whatever the zoom, `UNDER` screen
- * pixels under the shape, so it is read at any zoom and never blurs.
+ * is `NAME` of the page's pixels tall whatever the zoom, `UNDER` of them
+ * under the shape, so it is read at any zoom and never blurs; the
+ * game's pixels are the screen's, `density` to each of the page's.
  */
 export function setAt(node: Node, x: number, y: number): void {
-  const zoom = node.image.scene.cameras.main.zoom;
+  const zoom = node.image.scene.cameras.main.zoom / density();
   node.image.setPosition(x, y);
   node.label.setScale(1 / zoom).setPosition(x, y + REACH[node.entity.kind] + UNDER / zoom);
 }
@@ -104,20 +106,22 @@ const shortened = (label: string) => (label.length > LABEL ? `${label.slice(0, L
 export function makeNodes(scene: Phaser.Scene, entities: Entity[], at: Map<string, Point>, moved: () => void, select: (entity: Entity) => void, over: (node: Node) => void, out: (node: Node) => void): Nodes {
   const byKey = new Map<string, Node>();
   let dragging: string | null = null;
-  scene.input.dragDistanceThreshold = CLICK;
+  const slack = () => (scene.input.dragDistanceThreshold = CLICK * density());
+  slack();
+  scene.events.once(Phaser.Scenes.Events.DESTROY, onDensity(slack));
   const family = font();
   const add = (entity: Entity, p: Point): Node => {
     // Rule 1.
-    const image = scene.add.image(p.x, p.y, nodeKey(entity.kind)).setDepth(5);
+    const image = scene.add.image(p.x, p.y, nodeKey(entity.kind)).setScale(1 / DETAIL).setDepth(5);
     const label = scene.add
-      .text(p.x, p.y, shortened(entity.label), { fontFamily: family, fontSize: `${NAME}px`, color: css(tone(entity.kind)), resolution: Math.max(2, window.devicePixelRatio) })
+      .text(p.x, p.y, shortened(entity.label), { fontFamily: family, fontSize: `${NAME}px`, color: css(tone(entity.kind)), resolution: Math.max(2, density()) })
       .setOrigin(0.5, 0)
       .setDepth(6);
     const node: Node = { entity, image, label, bright: true };
     setAt(node, p.x, p.y);
     byKey.set(entity.key, node);
     // Rule 2.
-    image.setInteractive({ hitArea: new Phaser.Geom.Circle(image.width / 2, image.height / 2, REACH[entity.kind] + 6), hitAreaCallback: Phaser.Geom.Circle.Contains, draggable: true, useHandCursor: true });
+    image.setInteractive({ hitArea: new Phaser.Geom.Circle(image.width / 2, image.height / 2, (REACH[entity.kind] + 6) * DETAIL), hitAreaCallback: Phaser.Geom.Circle.Contains, draggable: true, useHandCursor: true });
     image.on("dragstart", () => {
       dragging = node.entity.key;
       image.setDepth(7);
@@ -135,7 +139,7 @@ export function makeNodes(scene: Phaser.Scene, entities: Entity[], at: Map<strin
       const canvas = scene.game.canvas;
       if (pointer.downElement !== canvas || pointer.upElement !== canvas) return;
       const now = node.entity;
-      if (Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK) select(now);
+      if (Math.hypot(pointer.upX - pointer.downX, pointer.upY - pointer.downY) < CLICK * density()) select(now);
     });
     // Rule 4.
     image.on("pointerover", () => over(node));

@@ -5,9 +5,12 @@ import * as Phaser from "phaser";
 import type { Kind } from "../world/model";
 import { faint, field, tone } from "./palette";
 
-/** A node texture's side, in pixels. */
+/** A node's side on the board, in pixels. */
 export const NODE = 64;
 const C = NODE / 2;
+
+/** How many of a texture's pixels each of the board's holds: the shapes are drawn this much finer and shown this much smaller, so they stay sharp zoomed in. */
+export const DETAIL = 4;
 
 /** The width of a shape's stroke, in pixels: flat, no glow. */
 const STROKE = 2;
@@ -119,17 +122,20 @@ function make(scene: Phaser.Scene, key: string, w: number, h: number, paint: (g:
  *    this board (a working node's trace), so nothing glows at rest.
  * 2. Bright, in its family's colour; faint, in the strong edge — a
  *    still shape that reads at 3:1, never a fade.
+ * 3. Each is drawn `DETAIL` times finer than the board shows it, and
+ *    the game keeps smaller copies of it (mipmaps, `main.ts`), so a
+ *    node is sharp zoomed in and steady zoomed out.
  */
 export function makeTextures(scene: Phaser.Scene): void {
   for (const kind of Object.keys(SHAPES) as Kind[]) {
     // Rule 2.
     for (const bright of [true, false]) {
-      make(scene, nodeKey(kind, bright), NODE, NODE, (g) => {
+      make(scene, nodeKey(kind, bright), NODE * DETAIL, NODE * DETAIL, (g) => {
         // Rule 1.
         g.fillStyle(field(), 1);
-        g.fillCircle(C, C, REACH[kind] - 1);
-        g.lineStyle(STROKE, bright ? tone(kind) : faint(), 1);
-        for (const part of SHAPES[kind]) g.strokePoints(part.points, part.closed);
+        g.fillCircle(C * DETAIL, C * DETAIL, (REACH[kind] - 1) * DETAIL);
+        g.lineStyle(STROKE * DETAIL, bright ? tone(kind) : faint(), 1);
+        for (const part of SHAPES[kind]) g.strokePoints(part.points.map((p) => new Phaser.Math.Vector2(p.x * DETAIL, p.y * DETAIL)), part.closed);
       });
     }
   }

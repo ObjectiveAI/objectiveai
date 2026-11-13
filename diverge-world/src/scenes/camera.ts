@@ -2,6 +2,7 @@
 // wheel to zoom.
 
 import * as Phaser from "phaser";
+import { density, onDensity } from "../lib/density";
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
@@ -10,7 +11,8 @@ const STEP = 1.12;
 /** How many times the world's own width and height the view's middle may roam, about the world's middle. */
 const REACH = 2;
 
-const clampZoom = (zoom: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+/** A zoom kept between `MIN_ZOOM` and `MAX_ZOOM` as the page sees them: the game's pixels are the screen's, `density` to each of the page's. */
+const clampZoom = (zoom: number) => Math.max(MIN_ZOOM * density(), Math.min(MAX_ZOOM * density(), zoom));
 
 /** The part of the world the view's middle may reach, in world pixels. */
 export type Extent = { left: number; top: number; right: number; bottom: number };
@@ -19,7 +21,7 @@ export type Extent = { left: number; top: number; right: number; bottom: number 
  * The main camera's controls over a world `width` by `height` pixels;
  * `held`, when given, says something is being dragged; `extent`, when
  * given, says where the world reaches now; `blocks`, when given, says
- * a point of the window is covered by a menu.
+ * a point of the window, in the page's pixels, is covered by a menu.
  *
  * The rules:
  *
@@ -32,6 +34,9 @@ export type Extent = { left: number; top: number; right: number; bottom: number 
  * 4. The middle of the view never leaves the world grown `REACH` times
  *    about its own middle: `extent` as it is at each pan and zoom, else
  *    the `width` by `height` it began.
+ * 5. The window moving to a screen of another density keeps the view:
+ *    the same middle, and the zoom scaled with the density, so the
+ *    world looks the size it did.
  */
 export function controls(scene: Phaser.Scene, width: number, height: number, held: () => boolean = () => false, extent: () => Extent = () => ({ left: 0, top: 0, right: width, bottom: height }), blocks: (x: number, y: number) => boolean = () => false): void {
   const camera = scene.cameras.main;
@@ -51,7 +56,7 @@ export function controls(scene: Phaser.Scene, width: number, height: number, hel
 
   // Rule 2.
   scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-    if (!pointer.isDown || held() || blocks(pointer.downX, pointer.downY)) return;
+    if (!pointer.isDown || held() || blocks(pointer.downX / density(), pointer.downY / density())) return;
     camera.scrollX -= (pointer.x - pointer.prevPosition.x) / camera.zoom;
     camera.scrollY -= (pointer.y - pointer.prevPosition.y) / camera.zoom;
     keepInside();
@@ -59,7 +64,7 @@ export function controls(scene: Phaser.Scene, width: number, height: number, hel
 
   // Rule 3.
   scene.input.on("wheel", (pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
-    if (blocks(pointer.x, pointer.y)) return;
+    if (blocks(pointer.x / density(), pointer.y / density())) return;
     const before = camera.getWorldPoint(pointer.x, pointer.y);
     camera.setZoom(clampZoom(dy > 0 ? camera.zoom / STEP : camera.zoom * STEP));
     camera.preRender();
@@ -68,4 +73,12 @@ export function controls(scene: Phaser.Scene, width: number, height: number, hel
     camera.scrollY += before.y - after.y;
     keepInside();
   });
+
+  // Rule 5.
+  const off = onDensity((next, was) => {
+    const middle = { x: camera.midPoint.x, y: camera.midPoint.y };
+    camera.setZoom(camera.zoom * (next / was));
+    camera.centerOn(middle.x, middle.y);
+  });
+  scene.events.once(Phaser.Scenes.Events.DESTROY, off);
 }

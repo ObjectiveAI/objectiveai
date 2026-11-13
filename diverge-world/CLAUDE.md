@@ -72,7 +72,9 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   dashed in the strong edge (`grid/links.ts`); a provider is attached to every agent and tool deployed on it (`grid/edges.ts`, rule 2d), a daemon to every connected tool whose `daemon` (first hop) it is (rule 2f); a working agent or tool is traced, a line in ink drawn round its outline and let go (`grid/live.ts`, still and half drawn under reduced motion); the open node has gold corners (`grid/here.ts`); a node is bright only while deployed (an account: connected; a connected tool: its connect held; a provider: `connected`; a daemon: `connected`; a volume: mounted into a deployed container), and the sheet's dot is that brightness; a container
   that is down makes its node faint, a still shape in the strong edge (`grid/live.ts`); every rise in an event's count runs a short ink stroke along its link
   (`grid/pulses.ts`, the events list kept open). The backdrop tiles the grid under the board's camera, as the sea does
-  for the hex map. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.
+  for the hex map. The game draws in the screen's own pixels (`lib/density.ts`: the canvas is the window times the
+  density, shown at the page's size), so a size meant on screen — a name, a grid line, a press's slack, the outliner's
+  bounds, the zoom's limits — is multiplied by `density()`; node textures are drawn `DETAIL` times finer and mipmapped. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.
 - **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents, tools, providers and daemons lists stay open after the
   snapshot, and each entity's state lights it: a pulsing green halo and a plate dot while an agent or tool is `active`
   (working), a steady halo for a `connected` account. The map itself is not rebuilt.

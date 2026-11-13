@@ -132,6 +132,11 @@ is named, so the two can be checked against each other.
 - **Bounds:** the view's middle can roam twice the width and height of
   the area the nodes cover, around its middle, and no further — so you
   can always reach every node however far you zoom.
+- **Sharp on every screen** (`main.ts`, `lib/density.ts`): the board
+  draws in the screen's own pixels, so a Retina screen gets twice the
+  detail, and moving the window to another screen keeps the view. Node
+  shapes are drawn four times finer than shown, so they stay sharp
+  zoomed in and steady zoomed out.
 - **The grid** (`scenes/backdrop.ts`) is redrawn sharp at every zoom.
   Every line is the theme's rule: whole every fifth square, at half
   strength in between, those fading out as you zoom out rather than
