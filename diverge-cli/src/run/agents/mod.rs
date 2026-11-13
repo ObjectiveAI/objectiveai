@@ -55,8 +55,7 @@ pub enum Agents {
     List(list::Arguments),
     /// Asking an agent something: a chat message, or a structured
     /// decision.
-    #[command(subcommand)]
-    Message(message::Message),
+    Message(message::Arguments),
     /// Putting tags on an agent.
     Tag(tag::Arguments),
     /// The requests over agent templates.
@@ -86,7 +85,7 @@ pub async fn run(command: Agents, target: &Target<'_>, emitter: &mut Emitter) ->
         Agents::Filetree(arguments) => filetree::run(arguments, target, emitter).await,
         Agents::Get(arguments) => get::run(arguments, target, emitter).await,
         Agents::List(arguments) => list::run(arguments, target, emitter).await,
-        Agents::Message(command) => message::run(command, target, emitter).await,
+        Agents::Message(arguments) => message::run(arguments, target, emitter).await,
         Agents::Tag(arguments) => tag::run(arguments, target, emitter).await,
         Agents::Templates(command) => templates::run(command, target, emitter).await,
         Agents::Transfer(arguments) => transfer::run(arguments, target, emitter).await,
