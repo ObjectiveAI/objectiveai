@@ -43,7 +43,7 @@ Template list filter: `ids`, `creators`, `in_use` (bool: some agent was made fro
 | `agents delete` | `{"agent":<ref>}` | `"deleted"`, `"not_found"`, `"active"` |
 | `agents tag` | `{"agent":<ref>,"tags":[…]}` | `"tagged"`, `"not_found"` |
 | `agents untag` | `{"agent":<ref>,"tags":[…]}` | `"untagged"`, `"not_found"` |
-| `agents message` | `{"agent":<ref>,"type":"chat","content":[<block>…],"watch"?:true}` or `{"agent":<ref>,"type":"structured_decisions","content":[<block>…],"questions":[<question>…],"watch"?:true}` | `"delivered"`, `"no_chat"`, `"no_structured_decisions"`, `{"unsupported_modalities":{"prompt":[…],"choice":[…]}}`; invalid questions are `{"error":{"kind":"questions",…}}`; watching: `{"item":{"agent":{…}}}` lines, or `"dropped"` (no `"not_found"`: an unknown agent is `{"error":…}`) |
+| `agents message` | `{"agent":<ref>,"type":"chat","content":[<block>…],"watch"?:true}` or `{"agent":<ref>,"type":"structured_decisions","content":[<block>…],"questions":[<question>…],"watch"?:true}` | `"delivered"`, `"no_chat"`, `"no_structured_decisions"`, `{"unsupported_modalities":{"prompt":[…],"instruction":[…],"choice":[…]}}`; invalid questions are `{"error":{"kind":"questions",…}}`; watching: `{"item":{"agent":{…}}}` lines, or `"dropped"` (no `"not_found"`: an unknown agent is `{"error":…}`) |
 
 A listed agent:
 

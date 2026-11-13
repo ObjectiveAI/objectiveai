@@ -201,7 +201,9 @@ What each member means:
   what a message to the agent may carry beside text, all three booleans required. Text is always
   taken and is not listed. `file` is an embedded resource that is neither an image nor audio.
 - `structured_decisions` — an agent's image only. `false`, or
-  `{"prompt_modalities": {…}, "choice_modalities": {…}}`, each the same three booleans.
+  `{"prompt_modalities": {…}, "instruction_modalities": {…}, "choice_modalities": {…}}`, each the same
+  three booleans: what the decision's `content`, its questions' `instructions`, and its choices (option
+  descriptions and score levels) may carry beside text.
 - An agent's image declares at least one of the two; a tool's image states neither.
 - **The document is required.** `agents create`, `standalone-tools create` and an agent's dependency
   declaration each read the image's document and refuse an image that ships none, that nobody in

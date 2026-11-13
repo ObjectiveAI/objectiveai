@@ -222,7 +222,7 @@ diverge run agents message '{"agent":{"name":"echo"},"type":"chat","content":[{"
 Rules:
 
 - **One request, one answer** (unwatched): `"delivered"`, `"forbidden"`, `"no_chat"`,
-  `{"unsupported_modalities":{"prompt":[…],"choice":[]}}` or `{"error":…}`. `delivered` means the agent's
+  `{"unsupported_modalities":{"prompt":[…],"instruction":[],"choice":[]}}` or `{"error":…}`. `delivered` means the agent's
   program accepted the message (the loop it started took it, or it went onto the program's own queue). It
   does not mean the agent has answered. The answer is in the log.
 - **Nothing takes a message back.** There is no cancel and no dequeue.
@@ -238,7 +238,7 @@ Rules:
   message starts it again. Files written only to the container's own disk are gone with the container.
 - **What the agent takes**: the daemon holds the message to the `chat` of the agent's image's `DIVERGE.md`
   before sending anything. `"no_chat"`: the image does not chat, and no message is taken.
-  `{"unsupported_modalities":{"prompt":["audio"],"choice":[]}}`: the message carries an image, audio or a file (a resource with
+  `{"unsupported_modalities":{"prompt":["audio"],"instruction":[],"choice":[]}}`: the message carries an image, audio or a file (a resource with
   `blob` that is neither `image/*` nor `audio/*`) that the image's `prompt_modalities` says `false` to; the
   whole message is refused. Either way nothing was started and the agent's log has no line of it. Text, a
   text resource and a resource link are always taken.
@@ -278,7 +278,7 @@ under), a `type`, and `instructions` (content blocks):
 Rules:
 
 - **Unwatched, the answer is the decision's fate, not the agent's answers**: `"delivered"`, `"forbidden"`,
-  `"no_structured_decisions"`, `{"unsupported_modalities":{"prompt":[…],"choice":[…]}}` or `{"error":…}`.
+  `"no_structured_decisions"`, `{"unsupported_modalities":{"prompt":[…],"instruction":[…],"choice":[…]}}` or `{"error":…}`.
   The agent's answers are in its log (see `diverge-logs`); `"watch":true` streams them to you.
 - **The image must declare them.** `"no_structured_decisions"` when the image's `DIVERGE.md` says
   `structured_decisions: false` (every image in this repository does, so nothing here answers one yet).
@@ -291,9 +291,9 @@ Rules:
   - a score has at least two levels, each non-empty.
   - "Non-empty" means at least one block that is not an empty text block. Whitespace counts and nothing
     is trimmed; any image, audio, resource or link counts.
-- **Modalities**: `content` and every `instructions` are held to the image's
-  `structured_decisions.prompt_modalities`; every option `description` and every score level to its
-  `choice_modalities`. The answer lists what was carried and not taken, by where.
+- **Modalities**: `content` is held to the image's `structured_decisions.prompt_modalities`; every
+  question's `instructions` to its `instruction_modalities`; every option `description` and every score
+  level to its `choice_modalities`. The answer lists what was carried and not taken, by where.
 - **Order**: chat messages and decisions to one agent are taken in the order they were sent, whichever
   each is. A decision is not queued onto a running turn: it waits until the agent has finished everything
   before it and is idle, runs alone, and finishes before anything after it starts. So `"delivered"` for a
