@@ -6,8 +6,28 @@ import { density, onDensity } from "../lib/density";
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
-/** How much one notch of the wheel zooms. */
+/** How much one notch of a mouse wheel zooms, and the most one wheel event may. */
 const STEP = 1.12;
+/** How much a smooth wheel (a trackpad) zooms per pixel scrolled, as a power of e; a pinch, per pixel pinched. */
+const SMOOTH = 0.0025;
+const PINCH = 0.01;
+/** One notch of a mouse wheel in WebKit, in pixels: a wheel whose every move is a whole number of these is a mouse's. */
+const NOTCH = 4.000244140625;
+/** A move at least this many pixels is a notch of a mouse wheel elsewhere. */
+const CLICKY = 50;
+
+/**
+ * How much one wheel event zooms, as a factor: a notch of a mouse wheel
+ * `STEP`, a trackpad's scroll or pinch as far as it moves, never more
+ * than `STEP`; a scroll with no move up or down, nothing.
+ */
+function wheeled(event: WheelEvent | undefined, dy: number): number {
+  const pixels = event?.deltaMode === 1 ? dy * 16 : event?.deltaMode === 2 ? dy * window.innerHeight : dy;
+  if (pixels === 0) return 1;
+  const notches = Math.abs(pixels) / NOTCH;
+  if (Math.abs(pixels) >= CLICKY || Math.abs(notches - Math.round(notches)) < 1e-6) return pixels > 0 ? 1 / STEP : STEP;
+  return Math.min(STEP, Math.max(1 / STEP, Math.exp(-pixels * (event?.ctrlKey ? PINCH : SMOOTH))));
+}
 /** How many times the world's own width and height the view's middle may roam, about the world's middle. */
 const REACH = 2;
 
@@ -30,7 +50,9 @@ export type Extent = { left: number; top: number; right: number; bottom: number 
  * 2. Dragging with any button pans, unless `held` says something else
  *    is being dragged or the press began where `blocks` says a menu is.
  * 3. The wheel zooms between `MIN_ZOOM` and `MAX_ZOOM`, holding still
- *    the point under the pointer, unless `blocks` says a menu is there.
+ *    the point under the pointer, unless `blocks` says a menu is there:
+ *    a mouse wheel `STEP` a notch, a trackpad as far as it scrolls or
+ *    pinches (`wheeled`), a sideways scroll not at all.
  * 4. The middle of the view never leaves the world grown `REACH` times
  *    about its own middle: `extent` as it is at each pan and zoom, else
  *    the `width` by `height` it began.
@@ -65,8 +87,10 @@ export function controls(scene: Phaser.Scene, width: number, height: number, hel
   // Rule 3.
   scene.input.on("wheel", (pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
     if (blocks(pointer.x / density(), pointer.y / density())) return;
+    const by = wheeled(pointer.event as WheelEvent | undefined, dy);
+    if (by === 1) return;
     const before = camera.getWorldPoint(pointer.x, pointer.y);
-    camera.setZoom(clampZoom(dy > 0 ? camera.zoom / STEP : camera.zoom * STEP));
+    camera.setZoom(clampZoom(camera.zoom * by));
     camera.preRender();
     const after = camera.getWorldPoint(pointer.x, pointer.y);
     camera.scrollX += before.x - after.x;
