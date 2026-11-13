@@ -1,13 +1,14 @@
-//! `diverge run agents message`: sending an agent a message, as
-//! [`message`](diverge_sdk::daemon::endpoints::agents::message) states
-//! it.
+//! `diverge run agents message structured-decisions`: putting a
+//! structured decision to an agent, as
+//! [`structured_decisions`](diverge_sdk::daemon::endpoints::agents::message::structured_decisions)
+//! states it.
 
 use clap::Args;
-use diverge_sdk::daemon::endpoints::agents::message::{client::request, server::response};
+use diverge_sdk::daemon::endpoints::agents::message::structured_decisions::{client::request, server::response};
 
 use crate::run::{Below, Emitter, Error, Target, body, request_schema, response_schema, shape};
 
-/// Sending an agent a message.
+/// Putting a structured decision to an agent.
 #[derive(Debug, Clone, PartialEq, Eq, Args)]
 #[command(subcommand_negates_reqs = true, args_conflicts_with_subcommands = true)]
 pub struct Arguments {
@@ -23,7 +24,9 @@ pub struct Arguments {
     pub below: Option<Below>,
 }
 
-/// The request put, its one answer waited for and printed.
+/// The request put, its one answer waited for and printed. The answer
+/// is the decision's fate, not the agent's answers to the questions:
+/// those are read in the agent's log.
 pub async fn run(
     arguments: Arguments,
     target: &Target<'_>,
@@ -31,10 +34,10 @@ pub async fn run(
 ) -> Result<(), Error> {
     match arguments.below {
         Some(Below::RequestSchema(_)) => {
-            return request_schema::<request::Frame>("diverge run agents message", emitter).await;
+            return request_schema::<request::Frame>("diverge run agents message structured-decisions", emitter).await;
         }
         Some(Below::ResponseSchema(_)) => {
-            return response_schema::<response::Frame>("diverge run agents message", emitter).await;
+            return response_schema::<response::Frame>("diverge run agents message structured-decisions", emitter).await;
         }
         None => {}
     }

@@ -103,12 +103,12 @@ impl Daemon {
     /// message is sent and its answer read on a task of its own, and
     /// dropped: the mail is kept whatever it says.
     pub async fn notify(&self, client: &Client, to: &Participant) -> Result<(), Failure> {
-        let request = message::client::request::Frame { agent: to.reference(), content: vec![ContentBlock::text(NOTIFICATION)], relay: None };
+        let request = message::chat::client::request::Frame { agent: to.reference(), content: vec![ContentBlock::text(NOTIFICATION)], relay: None };
         let handle = self.handle(client).await?;
         let held = self.handle.clone();
         tokio::spawn(async move {
             // A send that failed forgets the held connection, so the next ask dials again.
-            if message::client::execute::execute(&handle, &request).await.is_err() {
+            if message::chat::client::execute::execute(&handle, &request).await.is_err() {
                 *held.lock().await = None;
             }
         });
