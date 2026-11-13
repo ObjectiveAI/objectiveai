@@ -1,5 +1,5 @@
-// The theme: the viewer's five colours and every role mixed from them
-// (diverge-viewer/src/theme.css), read off the page as colours the
+// The theme: its five colours and every role mixed from them
+// (diverge-theme/theme.css, shared with the viewer), read off the page as colours the
 // canvas and xterm can take — a role is often a `color-mix`, which only
 // the page itself can resolve.
 

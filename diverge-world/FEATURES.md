@@ -10,7 +10,7 @@ is named, so the two can be checked against each other.
 - A dark grid with every account, agent, tool, volume, provider and daemon on it as a
   node, and lines for how they are connected — all of it live: what is
   made appears, what changes is redrawn, what is deleted goes. It is in
-  the viewer's theme (`diverge-viewer/src/theme.css`): the same five
+  the theme it shares with the viewer (`diverge-theme/theme.css`): the same five
   colours as every panel, nothing glowing.
 - A line traces round a node while it works, and a short stroke runs
   along a line as each event happens.

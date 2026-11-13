@@ -1,6 +1,10 @@
-/* The theme: every colour the app uses, in one place. Nothing else in the
-   app names a colour; it names one of these roles. Copy this file, change
-   the values, and the whole app follows.
+/* The theme: every colour Diverge's apps use, in one place, shared by the
+   viewer (diverge-viewer/src/main.tsx) and the world (diverge-world/src/
+   main.ts), each importing it first. Nothing else in an app names a colour;
+   it names one of these roles. Copy this file, change the values, and both
+   apps follow. Each app keeps its own page rules beside it (the viewer's
+   src/base.css, the world's src/main.css); the viewer's Rust reads the
+   themes' ids from here (src-tauri/src/actions.rs).
 
    A theme is five colours, and nothing else:
      --ground   the background
@@ -14,7 +18,8 @@
    2026-09-14). A theme is one block, `[data-theme="<id>"]`, setting the five;
    plum and gold is the default, so its block is also plain `:root`. The
    picker's swatches set data-theme on themselves to show a theme's five while
-   another is on. Add a block and src/theme.test.ts checks it with the rest.
+   another is on. Add a block and diverge-viewer/src/theme.test.ts checks it
+   with the rest.
 
    The roles:
      --bg, --rail          the ground everything sits on
@@ -34,7 +39,8 @@
    uses reads at 7:1 or better (WCAG AAA), and each edge of something you can
    press or type into, each bar that marks where you are, each status dot,
    and the focus ring, reads at 3:1 against what's around it.
-   src/theme.test.ts checks every pair, in every theme block in this file;
+   diverge-viewer/src/theme.test.ts checks every pair, in every theme block
+   in this file;
    any break fails the build.
 
    Status colours (ok / bad) are NOT from the site — it never needed them.
@@ -141,21 +147,3 @@
   --focus: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
   --shadow: none;
 }
-
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; margin: 0; }
-body {
-  font-family: var(--font-ui);
-  font-size: var(--text-md);
-  line-height: var(--leading);
-  color: var(--text);
-  background: var(--bg);
-  -webkit-font-smoothing: antialiased;
-  user-select: none;
-  cursor: default;
-}
-button, input, textarea, select { font: inherit; color: inherit; }
-input, textarea, [contenteditable], .selectable { user-select: text; cursor: auto; }
-code, pre, .mono { font-family: var(--font-mono); font-size: var(--text-mono); }
-:focus-visible { outline: none; box-shadow: var(--focus); }
-h1, h2, h3, p { margin: 0; }

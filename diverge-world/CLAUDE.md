@@ -4,8 +4,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 
 ## The seams
 - **The page is a Phaser game, no React**: `src/main.ts` makes one `Phaser.Game` filling the window, one scene per
-  file under `src/scenes/`. `ui` takes the keys only. **The look is the viewer's theme**: `main.ts` imports
-  `diverge-viewer/src/theme.css` first — every colour, size and space comes from its roles — and `lib/theme.ts`
+  file under `src/scenes/`. `ui` takes the keys only. **The look is the theme shared with the viewer**: `main.ts` imports
+  `diverge-theme/theme.css` first, `main.css` holding the world's own page rules beside it — every colour, size and space comes from its roles — and `lib/theme.ts`
   resolves a role (`int`, `css`) for the canvas and xterm, since a role is often a `color-mix` only the page can resolve;
   `data-input` on the root says whether the keys or the mouse are in use, so hover marks nothing while the keys do and
   focus looks as hover does (no ring, no box round a row). The one menu is the outline (`outline/outline.ts`), HTML

@@ -222,7 +222,8 @@ inherits it.
   change it. The app ships starting positions for your own settings and says so; it adds no rules of its own.
 - A claim reaches a screen only once a test proves it.
 - Style comes from the protocol site's tokens: `diverge-provider-web/src/layouts/Layout.astro` on origin/main.
-  Gold means ONLY "where you are". All colour goes through `src/theme.css`, which is the theme: every
+  Gold means ONLY "where you are". All colour goes through `diverge-theme/theme.css`, which is the theme, shared with the world (the
+  viewer's page rules are `src/base.css`): every
   words-on-background pair keeps 7:1, and every edge of something you can press or type into, and the focus ring,
   keeps 3:1 (`src/theme.test.ts`, which names today's breaks; each waits on a colour pick). Spacing comes only from
   `--space-N`, font sizes only from `--text-*`, and app.css names no colour of its own (`src/tokens.test.ts`).

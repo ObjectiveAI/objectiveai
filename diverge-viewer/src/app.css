@@ -1,4 +1,4 @@
-/* Layout and components. Every value comes from theme.css. */
+/* Layout and components. Every value comes from the theme (diverge-theme/theme.css). */
 
 .shell { display: grid; grid-template-columns: var(--rail-width) 1fr; height: 100%; }
 .stage { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }

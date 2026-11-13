@@ -4,7 +4,7 @@ import { t } from "./strings";
 
 type RGBA = [number, number, number, number];
 
-const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../../diverge-theme/theme.css", import.meta.url), "utf8");
 const appCss = readFileSync(new URL("./app.css", import.meta.url), "utf8");
 
 // The five colours a theme is; everything else is mixed from them in theme.css.

@@ -1,6 +1,9 @@
-/* The whole window: the theme's ground, the game's canvas filling it.
-   The theme is the viewer's (diverge-viewer/src/theme.css, imported
-   first): its five colours, the roles mixed from them, its sizes. */
+/* The world's page rules, under the theme it shares with the viewer
+   (diverge-theme/theme.css, imported first): the window its ground, the
+   game's canvas filling it, the page's font and words, and how focus and
+   hover mark things. Every value comes from the theme. */
+* { box-sizing: border-box; }
+
 html,
 body,
 #world {
@@ -10,9 +13,24 @@ body,
   background: var(--bg);
 }
 
-/* Focus looks as hover does, each part saying how; the theme's accent
-   ring is not drawn here. While the keys are in use (`data-input` on
-   the root, set in main.ts) hover marks nothing, so one thing is marked. */
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, [contenteditable] { user-select: text; cursor: auto; }
+code, pre { font-family: var(--font-mono); font-size: var(--text-mono); }
+h1, h2, h3, p { margin: 0; }
+
+/* Focus looks as hover does, each part saying how; no ring is drawn here.
+   While the keys are in use (`data-input` on the root, set in main.ts)
+   hover marks nothing, so one thing is marked. */
 :focus-visible {
   outline: none;
   box-shadow: none;

@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "./theme.css";
+import "../../diverge-theme/theme.css";
+import "./base.css";
 import "./app.css";
 import { Start } from "./Start";
 import { api } from "./lib/ipc";

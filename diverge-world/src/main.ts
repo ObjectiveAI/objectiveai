@@ -6,7 +6,7 @@
 // `lib/wire.ts` once there is something to show. (The hex map's scenes,
 // `Sea` and `World`, are kept beside them.)
 
-import "../../diverge-viewer/src/theme.css";
+import "../../diverge-theme/theme.css";
 import "./main.css";
 import * as Phaser from "phaser";
 import { int } from "./lib/theme";

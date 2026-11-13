@@ -1,0 +1,20 @@
+/* The viewer's page rules, under the theme (diverge-theme/theme.css, which
+   main.tsx imports first): the page's font and words, what can be selected,
+   and the focus ring. Every value comes from the theme. */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, [contenteditable], .selectable { user-select: text; cursor: auto; }
+code, pre, .mono { font-family: var(--font-mono); font-size: var(--text-mono); }
+:focus-visible { outline: none; box-shadow: var(--focus); }
+h1, h2, h3, p { margin: 0; }

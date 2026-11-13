@@ -1,4 +1,4 @@
-/* The agent sheet, in the theme's roles (diverge-viewer/src/theme.css) and
+/* The agent sheet, in the theme's roles (diverge-theme/theme.css) and
    nothing of its own. A row or a list item lights its band under the
    mouse; a control with an edge lights its edge. Focus looks as hover
    does, and hover marks nothing while the keys are in use (`data-input`
