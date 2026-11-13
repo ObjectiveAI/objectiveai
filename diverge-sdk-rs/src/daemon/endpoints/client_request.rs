@@ -33,8 +33,8 @@ pub enum ClientRequest<'a> {
     AgentsGet(agents::get::client::request::Frame),
     /// Tag `2`. Delete an agent.
     AgentsDelete(agents::delete::client::request::Frame),
-    /// Tag `3`. Send an agent a message.
-    AgentsMessage(agents::message::client::request::Frame),
+    /// Tag `3`. Send an agent a chat message.
+    AgentsMessageChat(agents::message::chat::client::request::Frame),
     /// Tag `5`. List the caller's agents, narrowed, and keep the list.
     AgentsList(agents::list::client::request::Frame),
     /// Tag `6`. Change an agent.
@@ -299,6 +299,8 @@ pub enum ClientRequest<'a> {
     ConnectedStandaloneToolsAttachAgentTemplate(connected_standalone_tools::attach_agent_template::client::request::Frame),
     /// Tag `156`. Detach a connected tool from every agent of a template.
     ConnectedStandaloneToolsDetachAgentTemplate(connected_standalone_tools::detach_agent_template::client::request::Frame),
+    /// Tag `157`. Put a structured decision to an agent.
+    AgentsMessageStructuredDecisions(agents::message::structured_decisions::client::request::Frame),
     /// No tag of its own. It is not a request a client sends — it is
     /// what a request BECOMES when the daemon cannot make one of the
     /// others out of it, so it carries the payload verbatim and
@@ -320,7 +322,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgentsCreate(frame) => frame.encode(out),
             ClientRequest::AgentsGet(frame) => frame.encode(out),
             ClientRequest::AgentsDelete(frame) => frame.encode(out),
-            ClientRequest::AgentsMessage(frame) => frame.encode(out),
+            ClientRequest::AgentsMessageChat(frame) => frame.encode(out),
+            ClientRequest::AgentsMessageStructuredDecisions(frame) => frame.encode(out),
             ClientRequest::AgentsList(frame) => frame.encode(out),
             ClientRequest::AgentsEdit(frame) => frame.encode(out),
             ClientRequest::AgentsTag(frame) => frame.encode(out),
@@ -483,8 +486,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             2 => agents::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsDelete)
                 .ok(),
-            3 => agents::message::client::request::Frame::decode(bytes)
-                .map(ClientRequest::AgentsMessage)
+            3 => agents::message::chat::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsMessageChat)
                 .ok(),
             5 => agents::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgentsList)
@@ -870,6 +873,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             156 => connected_standalone_tools::detach_agent_template::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ConnectedStandaloneToolsDetachAgentTemplate)
                 .ok(),
+            157 => agents::message::structured_decisions::client::request::Frame::decode(bytes)
+                .map(ClientRequest::AgentsMessageStructuredDecisions)
+                .ok(),
             128 => identities::login::client::request::Frame::decode(bytes)
                 .map(ClientRequest::IdentitiesLogin)
                 .ok(),
@@ -885,7 +891,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::AgentsCreate(_) => f.write_str("agents create"),
             ClientRequest::AgentsGet(_) => f.write_str("agents get"),
             ClientRequest::AgentsDelete(_) => f.write_str("agents delete"),
-            ClientRequest::AgentsMessage(_) => f.write_str("agents message"),
+            ClientRequest::AgentsMessageChat(_) => f.write_str("agents message chat"),
+            ClientRequest::AgentsMessageStructuredDecisions(_) => f.write_str("agents message structured decisions"),
             ClientRequest::AgentsList(_) => f.write_str("agents list"),
             ClientRequest::AgentsEdit(_) => f.write_str("agents edit"),
             ClientRequest::AgentsTag(_) => f.write_str("agents tag"),
@@ -1030,7 +1037,8 @@ pub fn tag(path: &str) -> Option<u8> {
         "agents/create" => Some(0),
         "agents/get" => Some(1),
         "agents/delete" => Some(2),
-        "agents/message" => Some(3),
+        "agents/message/chat" => Some(3),
+        "agents/message/structured_decisions" => Some(157),
         "agents/list" => Some(5),
         "agents/edit" => Some(6),
         "agents/tag" => Some(7),
@@ -1172,7 +1180,8 @@ impl ClientRequest<'_> {
             ClientRequest::AgentsCreate(_) => "agents/create",
             ClientRequest::AgentsGet(_) => "agents/get",
             ClientRequest::AgentsDelete(_) => "agents/delete",
-            ClientRequest::AgentsMessage(_) => "agents/message",
+            ClientRequest::AgentsMessageChat(_) => "agents/message/chat",
+            ClientRequest::AgentsMessageStructuredDecisions(_) => "agents/message/structured_decisions",
             ClientRequest::AgentsList(_) => "agents/list",
             ClientRequest::AgentsEdit(_) => "agents/edit",
             ClientRequest::AgentsTag(_) => "agents/tag",

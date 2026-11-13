@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Command {
-    /// The request's path, as the daemon names it: `agents/message`,
+    /// The request's path, as the daemon names it: `agents/message/chat`,
     /// `vault/insert`, `logs`.
     pub path: String,
     /// The request's body, its secrets replaced (rule 2).

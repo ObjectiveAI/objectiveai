@@ -52,6 +52,7 @@ pub mod registration;
 pub mod request;
 pub mod response;
 pub mod secrets;
+pub mod structured_decisions;
 pub mod terminal;
 pub mod dependencies;
 pub mod transfer;

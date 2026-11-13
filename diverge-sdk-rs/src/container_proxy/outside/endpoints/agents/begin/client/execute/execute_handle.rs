@@ -58,8 +58,13 @@ impl ExecuteHandle {
     /// answered with its fate, every message's alike, whenever that
     /// is known; nothing times it out. The order is the batch's: see
     /// [`enqueue::request::Request`].
-    pub async fn enqueue(&self, messages: Vec<enqueue::request::Message>) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
-        let payload = payload(&channel_request::Frame::Enqueue(enqueue::request::Request { messages }))
+    ///
+    /// The request is whole: its `index` among the scope's enqueues,
+    /// and its item — a batch of chat messages, which the lines above
+    /// are about, or one structured decision, which waits for the
+    /// agent to be idle and starts a run of its own.
+    pub async fn enqueue(&self, request: enqueue::request::Request) -> Result<enqueue::response::Frame, UnaryError<Enqueue>> {
+        let payload = payload(&channel_request::Frame::Enqueue(request))
             .map_err(UnaryError::Request)?;
         unary::<Enqueue>(&self.handle, self.scope, &payload).await
     }

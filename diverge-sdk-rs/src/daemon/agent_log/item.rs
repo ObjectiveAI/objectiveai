@@ -3,7 +3,7 @@
 use crate::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
 use serde::{Deserialize, Serialize};
 
-use super::{Active, Deployed, Error, Inactive, Undeployed, User};
+use super::{Active, Deployed, Error, Inactive, StructuredDecisionsResponse, Undeployed, User, UserStructuredDecisions};
 
 /// What the log kept: one user part of a message with who sent it,
 /// one other chunk of the agent's conversation, one error a run
@@ -29,6 +29,14 @@ use super::{Active, Deployed, Error, Inactive, Undeployed, User};
 #[derive(schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Item {
+    /// A structured decision a caller sent, numbered. Before
+    /// [`User`](Self::User) and [`Chunk`](Self::Chunk), which would
+    /// each read one too and lose its id: the enum is untagged and
+    /// takes the first that fits.
+    UserStructuredDecisions(UserStructuredDecisions),
+    /// An agent's answers to a structured decision, numbered. Before
+    /// [`Chunk`](Self::Chunk), for the same reason.
+    StructuredDecisionsResponse(StructuredDecisionsResponse),
     /// One user part of a message that landed, with who sent the
     /// message. Its members, and `sender`, are the item's.
     User(User),

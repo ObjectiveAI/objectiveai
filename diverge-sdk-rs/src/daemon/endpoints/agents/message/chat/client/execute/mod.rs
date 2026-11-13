@@ -1,4 +1,4 @@
-//! Performing a agents message: the exchange, rather than the
+//! Performing an agents message chat: the exchange, rather than the
 //! description of it.
 //!
 //! Its own files are flattened into it, so everything is named through

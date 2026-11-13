@@ -7,8 +7,8 @@ use super::{
     AssistantAudioContentChunk, AssistantImageContentChunk,
     AssistantReasoningChunk, AssistantRefusalChunk,
     AssistantTextContentChunk, AssistantToolCallChunk, NotificationChunk,
-    ToolResponseChunk, UsageChunk, UserAudioContentChunk, UserImageContentChunk, UserResourceChunk,
-    UserResourceLinkChunk, UserTextContentChunk,
+    StructuredDecisionsResponseChunk, ToolResponseChunk, UsageChunk, UserAudioContentChunk, UserImageContentChunk,
+    UserResourceChunk, UserResourceLinkChunk, UserStructuredDecisionsChunk, UserTextContentChunk,
 };
 use crate::shared::mcp::attest;
 use crate::shared::mcp::attestation::Caller;
@@ -54,6 +54,15 @@ use crate::shared::mcp::attestation::Caller;
 /// parts under one key; the first chunks of every run are the parts
 /// of the message it started on; see [`user_parts`](super::user_parts).
 ///
+/// # Structured decisions
+///
+/// A run a structured decision starts is not a conversation's turn
+/// but one question-and-answer: its first chunk is the decision as it
+/// landed, one [`UserStructuredDecisionsChunk`], and it says the
+/// answers in one [`StructuredDecisionsResponseChunk`]. What else the
+/// program says in that run — reasoning, usage, a notification — is
+/// said as in any other.
+///
 /// # Who spoke, under `_meta`
 ///
 /// Every kind of chunk has a `_meta` at its top level — MCP's own on
@@ -94,6 +103,12 @@ pub enum AgenticLoopChunk {
     /// A resource link of a message of the caller's. See
     /// [`UserResourceLinkChunk`].
     UserResourceLink(UserResourceLinkChunk),
+    /// A structured decision of the caller's. See
+    /// [`UserStructuredDecisionsChunk`].
+    UserStructuredDecisions(UserStructuredDecisionsChunk),
+    /// The answers to a structured decision. See
+    /// [`StructuredDecisionsResponseChunk`].
+    StructuredDecisionsResponse(StructuredDecisionsResponseChunk),
     /// Token usage so far. See [`UsageChunk`].
     Usage(UsageChunk),
     /// Something about the run itself. See [`NotificationChunk`].
@@ -120,6 +135,8 @@ impl AgenticLoopChunk {
             AgenticLoopChunk::UserAudioContent(chunk) => chunk.inner.meta.get_or_insert_default(),
             AgenticLoopChunk::UserResource(chunk) => chunk.inner.meta.get_or_insert_default(),
             AgenticLoopChunk::UserResourceLink(chunk) => chunk.inner.meta.get_or_insert_default(),
+            AgenticLoopChunk::UserStructuredDecisions(chunk) => chunk.meta.get_or_insert_default(),
+            AgenticLoopChunk::StructuredDecisionsResponse(chunk) => chunk.meta.get_or_insert_default(),
             AgenticLoopChunk::Usage(chunk) => chunk.meta.get_or_insert_default(),
             AgenticLoopChunk::Notification(chunk) => chunk.meta.get_or_insert_default(),
         };

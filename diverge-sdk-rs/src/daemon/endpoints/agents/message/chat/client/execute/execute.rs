@@ -5,7 +5,7 @@ use super::super::super::server::response;
 use crate::daemon::client::one_shot;
 use crate::wire::client::handle::Handle;
 
-/// What an agents message could not do: the machinery, never the
+/// What an agents message chat could not do: the machinery, never the
 /// daemon's answer, which [`execute`] hands back whole.
 pub type ExecuteError = one_shot::Error<serde_json::Error, response::FrameError>;
 

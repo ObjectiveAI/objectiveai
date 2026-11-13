@@ -24,6 +24,10 @@ pub enum ItemType {
     UserResource,
     /// `user_resource_link`.
     UserResourceLink,
+    /// `user_structured_decisions`.
+    UserStructuredDecisions,
+    /// `structured_decisions_response`.
+    StructuredDecisionsResponse,
     /// `assistant_reasoning`.
     AssistantReasoning,
     /// `assistant_text_content`.
@@ -81,6 +85,8 @@ impl ItemType {
             ItemType::UserAudioContent => "user_audio_content",
             ItemType::UserResource => "user_resource",
             ItemType::UserResourceLink => "user_resource_link",
+            ItemType::UserStructuredDecisions => "user_structured_decisions",
+            ItemType::StructuredDecisionsResponse => "structured_decisions_response",
             ItemType::AssistantReasoning => "assistant_reasoning",
             ItemType::AssistantTextContent => "assistant_text_content",
             ItemType::AssistantImageContent => "assistant_image_content",

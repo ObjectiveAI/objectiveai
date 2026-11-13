@@ -1,48 +1,53 @@
-//! What a server's response frame carries for a message.
+//! What a server's response frame carries for a structured decision.
 
 use serde::Serialize;
 use std::fmt;
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use crate::shared::containers::info::Modality;
+use crate::shared::containers::info::Lacking;
 use crate::shared::error::Error;
 
-/// A message's answer: the agent's program has it, or a failure.
+/// A structured decision's answer: the agent's program has it, or a
+/// failure. Not the agent's answers to the questions, which are said
+/// in its run and read in its log.
 ///
-/// A message is one question and one reply, so there is one of these
-/// per scope, before the finish that ends it — but the reply comes
-/// when the fate is known, which may be long after the ask: a message
-/// for a sleeping agent waits for its run to be activated and its
-/// loop to start, and nothing times it out. A payload leads with one
+/// One of these per scope, before the finish that ends it — and the
+/// reply comes when the fate is known, which may be long after the
+/// ask: a decision waits for everything the agent was handed before
+/// it to finish, and for the agent to be idle, before the run it
+/// starts is begun, and nothing times it out. A payload leads with one
 /// byte saying which — `0` for [`Delivered`](Self::Delivered), `1` for
 /// [`Forbidden`](Self::Forbidden), `2` for [`Error`](Self::Error), `3`
-/// for [`NoChat`](Self::NoChat), `4` for
+/// for [`NoStructuredDecisions`](Self::NoStructuredDecisions), `4` for
 /// [`UnsupportedModalities`](Self::UnsupportedModalities) — and only
 /// the error and the modalities carry anything after it.
 ///
 /// # What the agent's image says
 ///
-/// The daemon holds the message to the `chat` of the agent's image's
-/// `/DIVERGE.md`, as it has it on record, before anything is sent on:
-/// [`NoChat`](Self::NoChat) where the image states `false`, and
+/// The daemon holds the decision to the `structured_decisions` of the
+/// agent's image's `/DIVERGE.md`, as it has it on record, before
+/// anything is sent on:
+/// [`NoStructuredDecisions`](Self::NoStructuredDecisions) where the
+/// image states `false`, and
 /// [`UnsupportedModalities`](Self::UnsupportedModalities) where the
-/// message carries what its `prompt_modalities` does not take. Either
-/// way the message reached no provider and no container, nothing was
-/// started for it, and the agent's log has no line of it.
+/// decision carries what the image does not take. Either way the
+/// decision reached no provider and no container, nothing was started
+/// for it, and the agent's log has no line of it.
 ///
 /// # A finish with nothing before it
 ///
 /// A request the daemon could not read, as
 /// [`endpoints`](crate::daemon::endpoints) states. Nothing else ends
-/// the scope without an answer: nothing takes a message back.
+/// the scope without an answer: nothing takes a decision back.
 ///
 /// # Error
 ///
 /// An [`Error`](Self::Error) is the absence of a delivery: no agent of
-/// the client's is the one named, the agent refused the message's
-/// content, or no run could start on it, in the daemon's or the agent's
-/// own words.
+/// the client's is the one named, the questions are not valid — the
+/// error's `kind` is `questions`, and it names the question — the
+/// agent refused the decision, or no run could start on it, in the
+/// daemon's or the agent's own words.
 ///
 /// # Forbidden
 ///
@@ -64,31 +69,32 @@ use crate::shared::error::Error;
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Frame {
-    /// The agent's program has the message: the loop it started took
-    /// it, or the program accepted it onto its own queue, taken at its
-    /// next seam. Tag `0`.
+    /// The agent's program has the decision: the run it starts has
+    /// begun. Tag `0`.
     Delivered,
     /// The account the request is served for holds no grant allowing
     /// it; nothing changed. Tag `1`.
     Forbidden,
     /// A failure. Tag `2`.
     ///
-    /// The message was not delivered and will not be. See
+    /// The decision was not delivered and will not be. See
     /// [`shared::error::Error`](crate::shared::error::Error)
     /// for why it says so little.
     Error(Error),
-    /// The agent's image does not chat: its document states `chat` as
-    /// `false`, or leaves it out. Tag `3`.
+    /// The agent's image makes no structured decisions: its document
+    /// states `structured_decisions` as `false`, or leaves it out.
+    /// Tag `3`.
     ///
-    /// No message is taken, whatever it carries.
-    NoChat,
-    /// The message carries what the agent's image does not take: the
-    /// modalities its content carries and the image's
-    /// `chat.prompt_modalities` state as `false`, each once, in the
-    /// order image, audio, file, and never empty. Tag `4`.
+    /// No decision is taken, whatever it carries.
+    NoStructuredDecisions,
+    /// The decision carries what the agent's image does not take: see
+    /// [`Lacking`], the modalities its prompt carries and the image's
+    /// `prompt_modalities` state as `false`, and those its choices
+    /// carry and `choice_modalities` state as `false`. At least one of
+    /// the two lists is not empty. Tag `4`.
     ///
-    /// The whole message is refused, the text in it included.
-    UnsupportedModalities(Vec<Modality>),
+    /// The whole decision is refused.
+    UnsupportedModalities(Lacking),
 }
 
 /// Tag for [`Frame::Delivered`].
@@ -100,8 +106,8 @@ const FORBIDDEN: u8 = 1;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 2;
 
-/// Tag for [`Frame::NoChat`].
-const NO_CHAT: u8 = 3;
+/// Tag for [`Frame::NoStructuredDecisions`].
+const NO_STRUCTURED_DECISIONS: u8 = 3;
 
 /// Tag for [`Frame::UnsupportedModalities`].
 const UNSUPPORTED_MODALITIES: u8 = 4;
@@ -128,8 +134,8 @@ impl Encode for Frame {
                 out.extend_from_slice(&[ERROR]);
                 error.encode(out)
             }
-            Frame::NoChat => {
-                out.extend_from_slice(&[NO_CHAT]);
+            Frame::NoStructuredDecisions => {
+                out.extend_from_slice(&[NO_STRUCTURED_DECISIONS]);
                 Ok(())
             }
             Frame::UnsupportedModalities(modalities) => {
@@ -151,14 +157,14 @@ impl Decode<'_> for Frame {
             DELIVERED => Ok(Frame::Delivered),
             FORBIDDEN => Ok(Frame::Forbidden),
             ERROR => Error::decode(rest).map(Frame::Error).map_err(FrameError::Error),
-            NO_CHAT => Ok(Frame::NoChat),
+            NO_STRUCTURED_DECISIONS => Ok(Frame::NoStructuredDecisions),
             UNSUPPORTED_MODALITIES => serde_json::from_slice(rest).map(Frame::UnsupportedModalities).map_err(FrameError::Modalities),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
 }
 
-/// A message response frame that could not be read.
+/// A structured decisions response frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -174,10 +180,10 @@ pub enum FrameError {
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("agents message response frame is empty"),
-            FrameError::UnknownTag(tag) => write!(f, "unknown agents message response frame tag {tag}"),
-            FrameError::Error(error) => write!(f, "agents message error did not parse: {error}"),
-            FrameError::Modalities(error) => write!(f, "agents message modalities did not parse: {error}"),
+            FrameError::Empty => f.write_str("agents message structured decisions response frame is empty"),
+            FrameError::UnknownTag(tag) => write!(f, "unknown agents message structured decisions response frame tag {tag}"),
+            FrameError::Error(error) => write!(f, "agents message structured decisions error did not parse: {error}"),
+            FrameError::Modalities(error) => write!(f, "agents message structured decisions modalities did not parse: {error}"),
         }
     }
 }

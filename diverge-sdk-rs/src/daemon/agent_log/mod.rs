@@ -30,8 +30,10 @@ mod inactive;
 mod item;
 mod item_type;
 mod item_wrapper;
+mod structured_decisions_response;
 mod undeployed;
 mod user;
+mod user_structured_decisions;
 
 pub use active::*;
 pub use deployed::*;
@@ -41,7 +43,9 @@ pub use inactive::*;
 pub use item::*;
 pub use item_type::*;
 pub use item_wrapper::*;
+pub use structured_decisions_response::*;
 pub use undeployed::*;
 pub use user::*;
+pub use user_structured_decisions::*;
 
 pub use crate::daemon::lifecycle::{Provider, Reason};

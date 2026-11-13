@@ -34,7 +34,7 @@
 //! | `0` | [`agents::create`] |
 //! | `1` | [`agents::get`] |
 //! | `2` | [`agents::delete`] |
-//! | `3` | [`agents::message`] |
+//! | `3` | [`agents::message::chat`] |
 //! | `4` | unused |
 //! | `5` | [`agents::list`] |
 //! | `6` | [`agents::edit`] |
@@ -188,8 +188,9 @@
 //! | `154` | [`connected_standalone_tools::detach_agent_instance`] |
 //! | `155` | [`connected_standalone_tools::attach_agent_template`] |
 //! | `156` | [`connected_standalone_tools::detach_agent_template`] |
+//! | `157` | [`agents::message::structured_decisions`] |
 //!
-//! One hundred and fifty-seven, so far. Every one of them carries the optional
+//! One hundred and fifty-eight, so far. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request

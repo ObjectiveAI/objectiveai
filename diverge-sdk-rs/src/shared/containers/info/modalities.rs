@@ -52,7 +52,13 @@ impl Modalities {
     /// 5. Each modality not taken is listed once, in the order image,
     ///    audio, file, however many blocks carry it.
     pub fn lacking(&self, content: &[ContentBlock]) -> Vec<Modality> {
-        let mut lacking: Vec<Modality> = content.iter().filter_map(carried).filter(|modality| !self.takes(*modality)).collect();
+        self.lacking_among(content.iter())
+    }
+
+    /// [`lacking`](Self::lacking), over blocks from more than one
+    /// list: the same rules, every block held alike.
+    pub fn lacking_among<'a>(&self, content: impl Iterator<Item = &'a ContentBlock>) -> Vec<Modality> {
+        let mut lacking: Vec<Modality> = content.filter_map(carried).filter(|modality| !self.takes(*modality)).collect();
         // Rule 5.
         lacking.sort();
         lacking.dedup();
