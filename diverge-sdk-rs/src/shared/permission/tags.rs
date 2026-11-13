@@ -1,4 +1,4 @@
-//! The one test a grant that names nothing reaches by.
+//! The test a grant reaches by its tags.
 
 use serde::{Deserialize, Serialize};
 

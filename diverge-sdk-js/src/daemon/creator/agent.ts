@@ -10,7 +10,7 @@ import { z } from "zod";
 export const Agent = z.object({
   /** The template the agent was made from, by id. */
   template: z.string(),
-  /** The agent's number among all agents of the client's ever made from that template. */
+  /** The agent's number among all agents the daemon ever made from that template. */
   index: z.number().int().nonnegative(),
   /** The agent's name, as its create gave it, if it gave one. Absent when it had none. */
   name: z.string().optional(),

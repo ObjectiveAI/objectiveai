@@ -35,10 +35,14 @@ draft: false
   exactly one member named for a kind, whose value is a bare array of
   making actions, an object of `actions` and `within`, or an object
   of `actions`, `within` and `tags`. A `within` is the string `any`
-  or an object of `all_tags` and `any_tags`, and names nothing; over
+  or an object of `all_tags` and `any_tags`, and names nothing. Over
   agents alone, a `within` may also be the string `attached`, the
-  agents attached to the tool, or the string `never_active`, the
-  agents that have never run. The server relays the array as the
+  agents attached to the tool; the string `never_active`, the
+  agents that have never run; or an object of exactly one member,
+  `agents`, an array of objects of exactly two members each,
+  `template`, a string, and `index`, an unsigned integer: exactly
+  the agents listed, each the agent of that index among the agents
+  made from that template. The server relays the array as the
   proxy sent it and reads none of it.
 - **Malformed.** A channel request whose payload does not decode as
   stated is answered by a channel response finish that no channel
@@ -78,6 +82,11 @@ and, for the grant over agents, by
 `diverge-sdk-rs/src/shared/permission/agents/within.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/permission/agents/within.rs
+```
+
+and by `diverge-sdk-rs/src/shared/permission/agents/key.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/permission/agents/key.rs
 ```
 
 and by `diverge-sdk-rs/src/shared/permission/tags.rs`:

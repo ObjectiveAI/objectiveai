@@ -6,7 +6,9 @@
 //! `any`, or the agents list filter as [`filter::agents::test`] reads
 //! it, with whether a loop runs in the agent now, which the caller
 //! knows — or, a tool's, by an action held within `attached` where
-//! the agent is attached to the tool, whatever its activity; a
+//! the agent is attached to the tool, whatever its activity, or by an
+//! action held over a list of agents that lists this one by its
+//! template and index; a
 //! tagging action by a grant that holds it, reaches the agent, and
 //! covers every tag named.
 
@@ -29,25 +31,28 @@ pub fn create(standing: &Standing) -> bool {
 }
 
 /// Whether the standing holds `action` over any agent at all: by a
-/// grant, or within `attached`.
+/// grant, within `attached`, or over a list of agents.
 pub fn holds(standing: &Standing, action: Over) -> bool {
     if standing.admin() {
         return true;
     }
     standing.attached_actions().contains(&action)
+        || standing.lists(action)
         || standing
             .agents()
             .any(|permission| matches!(permission, Permission::Over { actions, .. } if actions.contains(&action)))
 }
 
 /// Whether the standing may do `action` to `agent`, given whether a
-/// loop runs in it now: by a grant that reaches it, or within
-/// `attached` where the agent is attached to the standing's tool.
+/// loop runs in it now: by a grant that reaches it, within
+/// `attached` where the agent is attached to the standing's tool, or
+/// by a grant over listed agents that lists it.
 pub fn over(standing: &Standing, action: Over, agent: &Agent, state: AgentState) -> bool {
     if standing.admin() {
         return true;
     }
     (standing.attached_actions().contains(&action) && standing.is_attached(agent.id))
+        || standing.is_listed(action, &agent.template, agent.index)
         || standing.agents().any(|permission| match permission {
             Permission::Over { actions, within } => actions.contains(&action) && reaches(within, agent, state),
             _ => false,

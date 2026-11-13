@@ -13,7 +13,7 @@ use crate::store::{self, AgentId, dependency_tools, tools};
 /// Who is asking, for the length of one request: the identity they
 /// are served under, every grant they hold, and — a tool's — the
 /// actions over agents it holds within `attached` and which agents
-/// those are. An account's grants are every grant of every role it
+/// those are, and the grants it holds over listed agents. An account's grants are every grant of every role it
 /// holds, read inside the request's transaction so that the judgment
 /// and the write see one state; `None` is an account deleted since
 /// its client was admitted, which every handler answers as
@@ -39,6 +39,9 @@ pub struct Standing {
     /// The agents `attached` reaches: a tool's attached agents, and
     /// none for an account.
     attached: HashSet<AgentId>,
+    /// The grants over listed agents, in no order: a tool's, and none
+    /// for an account.
+    listed: Vec<grant::Listed>,
     /// Whether this is an administrator, which every judgment allows.
     admin: bool,
 }
@@ -54,6 +57,7 @@ impl Standing {
                 grants,
                 attached_actions: Vec::new(),
                 attached: HashSet::new(),
+                listed: Vec::new(),
                 admin: false,
             })),
             Who::Tool(declared) => {
@@ -71,6 +75,7 @@ impl Standing {
                     grants: declared.fixed.grants.clone(),
                     attached_actions: declared.fixed.attached_actions.clone(),
                     attached,
+                    listed: declared.fixed.listed.clone(),
                     admin: false,
                 }))
             }
@@ -80,6 +85,7 @@ impl Standing {
                 grants: Vec::new(),
                 attached_actions: Vec::new(),
                 attached: HashSet::new(),
+                listed: Vec::new(),
                 admin: true,
             })),
         }
@@ -99,6 +105,19 @@ impl Standing {
     /// Whether the agent is one `attached` reaches.
     pub fn is_attached(&self, agent: AgentId) -> bool {
         self.attached.contains(&agent)
+    }
+
+    /// Whether a grant over listed agents holds `action` at all.
+    pub fn lists(&self, action: grant::agents::Over) -> bool {
+        self.listed.iter().any(|listed| listed.actions.contains(&action))
+    }
+
+    /// Whether a grant over listed agents holds `action` and lists the
+    /// agent of this template and index.
+    pub fn is_listed(&self, action: grant::agents::Over, template: &str, index: u64) -> bool {
+        self.listed.iter().any(|listed| {
+            listed.actions.contains(&action) && listed.agents.iter().any(|key| key.template == template && key.index == index)
+        })
     }
 
     /// The grants over accounts.

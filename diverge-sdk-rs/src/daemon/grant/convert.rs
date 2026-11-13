@@ -8,12 +8,14 @@ use crate::shared::permission::{self, Tags, Within};
 /// actions reaching by the kind's own filter carrying the tags alone,
 /// and — apart from them, since no grant of the daemon's own can say it
 /// — the actions over agents that reach `attached`, which the daemon
-/// judges by the agents attached to the tool. `never_active` is a
+/// judges by the agents attached to the tool, and the actions over
+/// agents that reach a list of them, which the daemon judges by the
+/// agent's own template and index. `never_active` is a
 /// daemon grant of its own, its filter `{"active": "never"}`. Nothing is
 /// widened: a filter of tags alone reaches what the tags test reaches
 /// and nothing else, `attached` reaches the tool's attached agents and
-/// nothing else, and `never_active` the agents that have never run and
-/// nothing else.
+/// nothing else, a list the agents listed and nothing else, and
+/// `never_active` the agents that have never run and nothing else.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Converted {
     /// The grants a role could hold, judged as a role's are.
@@ -21,6 +23,28 @@ pub struct Converted {
     /// The actions over agents held within `attached`, judged against
     /// the agents attached to the tool.
     pub attached_actions: Vec<agents::Over>,
+    /// The grants over listed agents, each judged against the agent's
+    /// template and index.
+    pub listed: Vec<Listed>,
+}
+
+/// One grant over agents within a list of them: the actions held, and
+/// the agents they are held over and no other.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Listed {
+    /// The actions.
+    pub actions: Vec<agents::Over>,
+    /// The agents reached, each by template and index.
+    pub agents: Vec<permission::agents::Key>,
+}
+
+/// A grant over agents no grant of the daemon's own can say, judged
+/// apart from them.
+enum Apart {
+    /// Within `attached`: the actions held.
+    Attached(Vec<agents::Over>),
+    /// Within a list of agents.
+    Listed(Listed),
 }
 
 impl From<Vec<permission::Grant>> for Converted {
@@ -29,7 +53,8 @@ impl From<Vec<permission::Grant>> for Converted {
         for grant in grants {
             match daemon_grant(grant) {
                 Ok(grant) => converted.grants.push(grant),
-                Err(actions) => converted.attached_actions.extend(actions),
+                Err(Apart::Attached(actions)) => converted.attached_actions.extend(actions),
+                Err(Apart::Listed(listed)) => converted.listed.push(listed),
             }
         }
         converted
@@ -37,16 +62,17 @@ impl From<Vec<permission::Grant>> for Converted {
 }
 
 /// The daemon's grant a shared grant is, or — for a grant over agents
-/// within `attached`, which no daemon grant can say — the actions it
-/// holds, to be judged apart.
-fn daemon_grant(grant: permission::Grant) -> Result<Grant, Vec<agents::Over>> {
+/// within `attached` or within a list of them, which no daemon grant
+/// can say — what it holds, to be judged apart.
+fn daemon_grant(grant: permission::Grant) -> Result<Grant, Apart> {
     Ok(match grant {
         permission::Grant::Agents(permission) => Grant::Agents(match permission {
             permission::agents::Permission::Make(makes) => agents::Permission::Make(makes),
             permission::agents::Permission::Over { actions, within } => {
                 let within = match within {
                     permission::agents::Within::Any => Within::Any,
-                    permission::agents::Within::Attached => return Err(actions),
+                    permission::agents::Within::Attached => return Err(Apart::Attached(actions)),
+                    permission::agents::Within::Agents(agents) => return Err(Apart::Listed(Listed { actions, agents })),
                     permission::agents::Within::NeverActive => Within::Only(never_active()),
                     permission::agents::Within::Only(tags) => Within::Only(agents_filter(tags)),
                 };

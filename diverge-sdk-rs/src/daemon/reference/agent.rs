@@ -20,7 +20,7 @@ pub enum Agent {
     TemplateIndex {
         /// The template the agent was made from, by id.
         template: String,
-        /// The agent's number among all agents of the caller's ever
+        /// The agent's number among all agents the daemon ever
         /// made from that template, as its list item carries it.
         index: u64,
     },

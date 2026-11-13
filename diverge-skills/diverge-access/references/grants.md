@@ -259,5 +259,11 @@ The identities signed in on the daemon's host.
 
 A tool container is not an account. It holds the grants its program declared at registration, written in
 the same vocabulary with one restriction: `within` is `"any"` or a tags test only (no names), plus, over
-agents alone, the words `"attached"` (the agents the tool is attached to) and `"never_active"` (agents that
-have never run). Those two words are not valid in a role's grant. See `diverge-tools` and `diverge-images`.
+agents alone:
+
+- `"attached"`: the agents the tool is attached to.
+- `"never_active"`: agents that have never run.
+- `{"agents":[{"template":"<agent template id>","index":<n>}, …]}`: exactly the agents listed, and no
+  other. The one form that names anything. A tool whose arguments are a list of agents declares that list.
+
+None of the three is valid in a role's grant. See `diverge-tools` and `diverge-images`.
