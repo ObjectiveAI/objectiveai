@@ -3,7 +3,7 @@
 
 import type { daemon, shared } from "@diverge/sdk";
 import type * as Phaser from "phaser";
-import type { Links } from "./links";
+import { asPoints, laneLength, type Links, span } from "./links";
 import type { Nodes } from "./nodes";
 import { ink } from "./palette";
 
@@ -47,8 +47,9 @@ export type Pulses = { told(change: shared.listing.Change<Event>): void };
  *    a list opened again sends nothing twice.
  * 2. Every rise sends that many pulses, no more than `CAP` along one
  *    edge at once, `SPACING` apart: a short stroke in ink, `STROKE`
- *    long, running from the sender to the receiver on its call's lane
- *    (`Links.laneOf`), flat — no glow — and gone as it arrives.
+ *    long, running from the sender to the receiver along its call's
+ *    lane and its bow (`Links.laneOf`), flat — no glow — and gone as it
+ *    arrives.
  * 3. A pulse reads its lane at every step, so it follows a node being
  *    dragged and a lane that moves over.
  * 4. An edge with a node not on the board, or whose lane is hidden,
@@ -76,7 +77,7 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline
       return;
     }
     const g = scene.add.graphics().setDepth(8);
-    const length = Math.hypot(first.b.x - first.a.x, first.b.y - first.a.y);
+    const length = laneLength(first);
     scene.tweens.addCounter({
       from: 0,
       to: 1,
@@ -87,13 +88,14 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline
         g.clear();
         const s = links.laneOf(fromKey, toKey, "call");
         if (!s) return;
-        const run = Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y);
+        const run = laneLength(s);
         if (run <= 0) return;
         const head = Math.min(run, (tween.getValue() ?? 0) * (run + STROKE));
         const tail = Math.max(0, head - STROKE);
-        const d = { x: (s.b.x - s.a.x) / run, y: (s.b.y - s.a.y) / run };
+        const piece = span(s, tail, head);
+        if (piece.length < 2) return;
         g.lineStyle(WIDTH, ink(), 1);
-        g.lineBetween(s.a.x + d.x * tail, s.a.y + d.y * tail, s.a.x + d.x * head, s.a.y + d.y * head);
+        g.strokePoints(asPoints(piece), false, false);
       },
       onComplete: () => {
         flying.set(event.id, (flying.get(event.id) ?? 1) - 1);

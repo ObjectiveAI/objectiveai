@@ -42,9 +42,10 @@ const PAN = 400;
  *    list has been whole once, the board waits.
  * 2. Every entity is a node at its first place (`place`), every edge
  *    (`edges`) — call, attachment, creator — a line under them, side by
- *    side in lanes (`makeLinks`). A node dragged takes its lines, its
- *    corners and its pulses with it. The outliner shows and hides each type
- *    of line (`LINES`) and each kind of node (`KINDS`); a hidden node
+ *    side in lanes, each bowed (`makeLinks`). A node dragged takes its
+ *    lines, its corners and its pulses with it. The outliner shows and
+ *    hides each type of line (`LINES`) and each kind of node (`KINDS`),
+ *    made-by lines hidden at first (rule 7 shows a node's own); a hidden node
  *    takes its lines and pulses with it, and closes its sheet if it was
  *    open.
  * 3. Every later world is drawn against the board (`apply`): an entity
@@ -64,8 +65,9 @@ const PAN = 400;
  *    lines and corners following. It does nothing while a node is
  *    dragged, or while nodes are still gliding.
  * 7. The hovered node, else the one whose sheet is open, is focused:
- *    its lines stay bright and the rest are faint (`Links.focus`), and
- *    every node it has no line to is dimmed (`setDim`). A row hovered
+ *    its lines stay bright, its made-by lines show — who made it and
+ *    what it made — and the rest are faint (`Links.focus`), and every
+ *    node it has no line to is dimmed (`setDim`). A row hovered
  *    in the outliner (`HOVER`) focuses its node as hovering it does.
  * 8. The outliner is told every node (`OUTLINE`) with its brightness,
  *    as each world is drawn, and the node whose sheet is open
@@ -124,7 +126,7 @@ export class Board extends Phaser.Scene {
   create() {
     this.say(STATUS, { kind: "waiting", reason: null } satisfies Status);
     // Rule 10: set by the first board, shared by the rest.
-    if (this.registry.get(LINES) === undefined) this.registry.set(LINES, { call: true, attachment: true, creator: true } satisfies Lines);
+    if (this.registry.get(LINES) === undefined) this.registry.set(LINES, { call: true, attachment: true, creator: false } satisfies Lines);
     if (this.registry.get(KINDS) === undefined) this.registry.set(KINDS, { account: true, agent: true, standalone_tool: true, connected_standalone_tool: true, dependency_tool: true, volume: true, provider: true, daemon: true } satisfies Kinds);
     this.say(OUTLINE, [] satisfies Outline);
     this.say(SELECTED, null);

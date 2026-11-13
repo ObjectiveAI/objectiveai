@@ -110,6 +110,15 @@ is named, so the two can be checked against each other.
 | Attachment | dashed line in the theme's strong edge, no mark | a tool or a connected tool attached to an agent (or to its template), a dependency tool to the agents that depend on it, a volume to what mounts it, a provider and what it runs (every agent and standalone tool deployed on it, every dependency tool running on it), a provider and every volume it holds, and a daemon and the connected tools on it (every connected tool whose `daemon`, its first hop, is that record; the further daemons of a tool's `route` are records on other daemons and draw nothing) |
 | Creator | dotted line in the maker's family colour, open dot at the maker | who made it: the account, agent or tool that created an agent, tool, connected tool, account, provider or daemon |
 
+- **Bowed.** Every line bows a little, more the longer it is, at most
+  35 px: calls and creators one way, attachments the other. Lines
+  leaving one node fan apart, and a line between nodes in a row passes
+  the nodes between instead of running under them.
+- **Made-by on pointing.** Creator lines are hidden at first. Pointing
+  at a node (or its row in the outliner), or opening it, shows who made
+  it and what it made; the creators chip shows them all.
+- **One dot per maker.** A maker's lines that leave it the same way
+  share one open dot.
 - **Lanes.** Several lines between the same two nodes run side by side
   in lanes, in a fixed order, and keep that order however the nodes are
   dragged.
@@ -117,8 +126,8 @@ is named, so the two can be checked against each other.
 
 ### Pulses (`grid/pulses.ts`)
 
-- Every new event sends a short stroke in ink along its call line, from
-  sender to receiver, flat — no glow — gone as it arrives.
+- Every new event sends a short stroke in ink along its call line and
+  its bow, from sender to receiver, flat — no glow — gone as it arrives.
 - A burst of events sends at most a few strokes at once, spaced out.
 - Pulses follow a node while it is being dragged.
 
@@ -222,7 +231,8 @@ on it, or the wheel over it, does not move the view.
 - **The types of line** as chips, each its sample and how many the
   board holds — calls, attachments, creators. A chip pressed (tinted)
   is shown; press it to hide or show that type, which takes its lines
-  and lanes off the board.
+  and lanes off the board. Creators start hidden: pointing at a node
+  shows its own.
 - **The kinds** as chips, each its shape in its family's colour. Press
   one to hide or show that kind: its nodes go, and their lines and
   pulses with them; an open sheet for one of them closes, and its rows
