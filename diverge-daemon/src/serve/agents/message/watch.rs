@@ -4,6 +4,7 @@
 use diverge_sdk::daemon::agent_log::Item;
 use diverge_sdk::daemon::endpoints::agents::message::client::channel_request;
 use diverge_sdk::daemon::endpoints::agents::message::server::response::Frame;
+use diverge_sdk::daemon::endpoints::logs::server::response::Entry;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use tokio::sync::watch;
@@ -29,8 +30,8 @@ use crate::store::AgentId;
 ///    of [`Message`](crate::containers::Message) states it: said, it
 ///    is the `logs_index` to send from; never said — the run's entry
 ///    for the message gone first — the one answer is `Dropped`.
-/// 3. **Then the log, from the echo on**, each item as the log holds
-///    it, read as far as the log goes and then again at each append,
+/// 3. **Then the log, from the echo on**, each item as a logs read
+///    gives it, read as far as the log goes and then again at each append,
 ///    up to and including the last:
 ///    - an `inactive`: the agent ceased working, the end of the run
 ///      the echo landed in;
@@ -87,7 +88,7 @@ pub async fn watch(scope: &ScopeHandle, daemon: &Daemon, id: AgentId, admitted: 
                 Item::Inactive(_) | Item::Undeployed(_) => true,
                 _ => false,
             };
-            reply::reply(scope, &Frame::Item(item)).await;
+            reply::reply(scope, &Frame::Item(Entry::Agent(item))).await;
             if last {
                 return;
             }

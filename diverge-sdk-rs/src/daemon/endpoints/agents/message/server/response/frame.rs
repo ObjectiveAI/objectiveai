@@ -3,7 +3,7 @@
 use serde::Serialize;
 use std::fmt;
 
-use crate::daemon::agent_log::ItemWrapper;
+use crate::daemon::endpoints::logs::server::response::Entry;
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 use crate::shared::containers::info::Lacking;
@@ -36,9 +36,10 @@ use crate::shared::error::Error;
 ///
 /// A request whose `watch` is `true` is answered with the part of the
 /// agent's log that is the request's, each item one
-/// [`Item`](Self::Item), exactly as a
+/// [`Item`](Self::Item) carrying the [`Entry`] a
 /// [`logs`](crate::daemon::endpoints::logs) read of the agent gives
-/// it, in the log's order. The rules:
+/// for it — the same JSON, line for line — in the log's order. The
+/// rules:
 ///
 /// 1. **Nothing before the echo.** No [`Delivered`](Self::Delivered)
 ///    is sent, and no item the log took before the request's echo.
@@ -156,9 +157,10 @@ pub enum Frame {
     /// states `structured_decisions` as `false`, or leaves it out.
     /// Tag `5`.
     NoStructuredDecisions,
-    /// One item of the agent's log, as the log holds it: sent to a
-    /// request that watches, from its echo on. Tag `6`.
-    Item(ItemWrapper),
+    /// One item of the agent's log, as a logs read gives it — an
+    /// [`Entry`] of the agent's kind: sent to a request that watches,
+    /// from its echo on. Tag `6`.
+    Item(Entry),
     /// The agent's program accepted the request and its run kept
     /// nothing of it: sent to a request that watches, alone. Tag `7`.
     Dropped,

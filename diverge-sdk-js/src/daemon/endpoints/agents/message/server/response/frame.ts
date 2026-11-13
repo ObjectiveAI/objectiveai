@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { DecodeError, jsonOf, splitTag } from "../../../../../../wire/decode.js";
-import { ItemWrapper } from "../../../../../../daemon/agent_log/item_wrapper.js";
+import { Entry } from "../../../../logs/server/response/entry.js";
 import { Lacking } from "../../../../../../shared/containers/info/structured_decisions.js";
 import { Error } from "../../../../../../shared/error.js";
 
@@ -15,8 +15,9 @@ import { Error } from "../../../../../../shared/error.js";
  * they are read in the agent's log, or by watching.
  *
  * Watched (`watch: true`), the answer is the part of the agent's log
- * that is the request's, each item one `{ item }`, exactly as a
- * `logs` read of the agent gives it, in the log's order:
+ * that is the request's, each item one `{ item }` — the same
+ * `{ item: { agent: … } }` a `logs` read of the agent gives for it —
+ * in the log's order:
  *
  * 1. Nothing before the echo: no `delivered`, and no item the log
  *    took before it.
@@ -54,8 +55,8 @@ export const Frame = z.union([
   z.strictObject({ unsupported_modalities: Lacking }),
   /** The agent's image takes no structured decision: its document states `structured_decisions` as `false`, or leaves it out. Tag `5`. */
   z.literal("no_structured_decisions"),
-  /** One item of the agent's log, as the log holds it: sent to a request that watches, from its echo on. Tag `6`. */
-  z.strictObject({ item: ItemWrapper }),
+  /** One item of the agent's log, as a logs read gives it: sent to a request that watches, from its echo on. Tag `6`. */
+  z.strictObject({ item: Entry }),
   /**
    * The agent's program accepted the request and its run kept nothing
    * of it: sent to a request that watches, alone. It will not be
@@ -98,7 +99,7 @@ export function decode(bytes: Uint8Array): Frame {
     case NO_STRUCTURED_DECISIONS:
       return "no_structured_decisions";
     case ITEM:
-      return { item: ItemWrapper.parse(jsonOf(rest)) };
+      return { item: Entry.parse(jsonOf(rest)) };
     case DROPPED:
       return "dropped";
     default:
