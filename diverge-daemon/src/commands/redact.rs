@@ -15,7 +15,6 @@ pub const REDACTED: &str = "[redacted]";
 ///    `dependency_tools/frontend`: every
 ///    header's value, which may be a secret — a cookie, a credential;
 ///    the names stay.
-/// 4. `identities/login`: `password`, the identity's password.
 ///
 /// A body that is not JSON is kept as `null`. A request that carries a
 /// secret value adds its rule here.
@@ -49,14 +48,6 @@ pub fn body(path: &str, payload: &[u8]) -> serde_json::Value {
                         *value = serde_json::Value::String(REDACTED.to_string());
                     }
                 }
-            }
-        }
-        // Rule 4.
-        "identities/login" => {
-            if let Some(object) = body.as_object_mut()
-                && object.contains_key("password")
-            {
-                object.insert("password".to_string(), serde_json::Value::String(REDACTED.to_string()));
             }
         }
         _ => {}

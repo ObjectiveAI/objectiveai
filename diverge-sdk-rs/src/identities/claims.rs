@@ -11,7 +11,7 @@ use serde::Deserialize;
 const BASE64URL: GeneralPurpose =
     GeneralPurpose::new(&URL_SAFE, GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent));
 
-/// The claims read: the issuer, the subject, the expiry and the nonce.
+/// The claims read: the issuer, the subject and the expiry.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub(super) struct Claims {
     /// `iss`: which issuer's keys a token is checked against, read
@@ -21,9 +21,6 @@ pub(super) struct Claims {
     pub(super) sub: Option<String>,
     /// `exp`, in seconds since the Unix epoch.
     pub(super) exp: Option<i64>,
-    /// `nonce`: what an ID token answers an Authorization Code login's
-    /// `nonce` with.
-    pub(super) nonce: Option<String>,
 }
 
 /// The claims of `jwt`, its payload read and nothing checked; `None`

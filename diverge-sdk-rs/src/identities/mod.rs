@@ -95,32 +95,6 @@
 //!     and the other end's token taken at its word: what a program that
 //!     dials as one identity and judges nobody — a command line —
 //!     makes its handshake with.
-//! 12. **Login by password.**
-//!     [`login_password`](Identities::login_password) — and
-//!     [`try_login_password`](Identities::try_login_password), which
-//!     waits for no one — is rule 13's Authorization Code login with
-//!     no browser: the authorization request sent by this end itself,
-//!     the subject and its password as its Basic credentials, RFC 7617,
-//!     and the issuer's `302` read rather than followed, its code then
-//!     exchanged as any redirect's is. A `401` is [`Error::Rejected`].
-//!     It is how an agent signs in where the authorization endpoint
-//!     takes Basic credentials, as Diverge's own issuer does, which has
-//!     no page. The password is sent and never kept.
-//! 13. **The Authorization Code login.**
-//!     [`login_code`](Identities::login_code) is OpenID Connect Core
-//!     §3.1's sign-in, as a native app makes it: OAuth's Authorization
-//!     Code grant, RFC 6749 §4.1, with PKCE's S256 challenge, RFC 7636,
-//!     and the redirect to a port on `127.0.0.1`, RFC 8252 §7.3. The
-//!     identity's lock is taken as rule 6 takes it and the document read
-//!     as rule 6 reads it, which must name an authorization endpoint and
-//!     offer the `code` response type, and S256 where it names its PKCE
-//!     methods. The browser is sent to the issuer with a fresh `state`,
-//!     `nonce` and verifier, and the subject as `login_hint`; the
-//!     redirect's `state` must be the one sent, the code is exchanged
-//!     once with the verifier, the ID token's `nonce` must be the one
-//!     sent, and the answer is written as rule 6 writes an approval's.
-//!     The browser is answered in plain text.
-//!
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The
 //! file's own record has no public type at all.

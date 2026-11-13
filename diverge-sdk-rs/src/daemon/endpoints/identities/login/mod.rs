@@ -1,13 +1,9 @@
 //! Signing an identity in on the daemon's host. A client names the
-//! identity and the public client to sign in as. With the identity's
-//! password, the daemon signs in by OpenID Connect's Authorization Code
-//! flow with no browser — the password the authorization request's Basic
-//! credentials, the redirect read on the daemon's own host — and answers
-//! the outcome. Without one, it begins the
-//! device authorization grant, RFC 8628, and answers what a person needs
-//! to approve it — the user code, and where to enter it — then, once
-//! the person decides or the code expires, the outcome. Then the scope
-//! finishes.
+//! identity and the public client to sign in as. The daemon begins the
+//! device authorization grant, RFC 8628 — the one login there is — and
+//! answers what is needed to approve it — the user code, and where it
+//! is approved — then, once it is decided or the code expires, the
+//! outcome. Then the scope finishes.
 //!
 //! The rules:
 //!
@@ -16,7 +12,8 @@
 //!    talks to the issuer, and no token reaches the client.
 //! 2. **Approved anywhere.** A device login's code is approved in any
 //!    browser that reaches the issuer's verification page — the
-//!    client's, or another device's. A password login has no code.
+//!    client's, or another device's — or by a request, where the
+//!    issuer takes approvals so.
 //! 3. **Replacing.** An approval as the identity named writes it,
 //!    replacing one already there, signed out or not; an approval as
 //!    another identity writes nothing.

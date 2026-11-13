@@ -15,17 +15,6 @@ pub(super) struct Discovery {
     /// The device authorization endpoint, where the issuer has one:
     /// what a device login needs.
     pub(super) device_authorization_endpoint: Option<String>,
-    /// The authorization endpoint, which OpenID Connect requires a
-    /// provider to name: what an Authorization Code login sends the
-    /// browser to.
-    pub(super) authorization_endpoint: Option<String>,
-    /// The response types the issuer offers: an Authorization Code login
-    /// needs `code` among them.
-    #[serde(default)]
-    pub(super) response_types_supported: Vec<String>,
-    /// The PKCE challenge methods the issuer offers, RFC 8414's; absent
-    /// where it does not say.
-    pub(super) code_challenge_methods_supported: Option<Vec<String>>,
     /// The key set's URL, where the issuer has one: what a
     /// verification needs.
     pub(super) jwks_uri: Option<String>,

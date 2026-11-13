@@ -22,11 +22,9 @@ export type Pending = z.infer<typeof Pending>;
  * A login's answers. A device login begun: exactly one `pending`, then
  * exactly one of `signed_in`, `denied`, `expired`, `other_subject` or
  * `error`, then the finish — a finish with no outcome after `pending`
- * is a cancel, or the connection ending, and nothing was written. A
- * password login: exactly one of `signed_in`, `rejected`,
- * `other_subject` or `error`, with no `pending`. Refused: exactly one
- * of `held`, `forbidden` or `error`. No answer carries a token or a
- * password.
+ * is a cancel, or the connection ending, and nothing was written.
+ * Refused: exactly one of `held`, `forbidden` or `error`. No answer
+ * carries a token.
  */
 export const Frame = z.union([
   /** The login begun: what a person needs to approve it. Tag `0`. */
@@ -45,8 +43,6 @@ export const Frame = z.union([
   z.literal("forbidden"),
   /** A failure. See `shared.error.Error` for why it says so little. Tag `7`. */
   z.strictObject({ error: Error }),
-  /** The issuer refused the subject and the password; nothing was written. Tag `8`. */
-  z.literal("rejected"),
 ]);
 export type Frame = z.infer<typeof Frame>;
 
@@ -58,7 +54,6 @@ const EXPIRED = 4;
 const OTHER_SUBJECT = 5;
 const FORBIDDEN = 6;
 const ERROR = 7;
-const REJECTED = 8;
 
 /**
  * A frame out of its payload: the tag byte, then the variant's own
@@ -84,8 +79,6 @@ export function decode(bytes: Uint8Array): Frame {
       return "forbidden";
     case ERROR:
       return { error: Error.parse(jsonOf(rest)) };
-    case REJECTED:
-      return "rejected";
     default:
       throw new DecodeError("unexpected_tag", tag);
   }
