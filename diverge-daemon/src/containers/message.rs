@@ -15,7 +15,7 @@ use futures_util::stream::FuturesUnordered;
 use rmcp::model::ContentBlock;
 use tokio::sync::oneshot;
 
-use super::{Activated, AgentRun, Message, StartError, activate, events, inflight, stop};
+use super::{AgentRun, Message, StartError, activate, events, inflight, stop};
 use crate::daemon::Daemon;
 use crate::serve::reply;
 use crate::store::AgentId;
@@ -122,8 +122,13 @@ async fn watched(daemon: Arc<Daemon>, id: AgentId) {
 ///   hands requests over by index, whatever order they reach it in.
 /// - **Nothing leaves before the run is up.** Step 2 is waited for,
 ///   and the outbox is the cold start's buffer.
-/// - **Nothing leaves before the feed is answered.** Step 3 is waited
-///   for, each turn.
+/// - **The feed follows the requests.** A run whose gate is shut is fed
+///   after the turn's requests have gone out, not before: the proxy
+///   keeps what reaches a shut gate and starts the run on all of it
+///   when the feed lands, so the feed is the go, and what was sent
+///   ahead of it starts the run together. A feed sent first would open
+///   the gate on an empty queue, and the run would start on whichever
+///   request came first, alone.
 /// - **Every request unanswered holds the run.** Each turn's hold of
 ///   `pending` is kept until every request of the turn is answered, so
 ///   the idle clock does not stop a run with a request on its way, and
@@ -141,20 +146,16 @@ async fn watched(daemon: Arc<Daemon>, id: AgentId) {
 ///    order: that is the cold start's buffer. A start that fails
 ///    takes everything waiting and answers each with the start's
 ///    error.
-/// 3. **Hold, then activate.** The run's `pending` is entered — held
-///    from here until the batch is answered, so the idle clock does
-///    not run and an `inactive` that crosses the batch feeds again:
-///    see [`inactive_agent`](super::inactive_agent) — and the run is
-///    activated: [`activate_agent`](super::activate_agent), the feed
-///    sent where the gate is shut and its answer waited for.
-///    - A run the daemon is ending — its idle clock stopping it — is
-///      not activated, and nothing is taken: the hold is let go, the
-///      run waited for until it is gone —
-///      [`AgentRun::gone`](super::AgentRun::gone) — and the pump
-///      looks again, which gets a fresh run. A message is never lost
-///      to an idle stop.
-///    - An activation that fails takes everything waiting and answers
-///      each with its error, kind `secrets`.
+/// 3. **Hold, then look at the run.** The run's `pending` is entered
+///    — held from here until the turn's requests are answered, so the
+///    idle clock does not run and an `inactive` that crosses one feeds
+///    again: see [`inactive_agent`](super::inactive_agent). A run the
+///    daemon is ending — its gate's `ending`, read under the gate's
+///    lock: the idle clock looked before the hold — is sent nothing,
+///    and nothing is taken: the hold is let go, the run waited for
+///    until it is gone — [`AgentRun::gone`](super::AgentRun::gone) —
+///    and the pump looks again, which gets a fresh run. A message is
+///    never lost to an idle stop.
 /// 4. **Take everything waiting**, only now — as late as there is —
 ///    in the order it was admitted. Each message is put on
 ///    the graph — one event from its sender to the agent, whatever
@@ -173,7 +174,10 @@ async fn watched(daemon: Arc<Daemon>, id: AgentId) {
 /// 6. **Send them all, and look again.** Every request goes out at
 ///    once, each an enqueue of its own, and the turn's requests, with
 ///    its hold, are handed to a task of their own — [`answered`] —
-///    which outlives the turn, and the pump where it ends. There each
+///    which outlives the turn, and the pump where it ends. There the
+///    requests are put on the wire first, and the run is then
+///    activated — [`activate_agent`](super::activate_agent): the feed,
+///    where the gate is shut, and nothing where it is open — and each
 ///    answer is taken as it comes: `Delivered` is the fate of every message of
 ///    that request, the container's `Error` is theirs, and an enqueue
 ///    that failed on the way — the run ending under it, the provider
@@ -209,17 +213,13 @@ async fn pump(daemon: Arc<Daemon>, id: AgentId) {
             }
         };
         let pending = run.pending.enter();
-        match activate::activate_agent(&daemon, &run).await {
-            Ok(Activated::Open) => {}
-            Ok(Activated::Ending) => {
-                drop(pending);
-                run.gone().await;
-                continue;
-            }
-            Err(error) => {
-                answer(daemon.live.take_waiting(id).await, &Fate::Error(error));
-                continue;
-            }
+        // Rule 3: read apart, so the gate's lock is not held across the
+        // wait for the run to be gone.
+        let ending = run.gate.lock().await.ending;
+        if ending {
+            drop(pending);
+            run.gone().await;
+            continue;
         }
         // Rules 4 and 5.
         let batch = daemon.live.take_waiting(id).await;
@@ -280,14 +280,21 @@ async fn pump(daemon: Arc<Daemon>, id: AgentId) {
 /// task of its own so the pump waits for none of it. `pending` is the
 /// turn's hold of the run, let go once every request is answered.
 ///
-/// 1. Each answer is the fate of every message its request carried,
+/// 1. The requests go out first, and the run is activated after them:
+///    the select is biased, so its first look puts every request on
+///    the wire before the activation is begun. Where the gate was shut
+///    the feed is then the go for everything sent ahead of it.
+/// 2. Each answer is the fate of every message its request carried,
 ///    said as it comes.
-/// 2. The run's `unfed` told — an `inactive` could not feed again, and
+/// 3. The run's `unfed` told — an `inactive` could not feed again, and
 ///    left the gate shut on what is unanswered — has the run activated
 ///    again, here. It wakes one such task, which is enough: the gate is
 ///    the run's.
-/// 3. An activation that fails ends the run as failed, and is the fate
-///    of every request of this turn not yet answered.
+/// 4. An activation that fails — the first, or one after `unfed` —
+///    ends the run as failed, since what was sent is behind a gate no
+///    feed will open and nothing takes it back, and is the fate of
+///    every request of this turn not yet answered. A run found ending
+///    is fed nothing: its requests are answered by its end.
 async fn answered(
     daemon: Arc<Daemon>,
     run: Arc<AgentRun>,
@@ -295,8 +302,12 @@ async fn answered(
     mut unanswered: HashMap<u64, Sent>,
     mut asking: FuturesUnordered<BoxFuture<'static, (u64, Fate)>>,
 ) {
+    let activating = activate::activate_agent(&daemon, &run);
+    tokio::pin!(activating);
+    let mut activated = false;
     let failed = loop {
         tokio::select! {
+            biased;
             answer = asking.next() => {
                 let Some((index, fate)) = answer else {
                     break None;
@@ -305,7 +316,14 @@ async fn answered(
                     settle(&run, sent, &fate).await;
                 }
             }
-            () = run.unfed.notified() => {
+            first = &mut activating, if !activated => {
+                activated = true;
+                if let Err(error) = first {
+                    stop::fail_agent(&run).await;
+                    break Some(Fate::Error(error));
+                }
+            }
+            () = run.unfed.notified(), if activated => {
                 if let Err(error) = activate::activate_agent(&daemon, &run).await {
                     stop::fail_agent(&run).await;
                     break Some(Fate::Error(error));
