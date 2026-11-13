@@ -28,15 +28,20 @@ const DOCK = 48;
 /** How far, in pixels, a press on the header may move and still not be a drag. */
 const CLICK = 6;
 
-/** The families, in order, and the kinds in each: who acts, what they use, where it runs. */
-const FAMILIES: [string, Kind[]][] = [
-  ["who acts", ["account", "agent"]],
-  ["what they use", ["standalone_tool", "connected_standalone_tool", "dependency_tool"]],
-  ["where it runs", ["volume", "provider", "daemon"]],
+/** The groups, in order, and the kinds in each: one a kind, named and ordered as the first outliner had them. */
+const GROUPS: [string, Kind[]][] = [
+  ["accounts", ["account"]],
+  ["agents", ["agent"]],
+  ["standalone tools", ["standalone_tool"]],
+  ["connected tools", ["connected_standalone_tool"]],
+  ["daemons", ["daemon"]],
+  ["dependency tools", ["dependency_tool"]],
+  ["volumes", ["volume"]],
+  ["providers", ["provider"]],
 ];
 
-/** The kinds in the families' order, for the chips. */
-const ORDER: Kind[] = FAMILIES.flatMap(([, kinds]) => kinds);
+/** The kinds in the groups' order, for the chips. */
+const ORDER: Kind[] = GROUPS.flatMap(([, kinds]) => kinds);
 
 /** Each type's name. */
 const NAMES: Record<EdgeType, string> = { call: "calls", attachment: "attachments", creator: "creators" };
@@ -95,8 +100,8 @@ type Edge = "left" | "right" | "top" | "bottom";
  *    fold, dock — then what the world has to say (`STATUS`), quietly;
  *    then what to show on the board, as chips: each type of line with its
  *    sample and count (`LINES`), each kind by its shape (`KINDS`), pressed
- *    while shown; then every node shown, by family — who acts, what they
- *    use, where it runs — each family's head folding its rows away.
+ *    while shown; then every node shown, by kind (`GROUPS`), every kind
+ *    a head that folds its rows away, even one with none.
  * 3. A row is a node: its shape in its family's colour, its name. A node
  *    not bright is faint: its shape in the strong edge, its name in the
  *    quietest words. The node whose sheet is open (`SELECTED`) is bold on
@@ -300,19 +305,19 @@ export function outliner(game: Phaser.Game): void {
         const rule = document.createElement("div");
         rule.className = "rule";
         root.append(show, rule);
-        // Rules 2 and 3: the list, by family.
+        // Rules 2 and 3: the list, by kind.
         const list = document.createElement("div");
         list.className = "list";
-        for (const [family, members] of FAMILIES) {
+        for (const [name, members] of GROUPS) {
           const entries = outline
             .filter((e) => members.includes(e.kind) && (kinds === undefined || kinds[e.kind]))
             .sort((a, b) => members.indexOf(a.kind) - members.indexOf(b.kind) || a.label.localeCompare(b.label));
-          const shut = folded.has(family);
-          const group = button("group", `${shut ? "Unfold" : "Fold"} ${family}`, `group:${family}`, `${glyph("chevron")}<span class="label">${family}</span><span class="n">${entries.length}</span>`);
+          const shut = folded.has(name);
+          const group = button("group", `${shut ? "Unfold" : "Fold"} ${name}`, `group:${name}`, `${glyph("chevron")}<span class="label">${name}</span><span class="n">${entries.length}</span>`);
           group.setAttribute("aria-expanded", String(!shut));
           group.addEventListener("click", () => {
-            if (shut) folded.delete(family);
-            else folded.add(family);
+            if (shut) folded.delete(name);
+            else folded.add(name);
             render();
           });
           list.append(group);

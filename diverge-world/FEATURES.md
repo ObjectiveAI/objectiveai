@@ -14,7 +14,7 @@ is named, so the two can be checked against each other.
   colours as every panel, nothing glowing.
 - A line traces round a node while it works, and a short stroke runs
   along a line as each event happens.
-- An outliner lists every node by family — clicking one flies the view to
+- An outliner lists every node by kind — clicking one flies the view to
   it and opens its sheet — shows and hides each kind and each type of
   line, with counts, and can arrange the board. It floats where you drag
   it, folds small, and docks down the window's left.
@@ -240,11 +240,12 @@ on it, or the wheel over it, does not move the view.
 
 ### The list
 
-- **By family:** who acts (accounts, agents), what they use (the three
-  kinds of tool), where it runs (volumes, providers, daemons). Each
-  family's head shows how many it lists and folds its rows away.
-- **Rows:** every node shown, by name, with its shape in its family's
-  colour. A node that is not bright has its shape in the strong edge
+- **By kind:** accounts, agents, standalone tools, connected tools,
+  daemons, dependency tools, volumes, providers — every kind, even one
+  with none. Each kind's head shows how many it lists and folds its
+  rows away; the groups stand a little apart.
+- **Rows:** every node shown, by name, hung under its kind's head, with
+  its shape in its family's colour. A node that is not bright has its shape in the strong edge
   and its name in the quietest words.
 - **The open sheet's row** is bold, on a raised band, with the gold bar
   down its left.
