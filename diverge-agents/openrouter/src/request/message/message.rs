@@ -127,7 +127,9 @@ pub fn messages(
                 | AgenticLoopChunk::UserImageContent(_)
                 | AgenticLoopChunk::UserAudioContent(_)
                 | AgenticLoopChunk::UserResource(_)
-                | AgenticLoopChunk::UserResourceLink(_) => {}
+                | AgenticLoopChunk::UserResourceLink(_)
+                | AgenticLoopChunk::UserStructuredDecisions(_)
+                | AgenticLoopChunk::StructuredDecisionsResponse(_) => {}
                 chunk => match &mut current {
                     Some(assistant) => assistant.push(chunk),
                     None => {

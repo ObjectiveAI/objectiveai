@@ -180,6 +180,8 @@ impl AssistantMessage {
             | AgenticLoopChunk::UserAudioContent(_)
             | AgenticLoopChunk::UserResource(_)
             | AgenticLoopChunk::UserResourceLink(_)
+            | AgenticLoopChunk::UserStructuredDecisions(_)
+            | AgenticLoopChunk::StructuredDecisionsResponse(_)
             | AgenticLoopChunk::Usage(_)
             | AgenticLoopChunk::Notification(_) => {
                 unreachable!("only assistant chunks are pushed here")

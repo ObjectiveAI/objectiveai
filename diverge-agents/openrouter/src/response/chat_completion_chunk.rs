@@ -128,6 +128,12 @@ fn stamp(
         AgenticLoopChunk::UserResourceLink(chunk) => {
             &mut chunk.inner.meta.get_or_insert_with(Default::default).0
         }
+        AgenticLoopChunk::UserStructuredDecisions(chunk) => {
+            &mut chunk.meta.get_or_insert_with(Default::default).0
+        }
+        AgenticLoopChunk::StructuredDecisionsResponse(chunk) => {
+            &mut chunk.meta.get_or_insert_with(Default::default).0
+        }
     };
     map.insert("openrouter".to_string(), openrouter.clone());
 }

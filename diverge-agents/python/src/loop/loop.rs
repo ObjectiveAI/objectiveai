@@ -349,6 +349,8 @@ fn accumulate(turn: &mut Vec<AgenticLoopChunk>, chunk: &AgenticLoopChunk) {
             | AgenticLoopChunk::UserAudioContent(_)
             | AgenticLoopChunk::UserResource(_)
             | AgenticLoopChunk::UserResourceLink(_)
+            | AgenticLoopChunk::UserStructuredDecisions(_)
+            | AgenticLoopChunk::StructuredDecisionsResponse(_)
     ) {
         return;
     }
@@ -398,6 +400,12 @@ fn strip(chunk: &mut AgenticLoopChunk) {
         }
         AgenticLoopChunk::UserResourceLink(chunk) => {
             chunk.inner.meta = None;
+        }
+        AgenticLoopChunk::UserStructuredDecisions(chunk) => {
+            chunk.meta = None;
+        }
+        AgenticLoopChunk::StructuredDecisionsResponse(chunk) => {
+            chunk.meta = None;
         }
         AgenticLoopChunk::Usage(chunk) => {
             chunk.meta = None;
