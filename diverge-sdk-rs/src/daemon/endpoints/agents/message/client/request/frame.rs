@@ -1,34 +1,21 @@
-//! What a client's request frame carries for a structured decision.
+//! What a client's request frame carries for a message.
 
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
-use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
-use crate::shared::containers::structured_decisions::Question;
 use crate::shared::relay::Relay;
 
 use crate::daemon::reference;
 
-/// Ask the daemon to put a structured decision to an agent.
+use super::Message;
+
+/// Ask the daemon to ask an agent something.
 ///
-/// The content is the prompt, MCP content blocks in order, as a chat
-/// message's is. The questions are what is asked of it: one or more,
-/// each a [`Question`] of one of three kinds, each answered under its
-/// own id. The daemon holds both to rules before anything is sent on,
-/// and a request that breaks one reaches nothing — see the
-/// [response](super::super::server::response::Frame):
-///
-/// 1. The agent's image declares `structured_decisions`.
-/// 2. The questions are valid, as
-///    [`validate`](crate::shared::containers::structured_decisions::validate)
-///    states.
-/// 3. The content, the instructions, the options' descriptions and the
-///    levels carry only what the image says it takes, as
-///    [`StructuredDecisions::lacking`](crate::shared::containers::info::StructuredDecisions::lacking)
-///    states.
-///
-/// The answers are not this request's answer. They are said by the
-/// agent in its run, and are read in its log.
+/// The name is the one a [`create`](crate::daemon::endpoints::agents::create)
+/// gave the agent. What is asked is the frame's `type` and the members
+/// of that kind, beside its own: see [`Message`]. What the agent makes
+/// of a block it is sent is its image's; an image that cannot take one
+/// refuses the whole request, and the scope's error carries its words.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {
@@ -36,10 +23,15 @@ pub struct Frame {
     /// template and its index, which name it once and for all. See
     /// [`reference::Agent`].
     pub agent: reference::Agent,
-    /// The prompt's content, in order.
-    pub content: Vec<ContentBlock>,
-    /// The questions, in order: see [`Question`].
-    pub questions: Vec<Question>,
+    /// What is asked: its `type`, and that kind's members.
+    #[serde(flatten)]
+    pub message: Message,
+    /// Whether to watch: `true` has the answer be the part of the
+    /// agent's log that is the request's, as the
+    /// [response](super::super::server::response::Frame) states.
+    /// Absent or `false`, the answer is the request's fate alone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub watch: Option<bool>,
     /// Served by another daemon: see [`Relay`]. Absent, served here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<Relay>,
@@ -57,7 +49,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 157;
+const TAG: u8 = 3;
 
 /// JSON, as the enqueue is on the provider's wire: the content is
 /// MCP's, and MCP is JSON.
@@ -84,7 +76,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A structured decisions request frame that could not be read.
+/// A message request frame that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -102,12 +94,12 @@ pub enum FrameError {
 impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameError::Empty => f.write_str("agents message structured decisions request frame is empty"),
+            FrameError::Empty => f.write_str("agents message request frame is empty"),
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected agents message structured decisions request tag {TAG}, found {tag}")
+                write!(f, "expected agents message request tag {TAG}, found {tag}")
             }
             FrameError::Body(error) => {
-                write!(f, "agents message structured decisions request did not parse: {error}")
+                write!(f, "agents message request did not parse: {error}")
             }
         }
     }
