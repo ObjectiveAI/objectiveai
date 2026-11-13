@@ -128,7 +128,7 @@ impl Daemon {
         if let Some(known) = self.documents.lock().await.get(&image.digest) {
             return known.clone();
         }
-        let request = info::client::request::Frame { image: image.clone(), relay: None };
+        let request = info::client::request::Frame { image: image.clone(), ignore: Vec::new(), relay: None };
         let answer = info::client::execute::execute(handle, &request).await.ok()?;
         let (document, kept) = match answer {
             info::server::response::Frame::Info(document) => (Some(document), true),

@@ -13,7 +13,7 @@ tables. Bare answers are JSON strings; answers with a payload are one-member obj
 
 | leaf | body | answers |
 |---|---|---|
-| `create` | `type:"tool"`, optional `mode`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}`; `{"error":{"kind":"image",…}}` when the image has no valid `DIVERGE.md` |
+| `create` | `type:"tool"`, optional `mode`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}` |
 | `get` | `{"id"}` | `{"found":{id, created, creator, tags, template}}`, `"not_found"` |
 | `list` (`--watch`) | `ids`, `creators`, `in_use`, `all_tags`, `any_tags`, `created_from`, `created_to`, `count` | `{"added":…}`…, `"listed"`; with `--watch` also `{"changed":…}`, `{"removed":…}` |
 | `delete` | `{"id"}` | `"deleted"`, `"not_found"`, `"in_use"` |
@@ -24,7 +24,7 @@ tables. Bare answers are JSON strings; answers with a payload are one-member obj
 
 | leaf | flags | body | answers |
 |---|---|---|---|
-| `create` | | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"` |
+| `create` | | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"`; `{"error":{"kind":"image",…}}` when the template's image has no valid `DIVERGE.md` the daemon can find |
 | `get` | | `{"tool":<tool>}` | `{"found":<item>}`, `"not_found"` |
 | `list` | `--watch` | filter + `count` | `{"added":<item>}`…, `"listed"`; with `--watch` also `{"changed"}`, `{"removed"}` |
 | `edit` | | `{"tool":<tool>,"patch":[…]}` | `"edited"`, `"not_found"`, `"active"`, `"in_use"` |

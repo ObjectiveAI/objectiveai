@@ -2,11 +2,8 @@
 
 use diverge_sdk::daemon::endpoints::agents::templates::create::client::request;
 use diverge_sdk::daemon::endpoints::agents::templates::create::server::response::Frame;
-use std::sync::Arc;
-
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 
-use crate::containers::{self, images};
 use crate::daemon::{Daemon, Kind};
 use crate::judge::{self, Standing, Who};
 use crate::serve::inner;
@@ -15,7 +12,7 @@ use crate::store::{self, agents_templates};
 use crate::store::hash;
 
 /// Answer the create and finish the scope.
-pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
+pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
     let answer = match serve(frame, who, daemon).await {
         Ok(answer) => answer,
         Err(error) => Frame::Error(reply::failure(&error)),
@@ -24,32 +21,14 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
     scope.send_response_finish().await;
 }
 
-/// The rules, in order:
-///
-/// 1. `Forbidden` without the `create` grant.
-/// 2. The `secrets` error for a declaration with an empty name or a
-///    name twice.
-/// 3. The `image` error for an image with no document the daemon can
-///    read: found as [`images::document`] finds it, which asks a
-///    provider the first time the digest is seen and leaves the
-///    document on record. So every template the daemon holds names an
-///    image whose document is on record.
-/// 4. The `image` error for a document that declares neither `chat`
-///    nor `structured_decisions`: an agent's image does at least one.
-/// 5. Else the template's id — the hash of its own compact JSON —
-///    with `Created` when the daemon made it, or made it again after
-///    a delete, and `Exists` when it was there, the same id either
-///    way.
-///
-/// The grant is judged on a connection given back before the image is
-/// asked after, so nothing of the store is held while a provider is
-/// waited for.
-async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
-    let standing = {
-        let mut conn = daemon.store.acquire().await?;
-        Standing::of(&mut conn, who).await?
-    };
-    let Some(standing) = standing else {
+/// `Forbidden` without the `create` grant; the `secrets` error for a
+/// declaration with an empty name or a name twice; else the template's id —
+/// the hash of its own compact JSON — with `Created` when the daemon
+/// made it, or made it again after a delete, and `Exists` when it was
+/// there, the same id either way.
+async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
+    let mut tx = daemon.store.begin().await?;
+    let Some(standing) = Standing::of(&mut tx, who).await? else {
         return Ok(Frame::Forbidden);
     };
     if !judge::agents_templates::create(&standing) {
@@ -58,15 +37,6 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<
     if let Err(what) = inner::declared(&frame.template.secrets) {
         return Ok(Frame::Error(reply::secrets(&what)));
     }
-    match images::document(daemon, &containers::image(&frame.template.image)).await? {
-        Err(why) => return Ok(Frame::Error(reply::image(&why))),
-        Ok(document) => {
-            if document.chat.is_false() && document.structured_decisions.is_false() {
-                return Ok(Frame::Error(reply::image("the image's document declares neither chat nor structured decisions")));
-            }
-        }
-    }
-    let mut tx = daemon.store.begin().await?;
     let id = hash::template_id(&frame.template.hashed()).map_err(store::Error::Json)?;
     let new = agents_templates::New {
         id: id.clone(),

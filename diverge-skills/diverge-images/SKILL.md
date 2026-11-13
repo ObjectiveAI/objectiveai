@@ -182,10 +182,11 @@ What each member means:
 - `structured_decisions` — an agent's image only. `false`, or
   `{"prompt_modalities": {…}, "choice_modalities": {…}}`, each the same three booleans.
 - An agent's image declares at least one of the two; a tool's image states neither.
-- **The document is required.** `templates create` (agents and standalone tools) and an agent's
-  dependency declaration each read the image's document and refuse an image that ships none, that no
-  connected provider can obtain, or whose document does not parse. An agent template is also refused
-  when its image declares neither `chat` nor `structured_decisions`.
+- **The document is required.** `agents create`, `standalone-tools create` and an agent's dependency
+  declaration each read the image's document and refuse an image that ships none, that nobody in
+  reach holds, or whose document does not parse. An agent is also refused when its image declares
+  neither `chat` nor `structured_decisions`. A template is not checked: `templates create` takes any
+  image.
 - **`chat` is enforced** on `agents message`: see `diverge-agents`. `structured_decisions` is carried
   and not yet acted on.
 - The body states, in prose, the tools the image serves and the **secrets it declares** with their
@@ -215,25 +216,38 @@ One answer:
 |---|---|
 | `{"info":{"name":…,"schema":{…},"frontend":true,"chat":{…},"body":"…"}}` | the document, parsed (`frontend`, `chat` and `structured_decisions` each absent when false) |
 | `"missing"` | the image ships no `/DIVERGE.md` |
-| `"no_source"` | no container of the image runs and no connected provider can obtain it; nothing was asked |
+| `"no_source"` | no container of the image runs, and no connected provider or remote daemon holds it |
 | `"forbidden"` | the account holds no `{"images":["info"]}` grant |
 | `{"error":…}` | a failure, in the provider's words where it said any; nothing is retried |
 
 How the daemon finds it, in order:
 
-1. Its own record of the digest. Once an `info` or a `missing` has been found for a digest it is
-   recorded and answered from the record from then on (a digest never changes what it ships).
+1. Its own record of the digest. Once a document has been found for a digest it is recorded and
+   answered from the record from then on (a digest never changes what it ships). Only a document is
+   recorded: a `missing`, a `no_source` and an `error` are asked again.
 2. A running container of that digest (an agent's or a tool's the daemon runs itself): one is chosen
    and asked on its run's info channel. References are not compared, and the asker's grants over
    agents or tools do not narrow this.
-3. Otherwise a connected provider that lists a registry one of the references names (the same test a
-   run makes), or failing that a provider whose Store holds the image. That provider reads the file
-   out of the image **without running it**.
-4. No provider either way is `no_source`.
+3. Otherwise every connected provider and every remote daemon is asked **at once** whether it holds
+   the image (the cheap question `images oci` asks; nothing is pulled). The first that does is asked
+   for the document: a provider reads the file out of the image **without running it**; a remote
+   daemon answers `images info` itself, by these same rules. One that fails is passed over for the
+   next holder.
+4. With no holder, every connected provider is asked for the document outright, all at once. This
+   finds an image that is only in a provider's local podman cache, which the "holds" question does
+   not look in.
+5. Nothing found is `no_source`, or the last failure heard.
 
-Pitfalls: an image that is only in a provider's local cache needs a `references` entry naming a
-listed registry, exactly as a template does, or the answer is `no_source`. A `no_source` or an
-`error` is not recorded, so asking again later can succeed.
+Notes:
+
+- A remote daemon is asked as the account this daemon holds there, which needs `{"images":["info"]}`
+  on that daemon (and the `oci` grant for the "holds" question). Without it that daemon is passed over.
+- The request's optional `ignore` (identities of daemons not to ask) is the loop guard daemons use
+  among themselves; leave it out.
+- **`agents create` and `standalone-tools create` run this search** for the template's image and
+  refuse an image with no document, so the first create of a new image can take as long as a
+  provider needs to pull it. Asking `images info` beforehand records the document, and the create
+  then answers from the record.
 
 Grant: `{"images":["info"]}` (a bare array; there is no `within`, since images are not records).
 
@@ -351,7 +365,7 @@ template declares. Details and lifecycle are in `diverge-tools`; the entry shape
 | Start error saying the image is unavailable | The digest is not in the **provider's** podman store (it was built with another podman connection), or it is only tagged under `127.0.0.1:`, or no digest was recorded for it. Rebuild through the provider's podman and re-read the digest. |
 | The image deploys but its program misbehaves against the proxy | The image predates the current inside-container contract. Rebuild it from current source. |
 | Start error naming a secret the template does not declare | The program's arguments select a secret (see the per-image reference) that the template's `secrets` omits. Add the name to the template (a new template id) and bind it on the create. |
-| `images info` answers `no_source` for a local image | No `references` entry names a listed registry and nothing of the image runs. Add the reference. |
+| `images info` answers `no_source` for a local image | No connected provider has the image in its cache, its Store or a listed registry, and no remote daemon holds it. Build or pull it on a connected provider's host. |
 | A rebuilt image has the same tag but templates still run the old one | Templates name digests. A rebuild is a new digest: make a new template with it. |
 
 ## Not verified

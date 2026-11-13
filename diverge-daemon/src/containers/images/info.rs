@@ -1,22 +1,26 @@
 //! An image's DIVERGE.md: from the daemon's record, from a container
-//! of it running, or from a provider that can obtain it.
+//! of it running, or from whichever provider or remote daemon holds
+//! it, asked all at once.
 
 use std::sync::Arc;
 
 use diverge_sdk::daemon::agent_log::Identity;
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
+use diverge_sdk::daemon::endpoints::images::info::client::{execute as daemon_execute, request as daemon_request};
 use diverge_sdk::daemon::endpoints::images::info::server::response::Frame;
 use diverge_sdk::provider::endpoints::containers::client::UnaryError;
 use diverge_sdk::provider::endpoints::containers::info::client::{execute, request};
 use diverge_sdk::shared::containers::info::Document;
 use diverge_sdk::shared::containers::request::Image;
 use diverge_sdk::shared::mcp::attestation;
+use futures_util::StreamExt as _;
+use futures_util::stream::FuturesUnordered;
 use rand::Rng as _;
-use rand::seq::IndexedRandom as _;
 
-use super::{Holder, Reach, locate};
-use crate::containers::capable;
+use super::{Holder, Reach, asks, cancel_rest};
 use crate::containers::run::ToolHandle;
 use crate::daemon::Daemon;
+use crate::daemons;
 use crate::serve::reply;
 use crate::store;
 
@@ -39,26 +43,41 @@ use crate::store;
 ///    channel asked: its document is `Info`, none shipped is `Missing`,
 ///    a failure is `Error`. No other candidate and no provider is asked
 ///    after a failure.
-/// 4. With none, a connected provider is chosen at random among those
-///    that pull from a registry one of the image's references names —
-///    the test a run's choice makes, [`capable::registry`]; with none
-///    of those, the provider [`locate`] finds holding the image among
-///    the daemon's own built images. With no provider either way, the
-///    answer is `NoSource`, and nothing is asked.
-/// 5. The provider is asked
+/// 4. With none, who holds the image is asked of everything in reach,
+///    all at once, as [`locate`](super::locate) asks it: every
+///    connected provider that can hold an image, and every remote
+///    daemon recorded whose identity is neither in `ignore` nor this
+///    daemon's own. It is the cheap question, an `images::oci` scope
+///    opened, and nothing is pulled to answer it.
+/// 5. Each that answers held is asked for the document, in the order
+///    they answer, its scope cancelled first, since only the answer
+///    was wanted: a provider by
 ///    [`containers::info`](diverge_sdk::provider::endpoints::containers::info),
-///    which reads the file out of the image and runs nothing: its
-///    document is `Info`, none shipped is `Missing`, the image found
-///    nowhere is `NoSource`, and a failure is `Error`, in the
-///    provider's words where it said any. Nothing is retried.
-/// 6. An `Info` that rules 3 to 5 found is put on the record before
+///    which reads the file out of the image and runs nothing; a remote
+///    daemon by its own `images info`, with `ignore` and this daemon's
+///    identity, which it answers by these rules. An `Info` or a
+///    `Missing` is the answer, and every ask still out is cancelled as
+///    it answers. A holder that answers anything else is passed over,
+///    and the next to answer held is asked.
+/// 6. With no answer yet, every connected provider not asked under
+///    rule 5 is asked `containers::info`, all at once, and the first
+///    `Info` or `Missing` is the answer. A provider's held does not
+///    look in its podman cache and its info does, so an image only a
+///    cache holds — one built on the provider's host — is found here
+///    and nowhere else; a provider that has no such image answers
+///    without pulling anything.
+/// 7. With no answer still, the answer is the last failure a holder
+///    or a provider gave, in its words, and `NoSource` where none gave
+///    any. A remote daemon's `Forbidden` is such a failure: it is the
+///    remote's of this daemon, not this daemon's of the asker.
+/// 8. An `Info` that rules 3 to 6 found is put on the record before
 ///    it is answered. Nothing else is: only a document is recorded,
 ///    so a `Missing`, a `NoSource` and an `Error` are each asked
 ///    again by a later ask.
 ///
-/// A record that cannot be read or written is the `Err`, and no
-/// answer is given.
-pub async fn info(daemon: &Arc<Daemon>, image: &Image) -> Result<Frame, store::Error> {
+/// Nothing times out. A record that cannot be read or written is the
+/// `Err`, and no answer is given.
+pub async fn info(daemon: &Arc<Daemon>, image: &Image, ignore: &[Identity]) -> Result<Frame, store::Error> {
     let recorded = {
         let mut conn = daemon.store.acquire().await?;
         store::image_info::by_digest(&mut conn, &image.digest).await?
@@ -66,7 +85,7 @@ pub async fn info(daemon: &Arc<Daemon>, image: &Image) -> Result<Frame, store::E
     if let Some(found) = recorded {
         return Ok(Frame::Info(found));
     }
-    let answer = reach(daemon, image).await;
+    let answer = reach(daemon, image, ignore).await;
     if let Frame::Info(found) = &answer {
         let mut conn = daemon.store.acquire().await?;
         store::image_info::save(&mut conn, &image.digest, found).await?;
@@ -79,15 +98,15 @@ pub async fn info(daemon: &Arc<Daemon>, image: &Image) -> Result<Frame, store::E
 /// to, so that every image the daemon deploys has a document on
 /// record. The rules:
 ///
-/// 1. The document is found as [`info`] finds it, record first, and is
-///    on the record once this answers it.
+/// 1. The document is found as [`info`] finds it, record first, no
+///    daemon ignored, and is on the record once this answers it.
 /// 2. An image that ships no `/DIVERGE.md` has none.
 /// 3. An image no source holds, or whose document could not be read
 ///    or does not parse, has none either, and the words say which.
 ///
 /// A record that cannot be read or written is the outer `Err`.
 pub async fn document(daemon: &Arc<Daemon>, image: &Image) -> Result<Result<Document, String>, store::Error> {
-    Ok(match info(daemon, image).await? {
+    Ok(match info(daemon, image, &[]).await? {
         Frame::Info(document) => Ok(document),
         Frame::Missing => Err("the image ships no /DIVERGE.md".to_string()),
         Frame::NoSource => Err("the image's document could not be read: no source holds the image".to_string()),
@@ -96,23 +115,98 @@ pub async fn document(daemon: &Arc<Daemon>, image: &Image) -> Result<Result<Docu
     })
 }
 
-/// Rules 2 to 5: the answer of a running container, else of a
-/// provider.
-async fn reach(daemon: &Arc<Daemon>, image: &Image) -> Frame {
+/// Rules 2 to 7: the answer of a running container, else of a holder,
+/// else of a provider.
+async fn reach(daemon: &Arc<Daemon>, image: &Image, ignore: &[Identity]) -> Frame {
     if let Some(answer) = from_running(daemon, image).await {
         return answer;
     }
-    let Some(provider) = choose_provider(daemon, image).await else {
-        return Frame::NoSource;
-    };
-    let Some(handle) = daemon.live.provider(&provider).await else {
-        return Frame::Error(reply::failure(&"the provider chosen is not connected now"));
+    // Rule 4.
+    let mut asking = asks(daemon, image, &Reach::Full { except: None }, ignore).await;
+    let mut asked = Vec::new();
+    let mut last = None;
+    // Rule 5.
+    while let Some(answered) = asking.next().await {
+        let Some(source) = answered else {
+            continue;
+        };
+        let _ = source.scope.cancel().await;
+        let answer = match &source.holder {
+            Holder::Provider(identity) => {
+                asked.push(identity.clone());
+                from_provider(daemon, image, identity).await
+            }
+            Holder::Daemon(id) => from_daemon(daemon, image, ignore, *id).await,
+        };
+        if matches!(answer, Frame::Info(_) | Frame::Missing) {
+            cancel_rest(asking);
+            return answer;
+        }
+        if !matches!(answer, Frame::NoSource) {
+            last = Some(answer);
+        }
+    }
+    // Rule 6: all at once, since no provider's answer bears on
+    // another's.
+    let mut reading: FuturesUnordered<_> = daemon
+        .live
+        .connected_providers()
+        .await
+        .into_iter()
+        .filter(|identity| !asked.contains(identity))
+        .map(|identity| async move { from_provider(daemon, image, &identity).await })
+        .collect();
+    while let Some(answer) = reading.next().await {
+        if matches!(answer, Frame::Info(_) | Frame::Missing) {
+            return answer;
+        }
+        if !matches!(answer, Frame::NoSource) {
+            last = Some(answer);
+        }
+    }
+    // Rule 7.
+    last.unwrap_or(Frame::NoSource)
+}
+
+/// One provider's answer to `containers::info`: its document, none
+/// shipped, the image found nowhere, or a failure, in its words where
+/// it said any.
+async fn from_provider(daemon: &Daemon, image: &Image, provider: &Identity) -> Frame {
+    let Some(handle) = daemon.live.provider(provider).await else {
+        return Frame::Error(reply::failure(&"the provider is not connected now"));
     };
     let asked = request::Frame { image: image.clone() };
     match execute::execute(&handle, &asked).await {
         Ok(found) => shipped(found),
         Err(execute::ExecuteError::NoSource) => Frame::NoSource,
         Err(execute::ExecuteError::Provider(error)) => Frame::Error(error),
+        Err(error) => Frame::Error(reply::failure(&error)),
+    }
+}
+
+/// One remote daemon's answer to `images info`, asked with `ignore`
+/// and this daemon's own identity so that no daemon is asked twice
+/// along one path: its document, none shipped, no source, or a
+/// failure — its `Forbidden` among them, rule 7.
+async fn from_daemon(daemon: &Arc<Daemon>, image: &Image, ignore: &[Identity], id: DaemonId) -> Frame {
+    let record = match daemon.store.acquire().await {
+        Ok(mut conn) => store::daemons::by_id(&mut conn, id, false).await,
+        Err(error) => Err(error),
+    };
+    let record = match record {
+        Ok(Some(record)) => record,
+        Ok(None) => return Frame::Error(reply::failure(&"the daemon that held the image is recorded no more")),
+        Err(error) => return Frame::Error(reply::failure(&error)),
+    };
+    let Ok(peer) = daemons::connect(daemon, &record).await else {
+        return Frame::Error(reply::failure(&"the daemon that held the image could not be reached"));
+    };
+    let mut passed: Vec<Identity> = ignore.to_vec();
+    passed.extend(daemon.authenticator.own().cloned());
+    let asked = daemon_request::Frame { image: image.clone(), ignore: passed, relay: None };
+    match daemon_execute::execute(&peer.connected.handle, &asked).await {
+        Ok(Frame::Forbidden) => Frame::Error(reply::failure(&"the daemon that held the image refused its document")),
+        Ok(answer) => answer,
         Err(error) => Frame::Error(reply::failure(&error)),
     }
 }
@@ -151,37 +245,6 @@ async fn from_running(daemon: &Daemon, image: &Image) -> Option<Frame> {
         Err(UnaryError::Refused(error)) => Frame::Error(error),
         Err(error) => Frame::Error(reply::failure(&error)),
     })
-}
-
-/// Rule 4: the provider to ask, or `None` when no connected provider
-/// can obtain the image.
-async fn choose_provider(daemon: &Arc<Daemon>, image: &Image) -> Option<Identity> {
-    let mut pulling = Vec::new();
-    for identity in daemon.live.connected_providers().await {
-        let pulls = daemon
-            .live
-            .capabilities(&identity)
-            .await
-            .is_some_and(|info| capable::registry(&info, image).is_ok());
-        if pulls {
-            pulling.push(identity);
-        }
-    }
-    if let Some(chosen) = pulling.choose(&mut rand::rng()) {
-        return Some(chosen.clone());
-    }
-    // Providers only: a provider is what is asked for the file.
-    let reach = Reach::Granted {
-        providers: daemon.live.connected_providers().await.into_iter().collect(),
-        daemons: Vec::new(),
-    };
-    let source = locate(daemon, image, &reach, &[]).await?;
-    // Only the answer was wanted: no scope is pulled through.
-    let _ = source.scope.cancel().await;
-    match source.holder {
-        Holder::Provider(identity) => Some(identity),
-        Holder::Daemon(_) => None,
-    }
 }
 
 /// A document read, or none shipped, as the answer.

@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { json, tagged } from "../../../../../../wire/encode.js";
+import { Identity } from "../../../../../../shared/identity.js";
 import { Relay } from "../../../../../../shared/relay.js";
 import { Image } from "../../../../../../shared/containers/request/image.js";
 
@@ -13,6 +14,12 @@ import { Image } from "../../../../../../shared/containers/request/image.js";
 export const Frame = z.object({
   /** The image: its digest, and the references its bytes may be fetched under. */
   image: Image,
+  /**
+   * The remote daemons the daemon does not ask, by the identities
+   * they answer as. A daemon asking another sends every identity it
+   * was itself told to ignore, and its own. Absent, none.
+   */
+  ignore: z.array(Identity).optional(),
   /** Served by another daemon: see `Relay`. Absent, served here. */
   relay: Relay.optional(),
 });

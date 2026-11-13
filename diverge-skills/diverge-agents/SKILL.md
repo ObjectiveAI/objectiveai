@@ -72,10 +72,7 @@ diverge run agents templates create '{
 | `description` | Free text for whoever creates agents from it (which mounts it needs, and so on). In the hash. Optional. |
 
 Answers: `{"created":"<id>"}`, `{"exists":"<id>"}` (the same template was made before; not a failure),
-`"forbidden"`, `{"error":…}`. The image is checked here: the daemon reads its `DIVERGE.md` (asking a
-provider to pull the image the first time it sees the digest) and answers
-`{"error":{"kind":"image","error":…}}` when the image ships none, no connected provider can obtain it, it
-does not parse, or it declares neither `chat` nor `structured_decisions`. The **id** is the lowercase hex SHA-256 of the template's canonical JSON
+`"forbidden"`, `{"error":…}`. The image is not checked here; `agents create` checks it. The **id** is the lowercase hex SHA-256 of the template's canonical JSON
 (64 characters). Capture it:
 
 ```bash

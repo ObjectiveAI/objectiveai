@@ -24,7 +24,8 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 }
 
 /// `Forbidden` with no `info` grant over images; else the answer
-/// [`images::info`] reaches.
+/// [`images::info`] reaches, asking no remote daemon the request says
+/// to ignore.
 async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let standing = {
         let mut conn = daemon.store.acquire().await?;
@@ -37,5 +38,5 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         return Ok(Frame::Forbidden);
     }
     scope.allowed().await;
-    images::info(daemon, &frame.image).await
+    images::info(daemon, &frame.image, &frame.ignore).await
 }

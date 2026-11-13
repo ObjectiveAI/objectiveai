@@ -19,7 +19,7 @@ carry `relay`. `<ref>` is an agent reference: `{"name":…}` or `{"template":…
 
 | leaf | body | answers |
 |---|---|---|
-| `agents templates create` | the template: `type:"agent"`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}`; `{"error":{"kind":"image",…}}` when the image has no valid `DIVERGE.md` or declares neither `chat` nor `structured_decisions` |
+| `agents templates create` | the template: `type:"agent"`, `image`, `memory`, `disk`, `arguments`, optional `secrets`, `description` | `{"created":"<id>"}`, `{"exists":"<id>"}` |
 | `agents templates get` | `{"id"}` | `{"found":<listed>}`, `"not_found"` |
 | `agents templates list` (`--watch`) | filter + `count` | `{"added":<listed>}`…, `"listed"`, then with `--watch` `{"added"}`, `{"changed"}`, `{"removed"}` |
 | `agents templates delete` | `{"id"}` | `"deleted"`, `"not_found"`, `"in_use"` |
@@ -36,7 +36,7 @@ Template list filter: `ids`, `creators`, `in_use` (bool: some agent was made fro
 
 | leaf | body | answers |
 |---|---|---|
-| `agents create` | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"` |
+| `agents create` | `template`, optional `name`, `secrets`, `provider`, `fuse_file_mounts`, `fuse_directory_mounts` | `"created"`, `"in_use"`; `{"error":{"kind":"image",…}}` when the template's image has no valid `DIVERGE.md` the daemon can find, or declares neither `chat` nor `structured_decisions` |
 | `agents get` | `{"agent":<ref>}` | `{"found":<agent>}`, `"not_found"` |
 | `agents list` (`--watch`) | filter + `count` | `{"added":<agent>}`…, `"listed"`, then with `--watch` `{"added"}`, `{"changed"}`, `{"removed"}` |
 | `agents edit` | `{"agent":<ref>,"patch":[…]}` | `"edited"`, `"not_found"`, `"active"`, `"in_use"` |
