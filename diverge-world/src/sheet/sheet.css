@@ -346,6 +346,16 @@
   user-select: text;
   cursor: auto;
 }
+/* The theme makes the page's words unselectable; the words worth copying are selectable again, as they were before it:
+   the header's name and detail, the file tree's cells and notes, the frontend's address, each transfer's name and
+   state. Buttons stay as they are. */
+.sheet .title,
+.sheet .sub,
+.sheet .files,
+.sheet .frontend .where,
+.transfers .what,
+.transfers .said { user-select: text; }
+.sheet .files button { user-select: none; }
 /* While the history comes in, held at the bottom. */
 .sheet .body.loading {
   overflow-y: hidden;
