@@ -49,8 +49,9 @@ export const Frame = z.union([
   /**
    * The request carries what the agent's image does not take, by
    * where it carries it: its prompt, and — a structured decision's —
-   * its choices. At least one of the two lists is not empty; a chat
-   * message's `choice` always is. The whole request is refused. Tag `4`.
+   * its questions' instructions and its choices. At least one of the
+   * three lists is not empty; a chat message's `instruction` and
+   * `choice` always are. The whole request is refused. Tag `4`.
    */
   z.strictObject({ unsupported_modalities: Lacking }),
   /** The agent's image takes no structured decision: its document states `structured_decisions` as `false`, or leaves it out. Tag `5`. */
