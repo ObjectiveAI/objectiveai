@@ -41,7 +41,7 @@ for containers, volumes and images, or to **send** a direct message through it.
 diverge run providers add '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.provider"},
   "direction":"outgoing","address":"127.0.0.1:14979",
   "announcement":"daemon A, build farm east","accept_daemons":true,"messageable":true,
-  "description":"local podman provider","tags":["local"]}'
+  "description":"local provider","tags":["local"]}'
 
 # Incoming: the provider dials the daemon; admitted only from these source IPs (absent = any, [] = none).
 diverge run providers add '{"identity":{"issuer":"https://issuer.example","subject":"edge-provider"},

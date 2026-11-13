@@ -83,17 +83,9 @@ outgoing:
       subject: hub
 containers:
   enabled: true
-  podman:
-    registries:
-      - host: docker.io
-      - host: ghcr.io
-        credential:
-          username: bolt
-          password: ghp_example
-    storage_path: provider/podman_data
-    image_cache_disk: 34359738368
-    container_overlay_disk: 34359738368
-    memory: 8589934592
+  # … and one block more, the container runtime's, under its own key:
+  # registries, storage_path, image_cache_disk, container_overlay_disk,
+  # memory. Print yours: diverge provider config get .containers
 volumes:
   stores:
     - path: provider/volumes
@@ -122,7 +114,7 @@ messages:
 | `outgoing` | none | Peers the provider dials itself (and redials whenever the connection ends), for a provider that cannot be dialled. Each has two members: `address` (`host:port`, dialled as `ws://<address>/`, or a URL with its own scheme) and `identity` (`{issuer, subject}`), the one identity that must answer there; any other answer is closed. The provider presents its `identity` to the peer. `incoming` has no say over it. |
 | `containers` | the defaults below | The container runtime. |
 | `volumes` | none | Where volumes may be created and which exist already. Absent: no volume can be created and none exists. |
-| `images` | none | The image Store: where images clients build or push on the provider are kept. Absent: a build or push is refused, a listing is empty, and an image comes only from the provider's podman cache, a listed registry, or the caller. |
+| `images` | none | The image Store: where images clients build or push on the provider are kept. Absent: a build or push is refused, a listing is empty, and an image comes only from the provider's cache of pulled images, a listed registry, or the caller. |
 | `messages` | none | The rate at which the provider relays direct messages between the daemons connected to it. Absent: it relays none, and `providers daemons listen` / `message` are answered unsupported. |
 
 ### containers
@@ -130,12 +122,12 @@ messages:
 | Field | Default | Meaning |
 |---|---|---|
 | `containers.enabled` | `true` | `false`: the provider runs no containers; every agent and tool run is refused as unsupported. Written to the file only when `false`. |
-| `containers.podman` | the defaults below | Required when `containers` is written at all; then **every field of `podman` is required**. |
-| `podman.registries` | `docker.io`, `ghcr.io`, `quay.io`, anonymous | The registries the provider will pull from when an image's references name them. Each: `host` (what a reference names before its first `/`; no scheme, no path; a port is allowed) and optional `credential: {username, password}` (both required; a personal access token is a password). A reference naming an unlisted registry is ignored. The daemon refuses a run unless at least one of the image's references names a listed registry. |
-| `podman.storage_path` | `provider/podman_data` | Where podman's data lives: image cache, container overlays, ephemeral scratch. On Linux it is podman's storage root (`--root`), and its filesystem must support project quotas (XFS `pquota`, or ext4 with project quota) or every run fails. On macOS and Windows it is where the podman machine `diverge-provider` lives. **Changing it gives a fresh, empty store (or machine); the old one is left as it was.** |
-| `podman.image_cache_disk` | `34359738368` (32 GiB) | The most the image cache may hold. The provider evicts images no running container uses, least recently run first, except images labelled `diverge.network/keep`. An image larger than this cannot be pulled. |
-| `podman.container_overlay_disk` | `34359738368` (32 GiB) | The sum of every running container's `disk` never exceeds it; a run that would is refused. |
-| `podman.memory` | `8589934592` (8 GiB) | The sum of every running container's `memory` never exceeds it; a run that would is refused. On macOS the podman machine is given exactly this much; on Windows the machine's memory is WSL's. |
+| the runtime block | the defaults below | One block under `containers`, beside `enabled`, under the runtime's own key: `diverge provider config get .containers` prints it. Required when `containers` is written at all; then **every field of the block is required**. The fields below are its members. |
+| `registries` | `docker.io`, `ghcr.io`, `quay.io`, anonymous | The registries the provider will pull from when an image's references name them. Each: `host` (what a reference names before its first `/`; no scheme, no path; a port is allowed) and optional `credential: {username, password}` (both required; a personal access token is a password). A reference naming an unlisted registry is ignored. The daemon refuses a run unless at least one of the image's references names a listed registry. |
+| `storage_path` | a folder under `provider/` | Where the runtime's data lives: image cache, container overlays, ephemeral scratch. On Linux it is the runtime's storage root, and its filesystem must support project quotas (XFS `pquota`, or ext4 with project quota) or every run fails. On macOS and Windows it is where the provider's virtual machine lives. **Changing it gives a fresh, empty store (or machine); the old one is left as it was.** |
+| `image_cache_disk` | `34359738368` (32 GiB) | The most the image cache may hold. The provider evicts images no running container uses, least recently run first, except images labelled `diverge.network/keep`. An image larger than this cannot be pulled. |
+| `container_overlay_disk` | `34359738368` (32 GiB) | The sum of every running container's `disk` never exceeds it; a run that would is refused. |
+| `memory` | `8589934592` (8 GiB) | The sum of every running container's `memory` never exceeds it; a run that would is refused. On macOS the provider's virtual machine is given exactly this much; on Windows the machine's memory is WSL's. |
 
 ### volumes
 
@@ -163,7 +155,7 @@ Both are required when the section is present: there is no unlimited provider.
 
 ### The provider's state
 
-Under `<root>/provider/`: `hooks/` (one folder per hook), `run/` (scratch), and `podman_data/` unless
+Under `<root>/provider/`: `hooks/` (one folder per hook), `run/` (scratch), and the runtime's data folder unless
 `storage_path` says otherwise.
 
 ---

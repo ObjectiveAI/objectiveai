@@ -56,7 +56,7 @@ before changing a field you have not changed before.
 | Document | Read | Holds |
 |---|---|---|
 | `daemon.yaml` | at daemon start | `port`, `identity` (`{issuer, subject}`: who the daemon is), `admins`, `postgres` (`local` or `remote`), `idle_seconds`. Nothing per provider lives here: whether the daemon announces itself, accepts other daemons and hears messages is on each provider's record (`diverge run providers edit`, skill `diverge-daemons`) |
-| `provider.yaml` | at provider start | `port`, `identity` (who the provider is), `incoming` (who may dial it), `outgoing` (peers it dials, each an `address` and the `identity` that must answer), `containers` (podman: `registries`, `storage_path`, `image_cache_disk`, `container_overlay_disk`, `memory`; `enabled`), `volumes` (`stores`, `fixed`), `images` (the Store: `path`, `capacity`), `messages` (rate) |
+| `provider.yaml` | at provider start | `port`, `identity` (who the provider is), `incoming` (who may dial it), `outgoing` (peers it dials, each an `address` and the `identity` that must answer), `containers` (`enabled`, and the runtime block: `registries`, `storage_path`, `image_cache_disk`, `container_overlay_disk`, `memory`), `volumes` (`stores`, `fixed`), `images` (the Store: `path`, `capacity`), `messages` (rate) |
 | `cli.yaml` | by every CLI command | `default` daemon; `daemons.<name>`: `address`, `default` account, `accounts.<name>`: `issuer`, `subject` |
 | `viewer.yaml` | at viewer start | `daemon`: `address`, `issuer`, `subject`, `redial` |
 
@@ -321,9 +321,9 @@ Redirect to a file, as above.
   It returns once the program holds the root's lock.
 - Refuses when one already runs on this root: `the daemon is already running on this root, as process <pid>`.
 - If the program dies first, the error carries its whole log. Usual causes: the port is taken, a document it
-  refuses, a root it cannot use, and for the provider podman or `ssh` missing from `PATH`. The same text is in `<root>/<program>.log`.
+  refuses, a root it cannot use, and for the provider its container runtime or `ssh` missing from `PATH`. The same text is in `<root>/<program>.log`.
 - The log file is truncated at every start. A program that starts well prints nothing.
-- The provider's first start on Windows or macOS creates and boots a podman machine and can take minutes.
+- The provider's first start on Windows or macOS creates and boots the virtual machine its containers run in, and can take minutes.
 
 `stop`:
 
@@ -355,7 +355,7 @@ No server watches its document. A change takes effect as follows.
 | `daemon.yaml` `port` | Daemon restart **and** update every `cli.yaml` and `viewer.yaml` address that names it (before the stop, `cli.yaml` must still hold the old port, or the stop cannot find the daemon). Other daemons and providers that dial this one by address need their records edited. |
 | `daemon.yaml` `postgres` | Daemon restart. A different database is a different set of records: the daemon comes up with whatever that database holds. |
 | Anything in `provider.yaml` | At the next provider start. Stopping the provider removes every container it ran; connected daemons show it `disconnected`, redial every 5 seconds, and start containers again on next use. |
-| `provider.yaml` `containers.podman.storage_path` | Provider restart onto a fresh, empty podman store (or a new machine): every image built into the old one must be built again. |
+| `provider.yaml` the runtime block's `storage_path` | Provider restart onto a fresh, empty container store (or a new machine): the cache of pulled images starts empty. |
 | `cli.yaml` | The next CLI command. Nothing to restart. |
 | `viewer.yaml` | The next start of the viewer app. |
 | `diverge identities login` of an identity a running program already uses | No restart: programs read the identity's file whenever they need a token. |

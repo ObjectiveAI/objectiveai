@@ -1,6 +1,6 @@
 ---
 name: diverge-images
-description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its podman cache, a listed registry, the caller), how to build an image on a provider with `diverge run images build` and get its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images info` and `diverge run images oci` commands, and a reference of every image in the repository — the five agent-loop images (python, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
+description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its cache, a listed registry, the caller), how to build an image on a provider with `diverge run images build` and get its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images info` and `diverge run images oci` commands, and a reference of every image in the repository — the five agent-loop images (python, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
 ---
 
 # Diverge images
@@ -65,9 +65,8 @@ For a run, the provider looks in this order and takes the first that has the dig
 
 1. **The caller's Store.** A digest the calling daemon owns in the provider's image Store (one built
    or pushed on that provider through the provider protocol). Answered as source `store`.
-2. **The provider's podman cache, then a listed registry.** If podman already holds an image with
-   that digest under a name that does **not** start with `127.0.0.1:`, it is run as it is with nothing
-   pulled. Otherwise every reference that names a registry in the provider's configuration is asked
+2. **The provider's cache, then a listed registry.** If the provider has already pulled an image with
+   that digest, it is run as it is with nothing pulled. Otherwise every reference that names a registry in the provider's configuration is asked
    at once (`<registry>/<name>@<digest>`, with the credential the provider holds for it) and the
    first that serves it is pulled. References naming unlisted registries are ignored. Answered as
    source `{"registry":{"reference":"…"}}`.
@@ -82,8 +81,8 @@ which source answered; no CLI answer reports it, so read it off the order above.
 ## Building an image
 
 `diverge run images build` builds an image from a Containerfile on a provider, into the daemon's Store
-there. Never run `podman` yourself: the provider owns its podman, and an image built behind its back is
-not in the Store.
+there. This is the only way to build one: the provider's container runtime is the provider's own, and
+an image put into it by any other means is not in the Store.
 
 ```bash
 diverge run images build '{
@@ -266,7 +265,7 @@ How the daemon finds it, in order:
    daemon answers `images info` itself, by these same rules. One that fails is passed over for the
    next holder.
 4. With no holder, every connected provider is asked for the document outright, all at once. This
-   finds an image that is only in a provider's local podman cache, which the "holds" question does
+   finds an image that is only in a provider's cache of pulled images, which the "holds" question does
    not look in.
 5. Nothing found is `no_source`, or the last failure heard.
 
