@@ -15,7 +15,7 @@ use super::super::run::Run;
 pub(crate) enum Exchange {
     /// A batch of messages for the agent, in order, carried whole and
     /// not read.
-    Enqueue(Vec<enqueue::request::Message>),
+    Enqueue(enqueue::request::Request),
 }
 
 /// Serve one, to the end: the proxy's one answer on the caller's
@@ -33,8 +33,8 @@ pub(crate) async fn serve(run: Arc<Run>, channel: u32, exchange: Exchange) {
         return;
     };
     let answer = match exchange {
-        Exchange::Enqueue(messages) => {
-            let frame = begin.enqueue(messages).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
+        Exchange::Enqueue(request) => {
+            let frame = begin.enqueue(request).await.unwrap_or_else(|error| enqueue::response::Frame::Error(failed(&error)));
             encoded(&frame)
         }
     };

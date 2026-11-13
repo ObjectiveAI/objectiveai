@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use diverge_sdk::container_proxy::inside::agent::run::request::Request;
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::server::response::{ACTIVE, CHUNK};
-use diverge_sdk::shared::containers::enqueue::request::Message;
 use diverge_sdk::shared::containers::secrets::Values;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
 use diverge_sdk::shared::error::Error;
@@ -19,15 +18,16 @@ use tokio::sync::oneshot;
 use crate::program::{self, refused, status_error};
 use crate::proxy::Proxy;
 
-/// Start one loop on `messages`, on a task of its own: what comes back
-/// is the `2xx` response whose body is the loop, or the error — a
+/// Start one run on `request` — chat messages, or one structured
+/// decision — on a task of its own: what comes back
+/// is the `2xx` response whose body is the run, or the error — a
 /// non-`2xx` in the agent's server's own words, or a server that
 /// could not be reached. The driver reads it when it arrives and
 /// never waits on it.
-pub fn start(proxy: Arc<Proxy>, messages: Vec<Message>) -> oneshot::Receiver<Result<reqwest::Response, Error>> {
+pub fn start(proxy: Arc<Proxy>, request: Request) -> oneshot::Receiver<Result<reqwest::Response, Error>> {
     let (sender, receiver) = oneshot::channel();
     tokio::spawn(async move {
-        let body = match serde_json::to_vec(&Request { messages }) {
+        let body = match serde_json::to_vec(&request) {
             Ok(body) => body,
             Err(error) => {
                 let _ = sender.send(Err(Error(serde_json::json!({

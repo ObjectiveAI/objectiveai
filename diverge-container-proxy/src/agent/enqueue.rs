@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use diverge_sdk::container_proxy::inside::agent;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
-use diverge_sdk::shared::containers::enqueue::request::Message;
+use diverge_sdk::shared::containers::enqueue::request::{Message, Request};
 use diverge_sdk::shared::containers::enqueue::response;
 use diverge_sdk::shared::error::Error;
 use reqwest::StatusCode;
@@ -26,13 +26,15 @@ use crate::reply::reply;
 ///
 /// Not an `async fn`: the batch goes to the driver HERE, as the
 /// channel is read, and only the wait is the task's — so a batch is
-/// in the queue before any channel the server opens after it is read,
-/// whatever order their tasks run in.
-pub fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, messages: Vec<Message>) -> impl Future<Output = ()> + Send + 'static {
+/// with the driver before any channel the server opens after it is
+/// read, whatever order their tasks run in. Where it stands in the
+/// queue is its `index`'s to say, which the driver reads.
+pub fn enqueue(proxy: Arc<Proxy>, scope: Arc<ScopeHandle>, channel: u32, request: Request) -> impl Future<Output = ()> + Send + 'static {
     let (fate, heard) = oneshot::channel();
+    let Request { index, item } = request;
     let sent = proxy
         .commands()
-        .is_some_and(|commands| commands.send(Cmd::Enqueue(Batch { messages, fate })).is_ok());
+        .is_some_and(|commands| commands.send(Cmd::Enqueue(index, Batch { item, fate })).is_ok());
     async move {
         if !sent {
             reply(&scope, channel, None).await;
