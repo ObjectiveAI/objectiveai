@@ -31,5 +31,5 @@ pub fn held(agent: &agents::Agent, document: Option<&Document>, content: &[Conte
         return Err(Frame::NoChat);
     };
     let prompt = chat.prompt_modalities.lacking(content);
-    if prompt.is_empty() { Ok(()) } else { Err(Frame::UnsupportedModalities(Lacking { prompt, choice: Vec::new() })) }
+    if prompt.is_empty() { Ok(()) } else { Err(Frame::UnsupportedModalities(Lacking { prompt, instruction: Vec::new(), choice: Vec::new() })) }
 }
