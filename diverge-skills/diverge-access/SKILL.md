@@ -322,7 +322,7 @@ For `"forbidden"`, work through this list:
      --jq '.item.account | select(.allowed == false) | {logs_index, created, path, request}'
    ```
 
-   `allowed:false` is exactly a `forbidden`; `path` is the request (`agents/message`), `request` its body.
+   `allowed:false` is exactly a `forbidden`; `path` is the request (`agents/message/chat`), `request` its body.
    An administrator's own log is `{"type":"admin","issuer":…,"subject":…}` and only administrators read it.
    See `diverge-logs`.
 

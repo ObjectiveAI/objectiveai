@@ -39,7 +39,7 @@ diverge run agents templates create '{
     ]
   }
 }'
-# → {"created":"<agent template id>"}; then agents create, agents message
+# → {"created":"<agent template id>"}; then agents create, agents message chat
 diverge run agents connect list-tools '{"agent":{"name":"echo"}}'      # <8 hex>_remember, <8 hex>_recall, <8 hex>_forget
 diverge run dependency-tools list '{"owners":[{"agent":{"name":"echo"}}]}'
 ```

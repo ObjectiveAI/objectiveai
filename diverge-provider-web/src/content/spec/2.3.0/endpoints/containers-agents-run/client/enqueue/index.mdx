@@ -1,6 +1,6 @@
 ---
 title: 'Enqueue'
-summary: 'Tag 7: the client sends a batch of one or more messages to the agent, in order, which starts a loop when none runs and joins the queue when one does; the server opens an enqueue channel on the container’s begin scope and relays exactly one channel response, the fate of the batch, when the fate is known.'
+summary: 'Tag 7: the client sends the agent a batch of one or more chat messages or exactly one structured decision, under an index that states its place among the scope’s enqueues; the server opens an enqueue channel on the container’s begin scope and relays exactly one channel response, the fate of the request, when the fate is known.'
 order: 7
 draft: false
 ---
@@ -21,9 +21,19 @@ reply is the main stream of the scope, as
   response finish. The fate is the fate of every message of the
   batch. [Response](/endpoints/containers-agents-run/client/enqueue/response/)
   states the sequence.
+- **Two kinds.** A request is a batch of chat messages or exactly one
+  structured decision, as its `type` states. The paragraph above
+  states what a batch of chat messages does. A structured decision is
+  handed to the program alone, when the program has no run open, and
+  nothing is handed to the program until the run it started has
+  ended, as the proxy's
+  [enqueue](/container-proxy-endpoints/agents-begin/client/enqueue/)
+  channel states.
 - **Order.** The server never splits a batch and never reorders its
   messages. The server relays each enqueue channel apart from every
-  other, and states no order between two batches whose channels are
-  open at once. A client that opens the next enqueue channel only
-  when the one before it is answered has its messages taken by the
-  program in the order it sent them.
+  other, verbatim, the `index` included. The order in which the
+  program is handed the requests of a scope is the order of their
+  `index`, as the proxy's
+  [enqueue](/container-proxy-endpoints/agents-begin/client/enqueue/)
+  channel states, whether or not the client waits for one channel's
+  answer before it opens the next.

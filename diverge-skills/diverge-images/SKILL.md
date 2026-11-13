@@ -187,8 +187,15 @@ What each member means:
   reach holds, or whose document does not parse. An agent is also refused when its image declares
   neither `chat` nor `structured_decisions`. A template is not checked: `templates create` takes any
   image.
-- **`chat` is enforced** on `agents message`: see `diverge-agents`. `structured_decisions` is carried
-  and not yet acted on.
+- **Both are enforced**: `chat` on `agents message chat`, and `structured_decisions` on
+  `agents message structured-decisions` (see `diverge-agents`). A request for a mode the image says
+  `false` to is refused by the daemon and never reaches the container.
+- **What a program is handed.** Its `POST /run` body is tagged: `{"type":"chat","messages":[…]}` or
+  `{"type":"structured_decisions","key":…,"content":[…],"questions":[…]}`. A program that declares
+  structured decisions answers that run by echoing the decision as one `user_structured_decisions` chunk,
+  saying its answers in one `structured_decisions_response` chunk, and ending the stream. `POST /enqueue`
+  is chat only: the proxy never enqueues a decision, and hands a program nothing while a decision's run is
+  open.
 - The body states, in prose, the tools the image serves and the **secrets it declares** with their
   modes. Read it before writing a template.
 

@@ -1,6 +1,6 @@
 ---
 title: 'Enqueue'
-summary: 'Tag 2: the client sends a batch of one or more messages to the agent, in order, which starts a loop when none runs and joins the queue when one does; the server answers with exactly one channel response, the fate of the batch, when the fate is known.'
+summary: 'Tag 2: the client sends the agent a batch of one or more chat messages, which starts a loop when none runs and joins the queue when one does, or exactly one structured decision, which the server hands over alone to a program with no run open; the server answers with exactly one channel response, the fate of the request, when the fate is known.'
 order: 2
 draft: false
 ---
@@ -20,21 +20,43 @@ says in reply is the main stream of the scope, as
   response finish. The fate is the fate of every message of the
   batch. [Response](/container-proxy-endpoints/agents-begin/client/enqueue/response/) states the
   sequence.
-- **Order.** The server keeps the batches it holds in the order in
-  which their channel requests reached it, and keeps the messages of
-  each batch in the order the batch states. The server never splits a
-  batch and never reorders its messages. Every call that carries
-  messages to the program carries every batch the server holds, in
-  that order. A batch that arrives is placed behind every batch the
-  server holds. The batches of a call that the program does not take
-  return to the front of the queue, in the order they held, ahead of
-  every batch that arrived after them. The server has at most one
-  call carrying messages to the program at a time.
-- **One batch at a time.** A client that opens the next enqueue
-  channel only when the one before it is answered has its messages
-  taken by the program in the order it sent them. The server states
-  no order between two batches whose channels are open at once other
-  than the order in which their channel requests reached it.
+- **Two kinds.** A request is a batch of chat messages or exactly one
+  structured decision, as its `type` states. The paragraph above
+  states what a batch of chat messages does. A structured decision
+  joins no loop: the server hands it to the program alone, as the
+  rules below state.
+- **Order.** The server keeps the requests it holds in the order of
+  their `index`, whatever order their channel requests reached it in,
+  and keeps the messages of each batch in the order the batch states.
+  The server places a request in its queue only when it has placed
+  every request of a lower index; a request that reaches the server
+  before a request of a lower index waits for it. The server never
+  splits a batch and never reorders its messages. The batches of a
+  call that the program does not take return to the front of the
+  queue, in the order they held, ahead of every request placed after
+  them. The server has at most one call carrying messages to the
+  program at a time.
+- **Chat at the head.** When the first request of the queue is a
+  batch of chat messages, the server takes that batch and every batch
+  of chat messages that follows it, up to the first structured
+  decision, and hands them to the program in one call, in order. The
+  call is a `/run` when the program has no run open, and an
+  `/enqueue` when the program has a run open that chat messages
+  started.
+- **A structured decision at the head.** When the first request of
+  the queue is a structured decision, the server sends the program
+  nothing while the program has a run open. When the program has no
+  run open, the server starts a `/run` on that structured decision
+  alone.
+- **Nothing joins a structured decision.** While the run that a
+  structured decision started is open, the server sends the program
+  no message and no structured decision. The run is open until its
+  response body ends. The server then treats the queue as the two
+  rules above state.
+- **A client that sends at once.** A client may open an enqueue
+  channel before the channel before it is answered. The order in
+  which the program is handed the requests is the order of their
+  `index`.
 - **A loop ending.** A loop that ends with a batch still waiting
   does not lose it: the server starts the next loop on every batch
   still waiting, the content of their messages concatenated into one,

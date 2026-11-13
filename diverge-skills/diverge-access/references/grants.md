@@ -22,7 +22,7 @@ Command names below are `diverge run …` leaves.
 | Over | `list` | `agents list` (sends what the grant reaches) |
 | Over | `edit` | `agents edit`; also needed over the agent when a standalone or connected tool is attached to / detached from that one agent |
 | Over | `delete` | `agents delete` |
-| Over | `message` | `agents message` |
+| Over | `message` | `agents message chat`, `agents message structured-decisions` |
 | Over | `logs` | `logs` with `of.type` = `agent` |
 | Over | `download` | `agents download` |
 | Over | `upload` | `agents upload`, and a transfer landing in the agent |

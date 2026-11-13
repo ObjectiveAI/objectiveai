@@ -1,6 +1,6 @@
 ---
 name: diverge-agents
-description: Diverge agents through the `diverge run agents` commands — agent templates (`agents templates create|get|list|delete|tag|untag`; the template body with image, memory, disk, arguments, secrets; the template id as a hash), agents (`agents create|get|list|edit|delete|tag|untag`, provider pin, volume mounts, FUSE mounts, secret bindings), sending an agent a message (`agents message`, content blocks, delivery order, idle stop and restart), MCP as an agent (`agents connect list-tools|call-tool|list-resources|read-resource`), files in an agent's container (`agents filetree|download|upload|transfer`), `agents exec`, `agents terminal`, `agents frontend`, agent references (`{"name":…}` vs `{"template":…,"index":…}`), and the agent lifecycle its log shows (deployed, active, inactive, undeployed). Load it when asked to make, run, message, inspect, change, debug or delete a Diverge agent or agent template.
+description: Diverge agents through the `diverge run agents` commands — agent templates (`agents templates create|get|list|delete|tag|untag`; the template body with image, memory, disk, arguments, secrets; the template id as a hash), agents (`agents create|get|list|edit|delete|tag|untag`, provider pin, volume mounts, FUSE mounts, secret bindings), sending an agent a chat message (`agents message chat`, content blocks, delivery order, idle stop and restart), putting a structured decision to an agent (`agents message structured-decisions`: a prompt and typed questions — noul, choice, score — answered with numbers in the log), MCP as an agent (`agents connect list-tools|call-tool|list-resources|read-resource`), files in an agent's container (`agents filetree|download|upload|transfer`), `agents exec`, `agents terminal`, `agents frontend`, agent references (`{"name":…}` vs `{"template":…,"index":…}`), and the agent lifecycle its log shows (deployed, active, inactive, undeployed). Load it when asked to make, run, message, inspect, change, debug or delete a Diverge agent or agent template.
 ---
 
 # Diverge agents
@@ -29,7 +29,7 @@ diverge run agents create request-schema
 3. `agents templates create` → the template id.
 4. `agents create` → the agent (nothing runs yet).
 5. Attach tools if wanted (`diverge-tools`).
-6. `agents message` → the container starts, the agent works, the container is stopped when idle.
+6. `agents message chat` → the container starts, the agent works, the container is stopped when idle.
 7. Read what it said with `diverge run logs` (`diverge-logs`).
 
 ## Naming an agent: two references
@@ -194,8 +194,14 @@ diverge run agents untag  '{"agent":{"name":"echo"},"tags":["blue"]}'          #
 
 ## Messaging
 
+An agent is asked one of two things, each a leaf of `agents message`, both under the one `message` grant:
+
+- `agents message chat`: a message that joins the agent's conversation. Everything below, up to
+  [Structured decisions](#structured-decisions), is about chat.
+- `agents message structured-decisions`: a prompt and typed questions, answered with numbers.
+
 ```bash
-diverge run agents message '{"agent":{"name":"echo"},"content":[{"type":"text","text":"hello"}]}'
+diverge run agents message chat '{"agent":{"name":"echo"},"content":[{"type":"text","text":"hello"}]}'
 # "delivered"
 ```
 
@@ -237,6 +243,58 @@ Rules:
   a dependency that did not deploy, no capable provider). The same failure is kept in the agent's log.
 - A first message that fails with "connection ended before the channel answered" usually means dependency
   tools were still deploying. Send it again.
+
+### Structured decisions
+
+```bash
+diverge run agents message structured-decisions '{
+  "agent": {"name": "judge"},
+  "content": [{"type":"text","text":"Review this pull request."}],
+  "questions": [
+    {"id":"risk","type":"noul","instructions":[{"type":"text","text":"How risky is merging it, from 0 to 1?"}]},
+    {"id":"verdict","type":"choice","instructions":[{"type":"text","text":"What should happen?"}],
+     "options":[{"value":"merge"},{"value":"revise","description":[{"type":"text","text":"Send it back with comments."}]}]},
+    {"id":"quality","type":"score","instructions":[{"type":"text","text":"Rate the code."}],
+     "levels":[[{"type":"text","text":"Poor"}],[{"type":"text","text":"Fine"}],[{"type":"text","text":"Excellent"}]]}
+  ]
+}'
+# "delivered"
+```
+
+`content` is the prompt, the same blocks as chat. Each question has an `id` (the key its answer comes back
+under), a `type`, and `instructions` (content blocks):
+
+| `type` | adds | answered with |
+|---|---|---|
+| `noul` | nothing | `{"noul": 0.25}` |
+| `choice` | `options`: each `{"value": "<text>", "description"?: [blocks]}` | `{"probabilities": {"<value>": 0.7, …}}` |
+| `score` | `levels`: each a list of blocks | `{"score": 3.4, "probabilities": [0.1, 0.2, …]}` |
+
+Rules:
+
+- **The answer is the decision's fate, not the agent's answers**: `"delivered"`, `"forbidden"`,
+  `"no_structured_decisions"`, `{"unsupported_modalities":{"prompt":[…],"choice":[…]}}` or `{"error":…}`.
+  The agent's answers are in its log: see `diverge-logs`.
+- **The image must declare them.** `"no_structured_decisions"` when the image's `DIVERGE.md` says
+  `structured_decisions: false` (every image in this repository does, so nothing here answers one yet).
+- **The questions are validated before anything is sent**; a fault is
+  `{"error":{"kind":"questions","question":"<id>","error":"…"}}`:
+  - at least one question; ids non-empty and distinct;
+  - `instructions` non-empty;
+  - a choice has at least two options, each `value` non-empty and distinct within the question, each
+    `description` absent or non-empty;
+  - a score has at least two levels, each non-empty.
+  - "Non-empty" means at least one block that is not an empty text block. Whitespace counts and nothing
+    is trimmed; any image, audio, resource or link counts.
+- **Modalities**: `content` and every `instructions` are held to the image's
+  `structured_decisions.prompt_modalities`; every option `description` and every score level to its
+  `choice_modalities`. The answer lists what was carried and not taken, by where.
+- **Order**: chat messages and decisions to one agent are taken in the order they were sent, whichever
+  each is. A decision is not queued onto a running turn: it waits until the agent has finished everything
+  before it and is idle, runs alone, and finishes before anything after it starts. So `"delivered"` for a
+  decision can come long after it was sent, and a chat sent after a decision waits for the decision to
+  finish.
+- Nothing takes a decision back.
 
 Read the reply:
 
@@ -378,7 +436,7 @@ changed. A list is never partially forbidden: it sends only what the account's `
   conversation … and nothing on any provider's disk") but was not tested.
 - `agents frontend` and `agents terminal` were not run live while writing this; behaviour is from the CLI and
   SDK source.
-- The installed binary's `agents message response-schema` may still describe a cancel; the source has none,
+- The installed binary's `agents message chat response-schema` may still describe a cancel; the source has none,
   and the rules above follow the source.
 
 ## When this task is done

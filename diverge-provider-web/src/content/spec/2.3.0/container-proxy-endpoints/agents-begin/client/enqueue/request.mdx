@@ -9,11 +9,31 @@ draft: false
 [2][request JSON …]
 ```
 
-- **`messages`.** An array of one or more messages, the batch. The
-  order of the array is the order in which the program takes the
-  messages. The request carries no other member: it carries no index
-  and no count. Each message is an object with exactly the two
+- **`index`.** A `u64`: the place of the request among the enqueue
+  channel requests of the scope. The client numbers them from `0`,
+  one more for each, the two kinds of request alike.
+- **`type`.** The string `chat` or the string `structured_decisions`,
+  which states the kind of the request and its other members. The
+  request carries no member beside `index`, `type`, and the members
+  of its kind.
+- **`messages`.** A request of type `chat` carries exactly one
+  further member, `messages`: an array of one or more messages, the
+  batch. The order of the array is the order in which the program
+  takes the messages. Each message is an object with exactly the two
   members `key` and `content`.
+- **A structured decision.** A request of type `structured_decisions`
+  carries exactly three further members: `key`, a string, as a
+  message's is; `content`, an array of MCP content blocks, as a
+  message's is; and `questions`, an array of questions. Each question
+  is an object with the members `id`, a string, `type`, and
+  `instructions`, an array of MCP content blocks. The `type` of a
+  question is `noul`, `choice`, or `score`. A question of type
+  `choice` carries one further member, `options`, an array of objects
+  each with the member `value`, a string, and at most one further
+  member, `description`, an array of MCP content blocks. A question
+  of type `score` carries one further member, `levels`, an array of
+  arrays of MCP content blocks. A question carries no other member.
+  The server does not read the questions.
 - **`key`.** A string the client chooses, one for each message. Every
   user part of the message carries it on the main stream of the
   scope. Two messages may share one. The server relays it verbatim
@@ -38,7 +58,27 @@ and by `diverge-sdk-rs/src/shared/containers/enqueue/request/request.rs`:
 ```rust include=diverge-sdk-rs/src/shared/containers/enqueue/request/request.rs
 ```
 
+and by `diverge-sdk-rs/src/shared/containers/enqueue/request/item.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/enqueue/request/item.rs
+```
+
 and by `diverge-sdk-rs/src/shared/containers/enqueue/request/message.rs`:
 
 ```rust include=diverge-sdk-rs/src/shared/containers/enqueue/request/message.rs
+```
+
+A structured decision is defined by `diverge-sdk-rs/src/shared/containers/structured_decisions/decision.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/structured_decisions/decision.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/structured_decisions/question.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/structured_decisions/question.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/structured_decisions/choice_option.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/structured_decisions/choice_option.rs
 ```
