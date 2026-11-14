@@ -1,5 +1,5 @@
 //! The host's identities: listed, each with its tags, from the files as
-//! they are then; their tags put on and taken off; and one signed in on
+//! they are then; one of them got, likewise; their tags put on and taken off; and one signed in on
 //! this host.
 
 use diverge_sdk::daemon::endpoints::identities::list::server::response::Identity;
@@ -9,6 +9,7 @@ use sqlx::PgConnection;
 use crate::daemon::Daemon;
 use crate::store;
 
+pub mod get;
 pub mod list;
 pub mod login;
 pub mod tag;
