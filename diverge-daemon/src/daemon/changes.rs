@@ -38,6 +38,8 @@ pub enum Kind {
     ConnectedStandaloneTools,
     /// Volumes: a provider's listing, and the records that mount one.
     Volumes,
+    /// Images: a provider's listing of the daemon's Store on it.
+    Images,
     /// The vault: the keys, and the records that bind one.
     Vault,
     /// The container connections open through the database.

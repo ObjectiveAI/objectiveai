@@ -100,6 +100,7 @@ pub mod containers;
 pub mod content;
 pub mod daemon;
 pub mod daemons;
+pub mod images;
 pub mod database;
 pub mod listings;
 pub mod judge;

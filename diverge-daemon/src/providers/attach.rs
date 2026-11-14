@@ -135,7 +135,13 @@ pub async fn attach(connection: Connection, identity: Identity, daemon: &Arc<Dae
             // The mirror kept here, before the connection is served:
             // its end, which forgets the mirror, comes after.
             let mirror = daemon.live.mirror_provider(identity.clone()).await;
-            tokio::spawn(crate::volumes::watch(Arc::clone(daemon), mirror, handle));
+            tokio::spawn(crate::volumes::watch(Arc::clone(daemon), mirror, handle.clone()));
+        }
+        if info.capabilities.images_store {
+            // The daemon's Store there, mirrored the same way and for
+            // the same life.
+            let mirror = daemon.live.mirror_store(identity.clone()).await;
+            tokio::spawn(crate::images::watch(Arc::clone(daemon), mirror, handle));
         }
     } else {
         daemon.live.different_version_provider(&identity, handle, answer).await;

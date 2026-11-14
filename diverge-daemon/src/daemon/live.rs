@@ -145,6 +145,9 @@ pub struct Live {
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
     volumes: Mutex<HashMap<Identity, Arc<Mirror>>>,
+    /// The daemon's Store on each connected provider that keeps one,
+    /// as its listing streams it.
+    images: Mutex<HashMap<Identity, Arc<crate::images::Mirror>>>,
     /// Each connected provider's daemons list, while something
     /// watches: see [`Listings`].
     pub listings: Listings,
@@ -424,6 +427,9 @@ impl Live {
         if self.volumes.lock().await.remove(identity).is_some() {
             self.changes.changed(Kind::Volumes);
         }
+        if self.images.lock().await.remove(identity).is_some() {
+            self.changes.changed(Kind::Images);
+        }
         if self.listings.disconnected(identity).await {
             self.changes.changed(Kind::Listings);
         }
@@ -448,6 +454,20 @@ impl Live {
     /// The provider's mirror, if it is connected.
     pub async fn mirror(&self, identity: &Identity) -> Option<Arc<Mirror>> {
         self.volumes.lock().await.get(identity).cloned()
+    }
+
+    /// A fresh mirror for the daemon's Store on the provider, kept for
+    /// its connection's life: what its listing's watch fills.
+    pub async fn mirror_store(&self, identity: Identity) -> Arc<crate::images::Mirror> {
+        let mirror = Arc::new(crate::images::Mirror::new());
+        self.images.lock().await.insert(identity, Arc::clone(&mirror));
+        mirror
+    }
+
+    /// The mirror of the daemon's Store on the provider, if it is
+    /// connected and keeps one.
+    pub async fn store(&self, identity: &Identity) -> Option<Arc<crate::images::Mirror>> {
+        self.images.lock().await.get(identity).cloned()
     }
 
     /// The kind changed: every list of it kept open reads again.
