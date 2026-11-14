@@ -47,7 +47,9 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                 match chunk {
                     // A structured decision, or its answers: numbered,
                     // under the one lock, so the ids follow the order
-                    // the items are written in.
+                    // the items are written in. The answers are given
+                    // their `choice` and `score` here, as they are
+                    // written: the agent's program states neither.
                     AgenticLoopChunk::UserStructuredDecisions(chunk) => {
                         let (sender, echo) = echoed(&run, &chunk.decision.key).await;
                         let mut decisions = run.decisions.lock().await;
@@ -58,7 +60,7 @@ pub async fn pump(daemon: Arc<Daemon>, run: Arc<AgentRun>, mut stream: ExecuteSt
                     AgenticLoopChunk::StructuredDecisionsResponse(chunk) => {
                         let mut decisions = run.decisions.lock().await;
                         let id = numbering(&daemon, &run, &mut decisions).await.response();
-                        let item = Item::StructuredDecisionsResponse(log::StructuredDecisionsResponse { id, chunk });
+                        let item = Item::StructuredDecisionsResponse(log::StructuredDecisionsResponse::new(id, chunk));
                         let _ = append(&daemon, &run, item).await;
                     }
                     chunk => {
