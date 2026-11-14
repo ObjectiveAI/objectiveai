@@ -1,31 +1,25 @@
-//! One server frame of a relayed daemon connection, held.
+//! One message of a relayed daemon connection, held.
 
 use bytes::Bytes;
 
-use crate::wire::frame::FrameError;
-use crate::wire::frame::server::ServerFrame;
-
-/// One server frame the acceptor sends, of any type the wire has — its
-/// token, in the handshake, among them — held whole: its bytes as the
-/// wire lays them out, header and payload, so that a relay forwards
-/// them as they are.
+/// One message the acceptor sends, held whole and unread: its bytes as the
+/// server half wrote them to its connection. The first of a connection
+/// are the handshake's frames, in the clear; every one after is a
+/// frame sealed under the connection's keys — see
+/// [`handshake`](crate::wire::handshake) — which nothing between the
+/// two daemons can read. A relay forwards them as they are, and this
+/// type says nothing of what they hold.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Owned(Bytes);
 
 impl Owned {
-    /// The frame `bytes` are, copied, if they decode as a server frame.
-    pub fn read(bytes: &[u8]) -> Result<Owned, FrameError> {
-        ServerFrame::decode(bytes)?;
-        Ok(Owned(Bytes::copy_from_slice(bytes)))
+    /// The message `bytes` are, copied.
+    pub fn of(bytes: &[u8]) -> Owned {
+        Owned(Bytes::copy_from_slice(bytes))
     }
 
-    /// The frame's bytes, for a wire.
+    /// The message's bytes, for a wire.
     pub fn bytes(&self) -> &Bytes {
         &self.0
-    }
-
-    /// The frame, decoded.
-    pub fn frame(&self) -> Result<ServerFrame<'_>, FrameError> {
-        ServerFrame::decode(&self.0)
     }
 }

@@ -97,10 +97,8 @@ async fn connection_answer<A: Acceptor>(handle: Handle, scope: u32, channel: u32
         while let Some(bytes) = own.response_receiver.recv().await {
             match frame::server::ServerFrame::decode(&bytes) {
                 Ok(frame::server::ServerFrame::ChannelResponse { payload, .. }) => {
-                    let Ok(frame) = daemons::client::Owned::read(payload) else {
-                        break;
-                    };
-                    if from_connector.send(frame).is_err() {
+                    // Unread: after the handshake it is a sealed frame.
+                    if from_connector.send(daemons::client::Owned::of(payload)).is_err() {
                         break;
                     }
                 }

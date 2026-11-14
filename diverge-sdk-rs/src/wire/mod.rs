@@ -31,4 +31,5 @@ pub mod encode;
 pub mod frame;
 pub mod handshake;
 pub mod proxy;
+pub mod seal;
 pub mod server;

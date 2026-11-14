@@ -22,7 +22,7 @@ publish = true
 # dependents do (the musl images inside containers have no windowing
 # system). The proxy presents a token, so it brings the identities.
 [features]
-identities = ["dep:zeroize", "dep:percent-encoding", "dep:dashmap", "dep:jsonwebtoken", "dep:rand"]
+identities = ["dep:zeroize", "dep:percent-encoding", "dep:dashmap", "dep:jsonwebtoken"]
 tauri-proxy = ["dep:tauri", "identities"]
 
 [dependencies]
@@ -91,10 +91,17 @@ dashmap = { version = "=6.2.1", optional = true }
 jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["rust_crypto"], optional = true }
 # `identities` only: the Authorization Code login's secrets — its
 # state, nonce and PKCE verifier.
-rand = { version = "=0.9.2", default-features = false, features = ["thread_rng"], optional = true }
+rand = { version = "=0.9.2", default-features = false, features = ["thread_rng"] }
 # A remote daemon's record ID, the SHA-256 of what it reaches and as
 # whom; and the PKCE verifier's S256 challenge.
 sha2 = { version = "=0.10.9" }
+# The handshake's cryptography: Ed25519 for an identity's key and its
+# signature, X25519 for the one-time key exchange, HKDF-SHA-256 for
+# the session keys, and AES-256-GCM for every message after it.
+ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["std", "zeroize"] }
+x25519-dalek = { version = "=2.0.1", default-features = false, features = ["static_secrets", "zeroize"] }
+hkdf = { version = "=0.12.4" }
+aes-gcm = { version = "=0.10.3" }
 # Container ids, minted by the provider's server.
 uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
 
