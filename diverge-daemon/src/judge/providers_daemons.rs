@@ -4,9 +4,9 @@
 //! The shape of [`providers`](super::providers)'s actions over records:
 //! an action — listing the announced identities, listening for messages,
 //! sending one — is allowed through a provider by a grant that holds it
-//! and whose `within` reaches the provider's record — `any`, or the
-//! shared [`Tags`](diverge_sdk::shared::permission::Tags) test over the
-//! record's tags. The rules:
+//! and whose `within` reaches the provider's record — `any`, or a
+//! [`Reach`](diverge_sdk::daemon::grant::providers::Reach) over the
+//! record's identity and its tags. The rules:
 //!
 //! 1. **Admin.** An administrator's standing is allowed everything, and
 //!    reaches every provider.
@@ -42,7 +42,7 @@ pub fn over(standing: &Standing, action: Over, record: &Record) -> bool {
     }
     standing
         .providers_daemons()
-        .any(|Permission::Over { actions, within }| actions.contains(&action) && super::providers::reaches(within, &record.tags))
+        .any(|Permission::Over { actions, within }| actions.contains(&action) && super::providers::reaches(within, record))
 }
 
 /// The identities of every one of `records` the standing may do

@@ -5,9 +5,10 @@
 //! a record — reading, listing, asking it for images, changing,
 //! deleting, enabling or disabling it — is allowed
 //! by a grant that holds it and whose `within` reaches the record —
-//! `any`, or the shared [`Tags`] test over the record's tags, since the
-//! providers list filter names no tags; a tagging action by a grant that
-//! holds it, reaches the record, and covers every tag named. The rules:
+//! `any`, or a [`Reach`], the test over the record's identity and its
+//! tags, since the providers list filter names no tags; a tagging
+//! action by a grant that holds it, reaches the record, and covers
+//! every tag named. The rules:
 //!
 //! 1. **Admin.** An administrator's standing is allowed everything, and
 //!    reaches every record.
@@ -19,15 +20,16 @@
 //! 5. **Reached.** What a standing reaches with an action over records
 //!    is the identities of the records rule 3 allows it over, read from
 //!    records handed in — the judge loads nothing.
-//! 6. **Tags.** A `within` of tags reaches a record carrying every one
-//!    of its `all_tags` and, where `any_tags` is given, any one of them.
+//! 6. **Reach.** A `within` that is not `any` reaches a record that
+//!    is any one of its `identities`, where it names any, and carries
+//!    every one of its `all_tags` and, where `any_tags` is given, any
+//!    one of them: see [`Reach::reaches`].
 
 use std::collections::HashSet;
 
-use diverge_sdk::daemon::grant::providers::{Make, Over, Permission};
+use diverge_sdk::daemon::grant::providers::{Make, Over, Permission, Reach};
 use diverge_sdk::daemon::grant::{Tagging, Within};
 use diverge_sdk::shared::Identity;
-use diverge_sdk::shared::permission::Tags;
 
 use super::Standing;
 use crate::store::providers::Record;
@@ -58,7 +60,7 @@ pub fn over(standing: &Standing, action: Over, record: &Record) -> bool {
         return true;
     }
     standing.providers().any(|permission| match permission {
-        Permission::Over { actions, within } => actions.contains(&action) && reaches(within, &record.tags),
+        Permission::Over { actions, within } => actions.contains(&action) && reaches(within, record),
         _ => false,
     })
 }
@@ -93,19 +95,17 @@ pub fn tagging(standing: &Standing, action: Tagging, record: &Record, tags: &[St
             actions,
             within,
             tags: scope,
-        } => actions.contains(&action) && reaches(within, &record.tags) && covers(scope, tags),
+        } => actions.contains(&action) && reaches(within, record) && covers(scope, tags),
         _ => false,
     })
 }
 
-/// Whether a grant's `within` reaches a record carrying `tags` — rule 6.
-pub(super) fn reaches(within: &Within<Tags>, tags: &[String]) -> bool {
+/// Whether a grant's `within` reaches the record — rule 6. What the
+/// grants through a provider read a `within` by too.
+pub(super) fn reaches(within: &Within<Reach>, record: &Record) -> bool {
     match within {
         Within::Any => true,
-        Within::Only(test) => {
-            test.all_tags.iter().all(|tag| tags.contains(tag))
-                && (test.any_tags.is_empty() || test.any_tags.iter().any(|tag| tags.contains(tag)))
-        }
+        Within::Only(reach) => reach.reaches(&record.identity, &record.tags),
     }
 }
 

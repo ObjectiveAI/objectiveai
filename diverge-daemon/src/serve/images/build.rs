@@ -16,7 +16,7 @@ use futures_util::StreamExt as _;
 use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::volumes::{Located, locate};
-use crate::serve::{inner, reply};
+use crate::serve::reply;
 use crate::store;
 use crate::volumes;
 
@@ -34,8 +34,10 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// The answer that ends the build, every line of its output sent on
 /// the scope before it. The rules:
 ///
-/// 1. `Forbidden` with no `build` grant over images.
-/// 2. `NotFound` for a provider the daemon keeps no record of.
+/// 1. `Forbidden` with no `build` grant over images at all.
+/// 2. `NotFound` for a provider the daemon keeps no record of;
+///    `Forbidden` for one no `build` grant reaches, by its identity or
+///    its tags.
 /// 3. With a context: `Forbidden` with no `mount` grant over volumes
 ///    at all; `NotFound` for a volume the provider does not list;
 ///    `Error` for a provider that could not be asked; `Forbidden` for
@@ -57,8 +59,12 @@ async fn serve(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Ar
         return Ok(Frame::Forbidden);
     }
     // Rule 2.
-    if !inner::on_record(daemon, &frame.provider) {
+    let records = daemon.providers.all();
+    let Some(record) = records.iter().find(|record| record.identity == frame.provider) else {
         return Ok(Frame::NotFound);
+    };
+    if !judge::images::over(&standing, Action::Build, record) {
+        return Ok(Frame::Forbidden);
     }
     // Rule 3.
     if let Some(context) = &frame.context {
