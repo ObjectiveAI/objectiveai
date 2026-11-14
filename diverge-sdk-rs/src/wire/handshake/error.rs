@@ -16,11 +16,14 @@ pub enum Error {
     NotAuth,
     /// The other end's handshake frame could not be read.
     Malformed(AuthError),
-    /// The other end's signature is not its token's key's over this
+    /// The key the other end sent is not the one its token is bound
+    /// to: its thumbprint is not the token's.
+    Key,
+    /// The other end's signature is not its key's over this
     /// handshake: it did not prove it holds the key.
     Signature,
     /// The key exchange yielded nothing: the other end's one-time key
-    /// was chosen to make the shared secret zero.
+    /// is no point of the curve.
     Exchange,
     /// This end has no token to present: why.
     Present(String),
@@ -36,6 +39,7 @@ impl fmt::Display for Error {
             Error::Ended => f.write_str("the connection ended before the other end's handshake frame"),
             Error::NotAuth => f.write_str("the other end's frame was not a handshake frame"),
             Error::Malformed(error) => write!(f, "the other end's handshake frame could not be read: {error}"),
+            Error::Key => f.write_str("the other end's key is not the one its token is bound to"),
             Error::Signature => f.write_str("the other end did not prove it holds the key its token names"),
             Error::Exchange => f.write_str("the key exchange yielded no shared secret"),
             Error::Present(why) => write!(f, "this end has no token to present: {why}"),

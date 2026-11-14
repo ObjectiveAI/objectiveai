@@ -189,12 +189,15 @@ are not described at this layer.
 
 The handshake in front of everything. It states that both parties
 authenticate, in three authorization frames: the connector's offer,
-its one-time key and its token; the connectee's answer, its one-time
-key, its signature and its token; and the connector's proof, its
-signature. It states that a token is a JWT whose `iss` names its
-issuer and whose `cnf` claim names an Ed25519 key, that each
-signature is by its party's token's key over the transcript of the
-exchange, that the two tokens need not be from the same issuer, and
+its one-time key, its identity key and its token; the connectee's
+answer, its one-time key, its identity key, its signature and its
+token; and the connector's proof, its signature. It states that a
+token is an access token, a JWT whose `iss` names its issuer and
+whose `cnf.jkt` is the thumbprint of a P-256 key, as RFC 9449 binds
+one; that a party's identity key must be its token's key; that each
+signature is ECDSA by its party's identity key over the transcript of
+the exchange; that the two tokens need not be from the same issuer;
+and
 that a party sends nothing else, and serves nothing, before the
 handshake is complete. It states that a token a party does not
 accept, and a signature that does not verify, are answered by the
@@ -209,7 +212,8 @@ served under.
 
 What the handshake makes of every frame after it. It states the two
 session keys, one for each direction, drawn by HKDF-SHA-256 from the
-handshake's shared secret and transcript; that every message after
+handshake's shared secret — an ECDH exchange on P-256 — and its
+transcript; that every message after
 the handshake is exactly one frame under AES-256-GCM, its nonce the
 count of the messages its sender sealed before it; that the three
 authorization frames are in the clear; and that a message that does

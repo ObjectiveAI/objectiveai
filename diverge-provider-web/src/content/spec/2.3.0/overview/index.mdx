@@ -53,7 +53,7 @@ more.
 |-------|---------|
 | [WebSocket](/websocket/) | the transport: version 13, binary frames, the handshake |
 | [Frames](/frames/) | the frame, the scope, the channel, and what ends each |
-| [Authorization](/authorization/) | the three frames that precede every connection of the Protocol: a token from each party, and each party's proof of the key its token names |
+| [Authorization](/authorization/) | the three frames that precede every connection of the Protocol: a token from each party, the key it is bound to, and each party's proof that it holds that key |
 | [Sealing](/sealing/) | the encryption of every message after those three frames, under keys the handshake yields |
 | [Capabilities](/capabilities/) | the parts of the Endpoints layer a server holds out, and what it answers past them |
 | [Container Proxy](/container-proxy/) | the one connection between the provider's server and the proxy inside a container |

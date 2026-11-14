@@ -39,21 +39,23 @@
 //!    the issuer exactly and a `jwks_uri`; then that key set. A fetch
 //!    that fails is [`VerifyError::Fetch`], and the entry is left as
 //!    it was — an expired one is never used.
-//! 7. **The check.** The token is an OpenID Connect ID token: one whose
-//!    header `typ` is `at+jwt` — RFC 9068's mark of a JWT access token
-//!    — is [`VerifyError::AccessToken`], and no key is fetched for it.
-//!    The signature is checked with the `kid`'s key.
-//!    `iss` must be the issuer the keys are, `exp` must not have
-//!    passed, give or take a minute, and `aud` must hold the
-//!    `audience` asked, where one is. `exp`, `iss` and `sub` are
-//!    required. Any failure is [`VerifyError::Invalid`].
-//! 8. **The key.** The token's `cnf` claim, RFC 7800, carries a `jwk`
-//!    that is an Ed25519 public key, RFC 8037: `kty` `OKP`, `crv`
-//!    `Ed25519`, `x` thirty-two bytes. A token without one is
-//!    [`VerifyError::Unbound`]: its signature says who it is for and
-//!    nothing says who may present it.
+//! 7. **The check.** The token is an access token that is a JWT, as
+//!    RFC 9068 lays one out, bound to a key as RFC 9449 binds one.
+//!    The signature is checked with the `kid`'s key. `iss` must be
+//!    the issuer the keys are, `exp` must not have passed, give or
+//!    take a minute, and `aud` must hold the `audience` asked, where
+//!    one is. `exp`, `iss` and `sub` are required. Any failure is
+//!    [`VerifyError::Invalid`]. Its header's `typ` is not read: not
+//!    every issuer sets it, and what makes a token presentable is
+//!    rule 8.
+//! 8. **The key.** The token's `cnf` claim, RFC 7800, carries `jkt`:
+//!    the RFC 7638 SHA-256 thumbprint of the key the token is bound
+//!    to, thirty-two bytes as unpadded base64url, RFC 9449 §6.1. A
+//!    token without one — an ID token, an access token bound to
+//!    nothing — is [`VerifyError::Unbound`]: its signature says who it
+//!    is for and nothing says who may present it.
 //! 9. **The answer** is [`Verified`]: the token's issuer, subject and
-//!    expiry, and the key it names.
+//!    expiry, and the thumbprint it names.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.

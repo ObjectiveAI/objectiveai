@@ -18,6 +18,10 @@ pub(super) struct Discovery {
     /// The key set's URL, where the issuer has one: what a
     /// verification needs.
     pub(super) jwks_uri: Option<String>,
+    /// The algorithms the issuer takes a `DPoP` proof signed with, RFC
+    /// 9449 §5.1; absent for an issuer that takes none.
+    #[serde(default)]
+    pub(super) dpop_signing_alg_values_supported: Vec<String>,
 }
 
 /// The discovery document of `issuer`, at

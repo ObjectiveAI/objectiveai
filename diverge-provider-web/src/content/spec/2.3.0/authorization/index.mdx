@@ -1,6 +1,6 @@
 ---
 title: 'Authorization'
-summary: 'Three authorization frames precede every other frame of a connection: each party presents a token that names a key, and proves by a signature over the exchange that it holds that key; a party that does not accept the other closes the connection, and no frame says why.'
+summary: 'Three authorization frames precede every other frame of a connection: each party presents a token bound to a key, sends that key, and proves by a signature over the exchange that it holds it; a party that does not accept the other closes the connection, and no frame says why.'
 order: 3
 draft: false
 ---
@@ -11,14 +11,15 @@ protocol role may occupy either position: a client may connect to a
 server, and a server may connect to a client. The **handshake** is
 exactly three authorization frames: the connector sends the
 **offer**, the connectee sends the **answer**, and the connector sends
-the **proof**. Each party presents exactly one token. Each token names
-a public key, and each party proves, by a signature over the
-handshake, that it holds the private key of the key its token names.
-The two tokens need not name the same issuer. A party that does not
-accept the other party's token, or whose check of the other party's
-signature fails, closes the connection. The handshake yields the keys
-under which every later message of the connection is sealed, as
-[Sealing](/sealing/) states.
+the **proof**. Each party presents exactly one token and exactly one
+public key. Each token is bound to a key, and each party proves, by a
+signature over the handshake, that it holds the private key of the
+key its token is bound to. The two tokens need not name the same
+issuer. A party that does not accept the other party's token, whose
+check of the other party's key fails, or whose check of the other
+party's signature fails, closes the connection. The handshake yields
+the keys under which every later message of the connection is sealed,
+as [Sealing](/sealing/) states.
 
 ## The requirement
 
@@ -33,10 +34,12 @@ under which every later message of the connection is sealed, as
 - **The offer is first.** The connector's first frame is the offer.
   No frame of either party precedes it.
 - **The answer follows acceptance.** The connectee sends the answer
-  after it has accepted the connector's token, and not before. The
-  answer is the connectee's first frame.
+  after it has accepted the connector's token and has verified that
+  the connector's identity key is the token's key, and not before.
+  The answer is the connectee's first frame.
 - **The proof follows verification.** The connector sends the proof
-  after it has accepted the connectee's token and has verified the
+  after it has accepted the connectee's token, has verified that the
+  connectee's identity key is the token's key, and has verified the
   connectee's signature, and not before.
 - **Completion.** The handshake is complete at the connector when it
   has sent the proof. The handshake is complete at the connectee when
@@ -60,74 +63,113 @@ under which every later message of the connection is sealed, as
   The criteria of acceptability — the issuers a party trusts, the
   token's signature, the expiry, the audience, and the subjects a
   party admits — are not part of this protocol, with one exception:
-  a token that does not name a key, as [The token](#the-token) states,
+  a token that is bound to no key, as [The token](#the-token) states,
   is not acceptable to any party.
 - **The protocol judges the key.** A party completes no handshake in
-  which the other party's signature does not verify against the key
-  the other party's token names.
+  which the other party's identity key is not the other party's
+  token's key, and none in which the other party's signature does not
+  verify against that identity key.
 
 ## The token
 
 - **The form.** A token is a JSON Web Token, as RFC 7519 defines one,
-  encoded as UTF-8.
+  encoded as UTF-8. It is an access token, bound to a key as RFC 9449
+  binds one.
 - **The issuer.** The token's `iss` claim names the issuer of the
   token. A party does not determine the issuer of its own token from
   the other party's token.
 - **The key.** The token carries the `cnf` claim, as RFC 7800 defines
-  it, whose value is a JSON object with the member `jwk`. The value
-  of `jwk` is a JSON Web Key, as RFC 7517 defines one, that is an
-  Ed25519 public key, as RFC 8037 defines one: the member `kty` is
-  the string `OKP`, the member `crv` is the string `Ed25519`, and the
-  member `x` is the 32 bytes of the public key, encoded as base64url
-  without padding. The key so named is the **token's key**.
+  it, whose value is a JSON object with the member `jkt`. The value
+  of `jkt` is a string: the 32 bytes of a
+  [thumbprint](#the-thumbprint), encoded as base64url without
+  padding. The key whose thumbprint it is is the **token's key**.
 - **No key.** A token that carries no `cnf` claim, a `cnf` claim with
-  no `jwk` member, and a `jwk` member that is not an Ed25519 public
-  key each name no key.
+  no `jkt` member, and a `jkt` member that is not 32 bytes encoded as
+  base64url each bind the token to no key.
 
 **Remark.** The token's issuer signs the `cnf` claim with every other
-claim of the token. The token therefore states, on the issuer's word,
-both whom it names and which key that party holds. A party that holds
-a copy of another party's token and does not hold the private key of
-the token's key cannot complete a handshake with it.
+claim of the token, and writes it only for a key whose holder proved
+possession to the issuer, as RFC 9449 states. The token therefore
+states, on the issuer's word, both whom it names and which key that
+party holds. A party that holds a copy of another party's token and
+does not hold the private key of the token's key cannot complete a
+handshake with it.
+
+## Keys and signatures
+
+- **The curve.** Every key of this layer is a key of the elliptic
+  curve P-256, as FIPS 186-4 defines it, also named secp256r1.
+- **A public key.** A public key is 65 bytes: the byte `4`, followed
+  by the 32 bytes of the `x` coordinate, followed by the 32 bytes of
+  the `y` coordinate, each coordinate big-endian. This is the
+  uncompressed form of SEC 1, Section 2.3.3. Sixty-five bytes whose
+  first byte is not `4`, and 65 bytes that are not a point of the
+  curve, are no public key.
+- **A signature.** A signature is 64 bytes: an ECDSA signature over
+  P-256 with the hash function SHA-256, as FIPS 186-4 defines one, as
+  the 32 bytes of `r` followed by the 32 bytes of `s`, each
+  big-endian.
+- **Either value of s.** For every signature `(r, s)` that verifies,
+  `(r, n − s)` verifies, where `n` is the order of the curve. A party
+  accepts either. A party that signs may send either.
+
+## The thumbprint
+
+The thumbprint of a public key is the SHA-256 hash, as RFC 7638
+defines the thumbprint of a JSON Web Key, of the following bytes,
+with no byte before, between or after the members shown.
+
+```text
+{"crv":"P-256","kty":"EC","x":"<x>","y":"<y>"}
+```
+
+- **The coordinates.** `<x>` is the 32 bytes of the key's `x`
+  coordinate, encoded as base64url without padding. `<y>` is the 32
+  bytes of the key's `y` coordinate, encoded the same way.
+- **The result.** The thumbprint is the 32 bytes of the hash.
 
 ## The offer
 
 The offer's payload is the connector's one-time public key, followed
-by the connector's token.
+by the connector's identity key, followed by the connector's token.
 
 ```text
-[one-time key: 32 bytes][token …]
+[one-time key: 65 bytes][identity key: 65 bytes][token …]
 ```
 
-- **The one-time key.** The first 32 bytes: an X25519 public key, as
-  RFC 7748 defines one. The connector generates the key pair for this
-  connection, and uses it for no other.
-- **The token.** Every byte after the one-time key: the connector's
+- **The one-time key.** The first 65 bytes: a public key. The
+  connector generates the key pair for this connection, and uses it
+  for no other.
+- **The identity key.** The next 65 bytes: the public key that is the
+  connector's token's key.
+- **The token.** Every byte after the identity key: the connector's
   token. No length field precedes it, because WebSocket already
   delimits messages.
-- **Malformed.** A payload of fewer than 33 bytes and a payload whose
-  bytes after the first 32 are not valid UTF-8 are malformed.
+- **Malformed.** A payload of fewer than 131 bytes and a payload whose
+  bytes after the first 130 are not valid UTF-8 are malformed.
 
 ## The answer
 
 The answer's payload is the connectee's one-time public key, followed
-by the connectee's signature, followed by the connectee's token.
+by the connectee's identity key, followed by the connectee's
+signature, followed by the connectee's token.
 
 ```text
-[one-time key: 32 bytes][signature: 64 bytes][token …]
+[one-time key: 65 bytes][identity key: 65 bytes][signature: 64 bytes][token …]
 ```
 
-- **The one-time key.** The first 32 bytes: an X25519 public key. The
+- **The one-time key.** The first 65 bytes: a public key. The
   connectee generates the key pair for this connection, and uses it
   for no other.
-- **The signature.** The next 64 bytes: an Ed25519 signature, as
-  RFC 8032 defines one, made with the private key of the connectee's
-  token's key, over the [transcript](#the-transcript) followed by the
-  byte `1`.
+- **The identity key.** The next 65 bytes: the public key that is the
+  connectee's token's key.
+- **The signature.** The next 64 bytes: a signature made with the
+  private key of the connectee's identity key, over the
+  [transcript](#the-transcript) followed by the byte `1`.
 - **The token.** Every byte after the signature: the connectee's
   token.
-- **Malformed.** A payload of fewer than 97 bytes and a payload whose
-  bytes after the first 96 are not valid UTF-8 are malformed.
+- **Malformed.** A payload of fewer than 195 bytes and a payload whose
+  bytes after the first 194 are not valid UTF-8 are malformed.
 
 ## The proof
 
@@ -137,8 +179,8 @@ The proof's payload is the connector's signature, and nothing else.
 [signature: 64 bytes]
 ```
 
-- **The signature.** Exactly 64 bytes: an Ed25519 signature made with
-  the private key of the connector's token's key, over the
+- **The signature.** Exactly 64 bytes: a signature made with the
+  private key of the connector's identity key, over the
   [transcript](#the-transcript) followed by the byte `0`.
 - **Malformed.** A payload of any length other than 64 bytes is
   malformed.
@@ -149,14 +191,24 @@ three payloads are defined by `diverge-sdk-rs/src/wire/frame/auth.rs`:
 ```rust include=diverge-sdk-rs/src/wire/frame/auth.rs
 ```
 
+## The identity key is the token's key
+
+- **The check.** A party computes the thumbprint of the identity key
+  the other party sent, and compares it with the thumbprint the other
+  party's token carries as `jkt`. Where the two differ, the identity
+  key is not the token's key, and the party closes the connection.
+- **Before the signature.** A party makes this check before it
+  verifies the other party's signature, and verifies the signature
+  against the identity key only where the check holds.
+
 ## The transcript
 
 The transcript is the following bytes, in order.
 
 ```text
 "diverge handshake"              17 bytes, ASCII
-[connector one-time key]         32 bytes
-[connectee one-time key]         32 bytes
+[connector one-time key]         65 bytes
+[connectee one-time key]         65 bytes
 [connector token length]         u32, big-endian
 [connector token …]
 [connectee token length]         u32, big-endian
@@ -165,19 +217,22 @@ The transcript is the following bytes, in order.
 
 - **The label.** The 17 bytes of the ASCII string
   `diverge handshake`, with no terminator.
-- **The one-time keys.** The 32 bytes of the offer's one-time key,
-  followed by the 32 bytes of the answer's one-time key.
+- **The one-time keys.** The 65 bytes of the offer's one-time key,
+  followed by the 65 bytes of the answer's one-time key.
 - **The tokens.** The connector's token, preceded by its length in
   bytes as a `u32`, big-endian, followed by the connectee's token,
   preceded by its length in bytes as a `u32`, big-endian. Each token
   is the bytes its frame carried.
+- **The identity keys.** The transcript does not carry the identity
+  keys. Each token carries the thumbprint of its party's identity key,
+  and the transcript carries both tokens.
 - **What a party signs.** The connectee signs the transcript followed
   by the byte `1`. The connector signs the transcript followed by the
   byte `0`. No signature of one party is a signature of the other.
 - **Verification.** A party verifies the other party's signature
-  against the other party's token's key, over the transcript followed
-  by the other party's byte. A signature that does not verify, and a
-  token's key that is not a valid Ed25519 public key, each fail the
+  against the other party's identity key, over the transcript
+  followed by the other party's byte. A signature that does not
+  verify, and an identity key that is no public key, each fail the
   check.
 
 **Remark.** The transcript includes both one-time keys, and each
@@ -186,12 +241,14 @@ for one connection therefore verifies on no other.
 
 ## The shared secret
 
-- **The exchange.** Each party computes the X25519 function, as
-  RFC 7748 defines it, of its own one-time private key and the other
-  party's one-time public key. The 32 bytes of the result are the
-  **shared secret**. Both parties compute the same value.
-- **All zero.** A party whose computed shared secret is 32 zero bytes
-  closes the connection.
+- **The exchange.** Each party computes the elliptic-curve
+  Diffie-Hellman primitive, as SEC 1, Section 3.3.1 defines it, of
+  its own one-time private key and the other party's one-time public
+  key. The **shared secret** is the 32 bytes of the `x` coordinate of
+  the resulting point, big-endian. Both parties compute the same
+  value.
+- **No public key.** A party that receives a one-time key that is no
+  public key closes the connection.
 - **The one-time private key.** A party uses its one-time private key
   for this one computation, and retains it for no other use.
 
@@ -202,11 +259,14 @@ in [Sealing](/sealing/).
 
 No frame states a refusal.
 
-- A token a party **accepts**, from a party whose signature verifies,
-  is followed by the connection proceeding.
+- A token a party **accepts**, from a party whose identity key is the
+  token's key and whose signature verifies, is followed by the
+  connection proceeding.
 - A token a party **does not accept** is followed by closure of the
   connection, and by nothing else. The party sends no frame that
   states the refusal.
+- An identity key that **is not the token's key** is followed by
+  closure of the connection, and by nothing else.
 - A signature that **does not verify** is followed by closure of the
   connection, and by nothing else.
 - A party that holds no token to present closes the connection, and
@@ -215,9 +275,9 @@ No frame states a refusal.
   service.
 
 **Remark.** An invalid, an expired and an untrusted token, a token
-that names no key, and a signature that does not verify are
-indistinguishable from the other party's side: each is observed as a
-connection that closed.
+bound to no key, an identity key that is not the token's key, and a
+signature that does not verify are indistinguishable from the other
+party's side: each is observed as a connection that closed.
 
 ## What acceptance establishes
 

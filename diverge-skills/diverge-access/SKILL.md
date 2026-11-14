@@ -18,8 +18,8 @@ Every body may also carry `relay` (see the `diverge-daemons` skill).
 ## The model in six rules
 
 1. **An identity is `(issuer, subject)`**, written `{"issuer":"https://identity.diverge.network","subject":"github.12345.alice"}`.
-   It is what a client's OpenID Connect ID token establishes in the handshake, once the client has proven
-   it holds the key that token names. The daemon keeps no list of
+   It is what a client's access token establishes in the handshake, once the client has proven it holds
+   the key that token is bound to. The daemon keeps no list of
    trusted issuers: an identity from any issuer connects once a record (account, administrator, provider) names it.
 2. **An account is one identity the daemon admits**, with a description, roles and tags. One account per
    identity; the identity is the account's name and never changes. An identity that is no account, no

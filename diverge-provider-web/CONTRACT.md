@@ -421,16 +421,21 @@ send no other frame, and serve no frame of the Client's, before the
 handshake is complete at the Provider.
 
 (b) The Provider shall present, in the offer or the answer it sends,
-a token of its own, whatever issuer the Client's token names, that
-carries a `cnf` claim whose `jwk` member is an Ed25519 public key;
-shall generate a one-time X25519 key pair for each Connection and use
-it for no other; and shall sign the transcript, followed by the byte
-of its own position, with the private key of its token's key.
+a token of its own, whatever issuer the Client's token names, that is
+an access token bound to a P-256 key as RFC 9449 binds one, carrying
+a `cnf` claim whose `jkt` member is the thumbprint of that key; shall
+send that key as its identity key; shall generate a one-time P-256
+key pair for each Connection and use it for no other; and shall sign
+the transcript, followed by the byte of its own position, with the
+private key of its identity key, by ECDSA with SHA-256.
 
 (c) The Provider shall judge the Client's token by its own means;
-shall accept no token that names no key; shall verify the Client's
-signature against the Client's token's key, over the transcript
-followed by the byte of the Client's position; shall send the answer,
+shall accept no token that is bound to no key; shall verify that the
+thumbprint of the identity key the Client sent is the thumbprint the
+Client's token carries, before it verifies the Client's signature;
+shall verify the Client's signature against the Client's identity
+key, over the transcript followed by the byte of the Client's
+position, accepting either value of `s` that verifies; shall send the answer,
 where it accepted the Connection, only after accepting the Client's
 token, and the proof, where it dialed, only after accepting the
 Client's token and verifying the Client's signature; and shall serve
@@ -439,9 +444,10 @@ establishes. The Provider shall not close the Connection because the
 Client's token names an issuer other than that of the Provider's
 token.
 
-(d) The Provider shall answer a token it does not accept, a signature
-that does not verify, a malformed authorization payload, a shared
-secret of thirty-two zero bytes, and any Client's offer while the
+(d) The Provider shall answer a token it does not accept, an identity
+key that is not the token's key, a signature that does not verify, a
+malformed authorization payload, a one-time key that is no public
+key, and any Client's offer while the
 Provider holds no token to present, by closing the Connection with no
 frame, and shall answer an authorization frame received after the
 handshake is complete by ending the Connection.
@@ -451,7 +457,7 @@ not transmit it on the wire, and it shall not derive a volume name, a
 container id, or any other Protocol value from it in a manner that
 discloses it.
 
-(f) The Provider shall disclose the private key of its token's key,
+(f) The Provider shall disclose the private key of its identity key,
 and the one-time private key of any Connection, to no one, and shall
 use the one-time private key of a Connection for the one computation
 of that Connection's shared secret.

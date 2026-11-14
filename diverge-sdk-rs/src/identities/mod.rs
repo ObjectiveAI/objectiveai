@@ -42,12 +42,14 @@
 //!    identity with none — [`Error::NoIdToken`] — rather than one past
 //!    its time.
 //!
-//!    A handshake presents the **ID token**, never the access token:
-//!    OpenID Connect makes the ID token a signed JWT naming its issuer,
-//!    its subject and its expiry, which anyone checks against the
-//!    issuer's keys, while an access token's form is its issuer's
-//!    choice and may be opaque. The access token is kept for the
-//!    issuer's own APIs, and no handshake reads it.
+//!    A handshake presents the **access token**, bound to the
+//!    identity's key on this host as RFC 9449 — DPoP — binds one: the
+//!    one token an issuer writes a key's thumbprint into. It must be a
+//!    signed JWT naming its issuer, its subject and its expiry, as RFC
+//!    9068 lays one out, which anyone checks against the issuer's
+//!    keys; an issuer whose access tokens are opaque, or bound to no
+//!    key, is one no identity here is presented from. The ID token is
+//!    read at the login for the subject, and no handshake reads it.
 //! 5. **Signed out.** A refresh the issuer refuses as `invalid_grant`
 //!    — the token rotated away, revoked, or expired — is
 //!    [`Error::SignedOut`]. The file is kept, as user state is; a new
@@ -83,9 +85,9 @@
 //!    it asked for none; a `resource` is asked again at every refresh,
 //!    so the token stays for it.
 //!
-//! 9. **Verifying another end's ID token** is [`KeySets::verify`],
+//! 9. **Verifying another end's access token** is [`KeySets::verify`],
 //!    against the token's issuer's keys, fetched once and cached until
-//!    they expire — an access token refused by its `typ`, the audience
+//!    they expire — a token bound to no key refused, the audience
 //!    never asked — see [`verify`] for its own rules.
 //!
 //! 10. **A program's own side.** [`Own`] is a program's one identity
@@ -93,9 +95,10 @@
 //!     daemon's or a provider's handshake is built on.
 //!
 //! 11. **A client's side.** [`Presenter`] is one identity presented,
-//!     and the other end's token taken at its word: what a program that
-//!     dials as one identity and judges nobody — a command line —
-//!     makes its handshake with.
+//!     and the other end's token verified and held to its key — and to
+//!     one identity, where the program was told which to expect: what
+//!     a program that dials as one identity and admits nobody — a
+//!     command line — makes its handshake with.
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The
 //! file's own record has no public type at all.
@@ -117,6 +120,7 @@ mod oauth;
 mod own;
 mod path_name;
 mod presenter;
+mod proof;
 mod record;
 mod refresh;
 mod remove;

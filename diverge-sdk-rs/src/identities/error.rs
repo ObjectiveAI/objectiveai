@@ -94,9 +94,10 @@ pub enum Error {
         /// What was wrong.
         why: String,
     },
-    /// The identity's issuer answered an ID token that does not name
-    /// the identity's key: it writes no `cnf` claim, and no Diverge
-    /// program takes such a token.
+    /// The identity's issuer answered an access token that is not
+    /// bound to the identity's key: it is no JWT, or carries no
+    /// `cnf.jkt`, or another key's, and no Diverge program takes such
+    /// a token.
     Unbound(Name),
 }
 
@@ -128,7 +129,7 @@ impl fmt::Display for Error {
                 write!(f, "the issuer's new token is good for {expires_in} seconds, no longer than was asked")
             }
             Error::Key { path, why } => write!(f, "`{}` is not an identity's key: {why}", path.display()),
-            Error::Unbound(name) => write!(f, "the issuer of {name} answered an ID token that names no key: it cannot be presented"),
+            Error::Unbound(name) => write!(f, "the issuer of {name} answered an access token that is not bound to the identity's key: it cannot be presented"),
         }
     }
 }

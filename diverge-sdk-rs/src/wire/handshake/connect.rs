@@ -5,27 +5,30 @@ use std::net::IpAddr;
 use super::exchange::Exchange;
 use super::frame::{receive, send};
 use super::transcript::{Role, Transcript};
-use super::{Authenticator, Error, Handshook};
+use super::{Authenticator, Error, Handshook, thumbprint};
 use crate::wire::connection::Connection;
 use crate::wire::decode::Decode as _;
 use crate::wire::frame::auth::{Answer, Offer, Proof};
 
 /// The handshake, from the end that dialled — see the [rules](super):
 ///
-/// 1. This end's token and signer, from `authenticator`, and a
-///    one-time key pair made for this connection. The pair's public
-///    half and the token are sent as the connection's first frame.
-/// 2. The connectee's frame is read: its one-time key, its signature,
-///    its token.
+/// 1. This end's token, its key and its signer, from `authenticator`,
+///    and a one-time key pair made for this connection. The pair's
+///    public half, the identity key and the token are sent as the
+///    connection's first frame.
+/// 2. The connectee's frame is read: its one-time key, its identity
+///    key, its signature, its token.
 /// 3. That token is verified by `authenticator`, `address` being the
 ///    connectee's. Its issuer need not be this end's.
-/// 4. The connectee's signature is checked against the key its token
-///    names, over the transcript.
-/// 5. The shared secret is agreed. One that is all zero ends the
-///    handshake.
-/// 6. This end's signature over the transcript is sent as its last
+/// 4. The connectee's identity key is the one its token names: its
+///    thumbprint is the token's.
+/// 5. The connectee's signature is checked against that key, over the
+///    transcript.
+/// 6. The shared secret is agreed. A one-time key that is no point of
+///    the curve ends the handshake.
+/// 7. This end's signature over the transcript is sent as its last
 ///    handshake frame.
-/// 7. The connection is sealed: what this end sends under the
+/// 8. The connection is sealed: what this end sends under the
 ///    connector's key, what it receives under the connectee's.
 ///
 /// A failure after step 3 accepted the connectee is reported to
@@ -37,19 +40,22 @@ pub async fn connect(mut connection: Connection, authenticator: &dyn Authenticat
     let presented = authenticator.present().await.map_err(Error::Present)?;
     let exchange = Exchange::new();
     let ours = exchange.public();
-    send(&mut connection, &Offer { key: ours, token: &presented.token }).await?;
+    send(&mut connection, &Offer { exchange: ours, key: presented.key, token: &presented.token }).await?;
     // Step 2.
     let payload = receive(&mut connection).await?;
     let answer = Answer::decode(&payload).map_err(Error::Malformed)?;
     // Step 3.
     let judged = authenticator.verify(answer.token, address).await.map_err(Error::Refused)?;
-    let transcript = Transcript::new(&ours, &answer.key, &presented.token, answer.token);
-    // Steps 4 to 6: any failure lets go of what step 3 took.
+    let transcript = Transcript::new(&ours, &answer.exchange, &presented.token, answer.token);
+    // Steps 4 to 7: any failure lets go of what step 3 took.
     let proven = async {
-        if !transcript.proven(Role::Connectee, &judged.key, &answer.signature) {
+        if thumbprint(&answer.key) != judged.thumbprint {
+            return Err(Error::Key);
+        }
+        if !transcript.proven(Role::Connectee, &answer.key, &answer.signature) {
             return Err(Error::Signature);
         }
-        let shared = exchange.agree(&answer.key).ok_or(Error::Exchange)?;
+        let shared = exchange.agree(&answer.exchange).ok_or(Error::Exchange)?;
         let signature = presented.signer.sign(&transcript.signed(Role::Connector));
         send(&mut connection, &Proof { signature }).await?;
         Ok(shared)
@@ -62,7 +68,7 @@ pub async fn connect(mut connection: Connection, authenticator: &dyn Authenticat
             return Err(error);
         }
     };
-    // Step 7.
+    // Step 8.
     let (connector, connectee) = transcript.seals(&shared);
     Ok(Handshook { connection: connection.sealed(connector, connectee), peer: judged.peer })
 }

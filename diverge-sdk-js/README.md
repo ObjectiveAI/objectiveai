@@ -31,28 +31,27 @@ no scheme, port 14980 by default — makes the handshake, and returns a
 handle that speaks the protocol itself. This is the handle for Node,
 Deno, Bun and any browser allowed to open the socket.
 
-The handshake is three frames. This end sends a one-time key and the
-account's token; the daemon answers with its own one-time key, its
-token, and a signature by the key its token names; this end checks
-it and sends its own signature. Every frame after that is encrypted,
-AES-256-GCM under keys only the two ends hold. The `authenticator`
-supplies both halves of this end's part:
+The handshake is three frames. This end sends a one-time key, the
+account's public key and the account's token; the daemon answers with
+its own one-time key, its public key, its token, and a signature by
+that key; this end checks that the daemon's key is the one its token
+is bound to, checks the signature, and sends its own. Every frame
+after that is encrypted, AES-256-GCM under keys only the two ends
+hold. The `authenticator` supplies both halves of this end's part:
 
-- `present()` answers `{ token, sign }`: the account's ID token,
-  whose `cnf` claim names an Ed25519 public key, and a function that
-  signs with that key's private half. The package holds no key and
-  no token of its own.
+- `present()` answers `{ token, key, sign }`: the account's access
+  token, bound to a P-256 key as RFC 9449 (DPoP) binds one; that
+  key's public half, sixty-five bytes; and a function that signs with
+  its private half. The package holds no key and no token of its own.
 - `verify(token)` judges the daemon's token and answers
-  `{ peer, key }`: who it is, and the Ed25519 key its `cnf` claim
-  names. It must verify the token against its issuer's keys: the
-  handshake holds the daemon to whatever key this answers.
+  `{ peer, thumbprint }`: who it is, and the key thumbprint its
+  `cnf.jkt` names. It must verify the token against its issuer's
+  keys: the handshake holds the daemon to whatever thumbprint this
+  answers.
 
-It uses the platform's Web Crypto and nothing else: X25519, Ed25519,
-HKDF and AES-GCM from `crypto.subtle`. Node 22 and the current
-releases of Chrome, Firefox and Safari have all four; X25519 and
-Ed25519 reached browsers only recently, and a runtime without them
-fails the dial with a `HandshakeError` of kind `exchange`. Exact
-minimum browser versions were not confirmed when this was written.
+It uses the platform's Web Crypto and nothing else: ECDSA and ECDH on
+P-256, HKDF and AES-GCM from `crypto.subtle`, which Node and every
+current browser have had for years.
 
 **Through a proxy.** `wire.proxy.handle(transport)` returns a handle
 whose connection lives on the other side of a Tauri boundary: the

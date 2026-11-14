@@ -6,54 +6,70 @@ use std::str::{self, Utf8Error};
 use crate::wire::decode::Decode;
 use crate::wire::encode::{Encode, Writer};
 
-/// The length of a public key, in bytes: an X25519 one-time key.
-pub const KEY_LEN: usize = 32;
+/// The length of a public key, in bytes: a point of the curve P-256
+/// in the uncompressed form of SEC 1 §2.3.3 — the byte `4`, then the
+/// 32 bytes of `x`, then the 32 bytes of `y`.
+pub const POINT_LEN: usize = 65;
 
-/// The length of a signature, in bytes: an Ed25519 one.
+/// The length of a signature, in bytes: an ECDSA signature over
+/// P-256, as the 32 bytes of `r` followed by the 32 bytes of `s`.
 pub const SIGNATURE_LEN: usize = 64;
+
+/// The length of a key's thumbprint, in bytes: an RFC 7638 SHA-256
+/// thumbprint.
+pub const THUMBPRINT_LEN: usize = 32;
 
 /// The payload of the connector's first
 /// [`Auth`](super::client::ClientFrame::Auth) frame, the first frame of
-/// a connection: its one-time public key, then its token. See
-/// [`handshake`](crate::wire::handshake) for the rules of the exchange.
+/// a connection: its one-time public key, its identity's public key,
+/// then its token. See [`handshake`](crate::wire::handshake) for the
+/// rules of the exchange.
 ///
 /// # The layout
 ///
-/// 1. **The one-time key.** The first [`KEY_LEN`] bytes: an X25519
-///    public key, RFC 7748, made for this connection and no other.
-/// 2. **The token.** Every byte after it: an RFC 7519 JWT as UTF-8,
+/// 1. **The one-time key.** The first [`POINT_LEN`] bytes: a P-256
+///    public key made for this connection and no other.
+/// 2. **The identity key.** The next [`POINT_LEN`] bytes: the P-256
+///    public key the connector's token is bound to.
+/// 3. **The token.** Every byte after them: an RFC 7519 JWT as UTF-8,
 ///    and nothing else — no length, since WebSocket delimits the
 ///    message.
-/// 3. **Malformed.** A payload shorter than the key, a payload with no
-///    byte after the key, and a token that is not UTF-8.
+/// 4. **Malformed.** A payload shorter than the two keys, a payload
+///    with no byte after them, and a token that is not UTF-8.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer<'a> {
     /// The connector's one-time public key.
-    pub key: [u8; KEY_LEN],
+    pub exchange: [u8; POINT_LEN],
+    /// The public key the connector's token is bound to.
+    pub key: [u8; POINT_LEN],
     /// The connector's token.
     pub token: &'a str,
 }
 
 /// The payload of the connectee's one
 /// [`Auth`](super::client::ClientFrame::Auth) frame, in answer to an
-/// [`Offer`] it accepts: its one-time public key, its signature, then
-/// its token.
+/// [`Offer`] it accepts: its one-time public key, its identity's
+/// public key, its signature, then its token.
 ///
 /// # The layout
 ///
-/// 1. **The one-time key.** The first [`KEY_LEN`] bytes: an X25519
-///    public key, made for this connection and no other.
-/// 2. **The signature.** The next [`SIGNATURE_LEN`] bytes: an Ed25519
-///    signature, RFC 8032, by the key the connectee's token names, over
-///    the handshake's transcript as the connectee signs it.
-/// 3. **The token.** Every byte after it: an RFC 7519 JWT as UTF-8.
-/// 4. **Malformed.** A payload shorter than the key and the signature,
-///    a payload with no byte after them, and a token that is not
-///    UTF-8.
+/// 1. **The one-time key.** The first [`POINT_LEN`] bytes: a P-256
+///    public key made for this connection and no other.
+/// 2. **The identity key.** The next [`POINT_LEN`] bytes: the P-256
+///    public key the connectee's token is bound to.
+/// 3. **The signature.** The next [`SIGNATURE_LEN`] bytes: an ECDSA
+///    signature by the identity key's private half, over the
+///    handshake's transcript as the connectee signs it.
+/// 4. **The token.** Every byte after it: an RFC 7519 JWT as UTF-8.
+/// 5. **Malformed.** A payload shorter than the two keys and the
+///    signature, a payload with no byte after them, and a token that
+///    is not UTF-8.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Answer<'a> {
     /// The connectee's one-time public key.
-    pub key: [u8; KEY_LEN],
+    pub exchange: [u8; POINT_LEN],
+    /// The public key the connectee's token is bound to.
+    pub key: [u8; POINT_LEN],
     /// The connectee's signature over the transcript.
     pub signature: [u8; SIGNATURE_LEN],
     /// The connectee's token.
@@ -66,9 +82,9 @@ pub struct Answer<'a> {
 ///
 /// # The layout
 ///
-/// 1. **The signature.** Exactly [`SIGNATURE_LEN`] bytes: an Ed25519
-///    signature by the key the connector's token names, over the
-///    handshake's transcript as the connector signs it.
+/// 1. **The signature.** Exactly [`SIGNATURE_LEN`] bytes: an ECDSA
+///    signature by the private half of the connector's identity key,
+///    over the handshake's transcript as the connector signs it.
 /// 2. **Malformed.** A payload of any other length.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Proof {
@@ -76,13 +92,14 @@ pub struct Proof {
     pub signature: [u8; SIGNATURE_LEN],
 }
 
-/// The key, then the token's own bytes.
+/// The two keys, then the token's own bytes.
 impl Encode for Offer<'_> {
     /// [`Infallible`](std::convert::Infallible): the fields are their
     /// bytes.
     type Error = std::convert::Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(&self.exchange);
         out.extend_from_slice(&self.key);
         out.extend_from_slice(self.token.as_bytes());
         Ok(())
@@ -94,18 +111,20 @@ impl<'a> Decode<'a> for Offer<'a> {
     type Error = AuthError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
-        let (key, rest) = bytes.split_first_chunk::<KEY_LEN>().ok_or(AuthError::Short)?;
-        Ok(Offer { key: *key, token: token(rest)? })
+        let (exchange, rest) = bytes.split_first_chunk::<POINT_LEN>().ok_or(AuthError::Short)?;
+        let (key, rest) = rest.split_first_chunk::<POINT_LEN>().ok_or(AuthError::Short)?;
+        Ok(Offer { exchange: *exchange, key: *key, token: token(rest)? })
     }
 }
 
-/// The key, the signature, then the token's own bytes.
+/// The two keys, the signature, then the token's own bytes.
 impl Encode for Answer<'_> {
     /// [`Infallible`](std::convert::Infallible): the fields are their
     /// bytes.
     type Error = std::convert::Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(&self.exchange);
         out.extend_from_slice(&self.key);
         out.extend_from_slice(&self.signature);
         out.extend_from_slice(self.token.as_bytes());
@@ -118,9 +137,10 @@ impl<'a> Decode<'a> for Answer<'a> {
     type Error = AuthError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
-        let (key, rest) = bytes.split_first_chunk::<KEY_LEN>().ok_or(AuthError::Short)?;
+        let (exchange, rest) = bytes.split_first_chunk::<POINT_LEN>().ok_or(AuthError::Short)?;
+        let (key, rest) = rest.split_first_chunk::<POINT_LEN>().ok_or(AuthError::Short)?;
         let (signature, rest) = rest.split_first_chunk::<SIGNATURE_LEN>().ok_or(AuthError::Short)?;
-        Ok(Answer { key: *key, signature: *signature, token: token(rest)? })
+        Ok(Answer { exchange: *exchange, key: *key, signature: *signature, token: token(rest)? })
     }
 }
 

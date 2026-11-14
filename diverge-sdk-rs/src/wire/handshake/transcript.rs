@@ -1,11 +1,12 @@
 //! What both ends sign, and draw their keys under.
 
-use ed25519_dalek::{Signature, VerifyingKey};
 use hkdf::Hkdf;
+use p256::ecdsa::signature::Verifier as _;
+use p256::ecdsa::{Signature, VerifyingKey};
 use sha2::{Digest as _, Sha256};
 
-use crate::wire::frame::auth::{KEY_LEN, SIGNATURE_LEN};
-use crate::wire::seal::Seal;
+use crate::wire::frame::auth::{POINT_LEN, SIGNATURE_LEN};
+use crate::wire::seal::{KEY_LEN, Seal};
 
 /// What a transcript begins with.
 const LABEL: &[u8] = b"diverge handshake";
@@ -33,8 +34,8 @@ pub(super) struct Transcript(Vec<u8>);
 impl Transcript {
     /// The transcript of the handshake whose one-time keys and tokens
     /// these are.
-    pub(super) fn new(connector_key: &[u8; KEY_LEN], connectee_key: &[u8; KEY_LEN], connector_token: &str, connectee_token: &str) -> Transcript {
-        let mut bytes = Vec::with_capacity(LABEL.len() + 2 * KEY_LEN + 8 + connector_token.len() + connectee_token.len());
+    pub(super) fn new(connector_key: &[u8; POINT_LEN], connectee_key: &[u8; POINT_LEN], connector_token: &str, connectee_token: &str) -> Transcript {
+        let mut bytes = Vec::with_capacity(LABEL.len() + 2 * POINT_LEN + 8 + connector_token.len() + connectee_token.len());
         bytes.extend_from_slice(LABEL);
         bytes.extend_from_slice(connector_key);
         bytes.extend_from_slice(connectee_key);
@@ -58,10 +59,23 @@ impl Transcript {
     }
 
     /// Whether `signature` is `role`'s over this transcript, by the
-    /// Ed25519 public key `key`. A key that is no point of the curve
-    /// signs nothing.
-    pub(super) fn proven(&self, role: Role, key: &[u8; KEY_LEN], signature: &[u8; SIGNATURE_LEN]) -> bool {
-        VerifyingKey::from_bytes(key).is_ok_and(|key| key.verify_strict(&self.signed(role), &Signature::from_bytes(signature)).is_ok())
+    /// P-256 public key `key`: ECDSA with SHA-256. The rules:
+    ///
+    /// 1. A key that is not an uncompressed point of the curve signs
+    ///    nothing.
+    /// 2. A signature whose `r` or `s` is zero, or not below the
+    ///    curve's order, is no signature.
+    /// 3. Either of the two values of `s` a signature may carry — `s`
+    ///    and the order less `s` — is accepted: a signer need not
+    ///    choose the lower, and not every signer does.
+    pub(super) fn proven(&self, role: Role, key: &[u8; POINT_LEN], signature: &[u8; SIGNATURE_LEN]) -> bool {
+        if key[0] != 4 {
+            return false;
+        }
+        let (Ok(key), Ok(signature)) = (VerifyingKey::from_sec1_bytes(key), Signature::from_slice(signature)) else {
+            return false;
+        };
+        key.verify(&self.signed(role), &signature).is_ok()
     }
 
     /// The two directions the `shared` secret makes under this
