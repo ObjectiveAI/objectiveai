@@ -13,7 +13,12 @@ use serde::{Deserialize, Serialize};
 /// |---|---|
 /// | noul | `{"noul": 0.25}` |
 /// | choice | `{"probabilities": {"<option value>": 0.7, …}}` |
-/// | score | `{"score": 3.4, "probabilities": [0.1, 0.2, …]}` |
+/// | score | `{"probabilities": [0.1, 0.2, …]}` |
+///
+/// Probabilities, and nothing made of them: an agent's program names
+/// no winning option and states no score. Both are the daemon's to
+/// compute when it keeps the answer in the agent's log: see
+/// [`agent_log::Answer`](crate::daemon::agent_log::Answer).
 ///
 /// Every number is a [`Decimal`], written as a JSON number and never
 /// as a string, as this crate's `rust_decimal` writes one
@@ -50,13 +55,13 @@ pub struct Choice {
     pub probabilities: IndexMap<String, Decimal>,
 }
 
-/// A score's answer: the score, and a probability for each level.
+/// A score's answer: a probability for each level. No score: a
+/// `score` member is unknown, and an answer that states one is not
+/// an answer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Score {
-    /// The score.
-    pub score: Decimal,
     /// Each level's probability, in the levels' order.
     pub probabilities: Vec<Decimal>,
 }

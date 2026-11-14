@@ -38,8 +38,8 @@ pub enum Question {
         options: Vec<ChoiceOption>,
     },
     /// A place along levels. Answered by
-    /// [`Answer::Score`](super::Answer::Score), the score and a
-    /// probability for each level.
+    /// [`Answer::Score`](super::Answer::Score), a probability for
+    /// each level.
     Score {
         /// The question's id: what its answer is keyed by.
         id: String,

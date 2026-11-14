@@ -23,6 +23,7 @@
 //! this module and not through the file it lives in.
 
 mod active;
+mod answer;
 mod deployed;
 mod error;
 mod identity;
@@ -36,6 +37,7 @@ mod user;
 mod user_structured_decisions;
 
 pub use active::*;
+pub use answer::*;
 pub use deployed::*;
 pub use error::*;
 pub use identity::*;
