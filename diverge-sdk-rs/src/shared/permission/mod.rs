@@ -41,9 +41,11 @@
 //! program reads the agents out of the arguments it was registered
 //! with and declares those, so the same image declares one list here
 //! and another there, and is held to whichever it was given. The
-//! database and the events, of each of which there is one, and images,
-//! which are named and never held, are a bare array of actions each,
-//! as they are for the daemon.
+//! database and the events, of each of which there is one, are a bare
+//! array of actions each, as they are for the daemon. The grants over
+//! providers, through them and over images reach by the tags of the
+//! providers' records, where the daemon's own may also name a provider
+//! by identity.
 //!
 //! # The actions are defined once
 //!

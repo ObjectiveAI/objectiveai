@@ -34,10 +34,9 @@
 //! of them.
 //! `{"agents":{"actions":["tag"],"within":"any","tags":["crew","idle"]}}`.
 //! - **Over the one thing.** For the database, of which the daemon
-//!   serves exactly one, the events, one graph of which it keeps, and
-//!   images, which it names and never holds, a bare array of the
-//!   kind's actions, `{"postgres":["get","connections"]}`,
-//!   `{"events":["list"]}`, `{"images":["info"]}`: there
+//!   serves exactly one, and the events, one graph of which it keeps,
+//!   a bare array of the kind's actions,
+//!   `{"postgres":["get","connections"]}`, `{"events":["list"]}`: there
 //! is nothing to name and nothing to narrow, so holding the action is
 //! the whole of it, as for making.
 //!
@@ -102,16 +101,18 @@
 //! providers, remote
 //! daemons, accounts, roles, volumes, the vault's keys and the host's
 //! identities — have the tagging shape, and all of them but dependency
-//! tools, which a registration makes, the making shape. The database,
-//! the events and the images carry none, and their grants are bare
-//! lists of actions. A grant that names nothing becomes one of
-//! these by [`From`]: the same actions, reaching by a filter of the
-//! tags alone, which is how a dependency tool's requests are judged.
-//! The providers' grants are the exception: their list filter names no
-//! tags, so a grant over them, or through them, reaches by the shared
-//! [`Tags`](crate::shared::permission::Tags) test itself, and
-//! [`providers`] and [`providers_daemons`] are the shared modules,
-//! re-exported whole.
+//! tools, which a registration makes, the making shape. The database
+//! and the events carry none, and their grants are bare lists of
+//! actions. A grant that names nothing becomes one of these by
+//! [`From`]: the same actions, reaching by a filter of the tags alone,
+//! which is how a dependency tool's requests are judged.
+//!
+//! The providers' grants are the exception: the providers list filter
+//! names no tags, so a grant over providers, or through them — the
+//! daemons connected to them, in [`providers_daemons`], and the
+//! daemon's Stores on them, in [`images`] — reaches by a test of its
+//! own, [`providers::Reach`]: the providers named by identity, those
+//! whose records carry some tags, or both.
 
 mod convert;
 mod grant;
@@ -126,8 +127,8 @@ pub mod standalone_tools;
 pub mod standalone_tools_templates;
 pub mod connected_standalone_tools;
 pub mod dependency_tools;
-pub use crate::shared::permission::providers;
-pub use crate::shared::permission::providers_daemons;
+pub mod providers;
+pub mod providers_daemons;
 pub mod daemons;
 pub mod accounts;
 pub mod roles;
@@ -135,5 +136,5 @@ pub mod vault;
 pub mod volumes;
 pub use crate::shared::permission::postgres;
 pub use crate::shared::permission::events;
-pub use crate::shared::permission::images;
+pub mod images;
 pub mod identities;

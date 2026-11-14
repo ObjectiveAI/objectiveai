@@ -1,6 +1,6 @@
 //! A tool's declared grants, as grants of the daemon's.
 
-use super::{Grant, accounts, agents, agents_templates, connected_standalone_tools, daemons, dependency_tools, identities, roles, standalone_tools, standalone_tools_templates, vault, volumes};
+use super::{Grant, accounts, agents, agents_templates, connected_standalone_tools, daemons, dependency_tools, identities, images, providers, providers_daemons, roles, standalone_tools, standalone_tools_templates, vault, volumes};
 use crate::shared::permission::{self, Tags, Within};
 
 /// A tool's grants, as its container declared them at registration and
@@ -143,8 +143,24 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Apart> {
                 tags,
             },
         }),
-        permission::Grant::Providers(permission) => Grant::Providers(permission),
-        permission::Grant::ProvidersDaemons(permission) => Grant::ProvidersDaemons(permission),
+        permission::Grant::Providers(permission) => Grant::Providers(match permission {
+            permission::providers::Permission::Make(makes) => providers::Permission::Make(makes),
+            permission::providers::Permission::Over { actions, within } => providers::Permission::Over {
+                actions,
+                within: within.map(providers_reach),
+            },
+            permission::providers::Permission::Tags { actions, within, tags } => providers::Permission::Tags {
+                actions,
+                within: within.map(providers_reach),
+                tags,
+            },
+        }),
+        permission::Grant::ProvidersDaemons(permission) => Grant::ProvidersDaemons(match permission {
+            permission::providers_daemons::Permission::Over { actions, within } => providers_daemons::Permission::Over {
+                actions,
+                within: within.map(providers_reach),
+            },
+        }),
         permission::Grant::Daemons(permission) => Grant::Daemons(match permission {
             permission::daemons::Permission::Make(makes) => daemons::Permission::Make(makes),
             permission::daemons::Permission::Over { actions, within } => daemons::Permission::Over {
@@ -207,7 +223,12 @@ fn daemon_grant(grant: permission::Grant) -> Result<Grant, Apart> {
         }),
         permission::Grant::Postgres(permission) => Grant::Postgres(permission),
         permission::Grant::Events(permission) => Grant::Events(permission),
-        permission::Grant::Images(permission) => Grant::Images(permission),
+        permission::Grant::Images(permission) => Grant::Images(match permission {
+            permission::images::Permission::Over { actions, within } => images::Permission::Over {
+                actions,
+                within: within.map(providers_reach),
+            },
+        }),
         permission::Grant::Identities(permission) => Grant::Identities(match permission {
             permission::identities::Permission::Make(makes) => identities::Permission::Make(makes),
             permission::identities::Permission::Over { actions, within } => identities::Permission::Over {
@@ -240,6 +261,17 @@ fn never_active() -> crate::daemon::endpoints::agents::list::client::request::Fi
     Filter {
         active: Some(Active::History(History::Never)),
         ..Default::default()
+    }
+}
+
+/// The providers whose records pass the tags, and no provider named:
+/// what a grant that names nobody reaches, over providers or through
+/// them.
+fn providers_reach(tags: Tags) -> providers::Reach {
+    providers::Reach {
+        identities: Vec::new(),
+        all_tags: tags.all_tags,
+        any_tags: tags.any_tags,
     }
 }
 
