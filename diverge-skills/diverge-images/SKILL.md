@@ -108,7 +108,9 @@ diverge run images build '{
   - `{"exists":{"digest":…}}`: the build produced a digest already in the Store; nothing was added.
   - `"insufficient_capacity"`: the Store is full. `"context_held"`: something has the context volume to
     itself. `"unsupported"`: the provider has no Store (no `images` in its `provider.yaml`).
-  - `"forbidden"`: no `build` grant over images, or no `mount` grant over the context volume.
+  - `"forbidden"`: no `build` grant over images reaching that provider, or no `mount` grant over the
+    context volume. The grant is `{"images":{"actions":["build"],"within":"any"}}`, or narrowed to
+    providers by identity or tag (see `diverge-access`).
     `"not_found"`: no such provider, or no such volume on it.
   - `{"error":…}`: the build failed; the `output` lines before it say why.
 - A build cannot be cancelled. Stopping the command leaves it running on the provider.
@@ -156,6 +158,54 @@ a Store is found by its digest, so it needs no `references`:
  "memory":536870912,"disk":1073741824,
  "arguments":{"python":"[{\"type\":\"assistant_text_content\",\"text\":\"hello\"}]"}}
 ```
+
+## Listing the daemon's Stores: `diverge run images list`
+
+```bash
+diverge run images list                                    # every image the grant reaches, then "listed"
+diverge run images list '{"providers":[{"issuer":"…","subject":"github.12345.provider"}]}'
+diverge run images list '{"digests":["sha256:…"]}' --jq '.added'
+diverge run images list --watch                            # stays open: added / changed / removed
+```
+
+- Body members, all optional: `providers`, `digests`, `created_from`, `created_to` (RFC 3339), `count`,
+  `relay`.
+- Each line is `{"added":{"provider":…,"digest":…,"description"?:…,"bytes":…,"created":…}}`, then
+  `"listed"`. With `--watch`, `{"changed":…}` (a description edited) and `{"removed":…}` follow as they
+  happen. Other answers: `"forbidden"`, `{"error":…}`.
+- What is listed is what the **daemon** owns on each provider: images built with `images build` or pushed
+  with `images push`. It is not the provider's pull cache, and not another daemon's Store.
+- A provider that is not connected, that has no Store (`images` absent from its `provider.yaml`), or whose
+  listing is not whole yet contributes nothing; it appears when it is.
+- Grant: `list` over images, reaching the provider.
+
+## Pushing an image that is already built: `diverge run images push`
+
+```bash
+diverge run images push '{
+  "provider": {"issuer":"…","subject":"github.12345.provider"},
+  "image": {"digest":"sha256:…","references":[{"registry":"ghcr.io","name":"acme/worker"}]},
+  "description": "worker 1.4"
+}'
+# {"pushed":{"digest":"sha256:…","bytes":123456789,"source":{"registry":{"reference":"ghcr.io/acme/worker@sha256:…"}}}}
+```
+
+Puts an image into the daemon's Store on a provider without building it. Where it comes from, in order:
+
+1. The daemon already owns the digest there: `{"exists":{"digest":…}}`, nothing moves.
+2. A reference names a registry that provider lists, and the registry serves the digest: the provider
+   fetches it. `source` is `{"registry":{"reference":…}}`.
+3. Otherwise the provider asks **the client** for the manifest, the blobs and a proof, through the daemon.
+
+**From the CLI only case 2 works.** The `diverge` program holds no image bytes and answers every ask as not
+held, so an image no listed registry serves ends `"unavailable"`. A client that has the bytes pushes through
+the SDK (`images.push` with a store that answers the asks); its `source` is then `"client"`.
+
+Last line, one of: `{"pushed":…}`, `{"exists":…}`, `"insufficient_capacity"` (the Store is full),
+`"unavailable"`, `"proof_failed"`, `"malformed"` (not an image the provider takes), `"unsupported"` (the
+provider has no Store), `"forbidden"` (no `push` grant reaching the provider), `"not_found"` (no such
+provider), `{"error":…}`. Before it, one `{"blob":{"digest":…,"bytes":…}}` per blob pulled from a client.
+A push cannot be cancelled.
 
 ## `/DIVERGE.md`: the image's own word on what it takes
 
@@ -382,9 +432,11 @@ template declares. Details and lifecycle are in `diverge-tools`; the entry shape
 
 ## Not verified
 
-- The provider protocol also has `images::push`, `edit`, `stat`, `list` and `delete` over the caller's
-  Store, but the CLI exposes only `build` and `read` under `diverge run images`. Listing or
-  deleting what the Store holds from the CLI is therefore not covered.
+- `images list` and `images push` are from the SDK, the daemon's handlers and the CLI; neither has been
+  run live. A push whose bytes a client supplies has no caller in this repository.
+- The provider protocol also has `images::edit`, `stat` and `delete` over the caller's Store, which the
+  daemon does not expose. Deleting what the Store holds, or changing a description, is therefore not
+  possible from the CLI.
 - Running a container from a Store image whose template names no `references` is from the daemon's
   code (it asks who holds the digest when no registry matches), not run live.
 - macOS and Linux build commands are from code and the setup report, not run live.

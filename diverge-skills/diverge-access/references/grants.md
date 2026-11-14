@@ -110,9 +110,11 @@ No making shape: a dependency tool is made by an agent's registration, never by 
 
 ## providers
 
-`within` here is **only** `"any"` or a tags test `{"all_tags":[…],"any_tags":[…]}` over the provider
-record's tags (the providers list filter has no tags, so the grant uses the tags test directly; no other
-member decodes).
+`within` here is `"any"` or a **provider reach**: `{"identities":[{"issuer":…,"subject":…}],"all_tags":[…],"any_tags":[…]}`,
+each member optional. A provider is reached when it is one of `identities` (if any are given) **and** its
+record carries every one of `all_tags` **and** any one of `any_tags` (if any are given). So a grant can name
+providers by identity, by tag, or both. No other member decodes. The same reach is the `within` of
+`providers_daemons` and of `images`.
 
 | Shape | Action | Allows |
 |---|---|---|
@@ -127,7 +129,7 @@ member decodes).
 ## providers_daemons
 
 What is done *through* providers to the daemons connected to them. Over shape only; `within` is `"any"` or
-a tags test over the provider records' tags.
+a provider reach (identities, tags, or both: see `providers` above).
 
 | Action | Allows |
 |---|---|
@@ -135,7 +137,27 @@ a tags test over the provider records' tags.
 | `listen` | `providers daemons listen`: only messages that came through reached providers |
 | `message` | `providers daemons message`: sent through no provider the grant does not reach |
 
-Example: `{"providers_daemons":{"actions":["list","listen","message"],"within":"any"}}`.
+Examples: `{"providers_daemons":{"actions":["list","listen","message"],"within":"any"}}`,
+`{"providers_daemons":{"actions":["list"],"within":{"identities":[{"issuer":"…","subject":"github.12345.provider"}]}}}`.
+
+## images
+
+The daemon's Stores: the images it owns on each provider. Over shape only; `within` is `"any"` or a provider
+reach (identities, tags, or both: see `providers` above). **A bare array, `{"images":["build"]}`, no longer
+decodes.**
+
+| Action | Allows |
+|---|---|
+| `build` | `images build` on a provider the grant reaches (plus `mount` over the context volume, where one is named) |
+| `push` | `images push` to a provider the grant reaches |
+| `list` | `images list`: only the Stores on reached providers are listed |
+
+Every action is judged by the provider alone, never by the image's digest. The Store on a provider is the
+daemon's: every account whose grant reaches the provider sees and adds to the same Store. `images read`, an
+image's DIVERGE.md included, is not held here: it is judged by `read` over providers and `relay` over daemons.
+
+Examples: `{"images":{"actions":["build","push","list"],"within":"any"}}`,
+`{"images":{"actions":["build"],"within":{"all_tags":["build"]}}}`.
 
 ## daemons
 
@@ -212,15 +234,14 @@ A grant reaches a volume or a container whole; it cannot narrow by path.
 
 `within`: `keys`, `creators`, `all_tags`, `any_tags`, `created_from`, `created_to`.
 
-## postgres, events, images (bare arrays)
+## postgres, events (bare arrays)
 
 | Kind | Actions | Allows |
 |---|---|---|
 | `postgres` | `get`, `list` | `postgres get` (which database, no password), `postgres list` (container connections) |
 | `events` | `list` | `events list` |
-| `images` | `build` | `images build` (with `mount` over the context volume). `images read`, an image's DIVERGE.md included, is judged by `read` over providers and `relay` over daemons instead |
 
-Examples: `{"postgres":["get","list"]}`, `{"events":["list"]}`, `{"images":["build"]}`.
+Examples: `{"postgres":["get","list"]}`, `{"events":["list"]}`.
 
 ## identities
 

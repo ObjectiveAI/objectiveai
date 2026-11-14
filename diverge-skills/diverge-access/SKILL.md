@@ -47,7 +47,8 @@ parse; it is not `forbidden`).
 | **Make** | `{"agents":["create"]}` | A bare array of the kind's making actions. Holding it is the whole test. |
 | **Over** | `{"agents":{"actions":["get","message"],"within":"any"}}` | Actions on things that exist, and how far they reach. |
 | **Tagging** | `{"agents":{"actions":["tag","untag"],"within":"any","tags":["crew"]}}` | `tag`/`untag`, how far, and which tags (`"any"` or a list). |
-| **The one thing** | `{"events":["list"]}` | For `postgres`, `events`, `images`: a bare array; nothing to narrow. |
+| **The one thing** | `{"events":["list"]}` | For `postgres` and `events`: a bare array; nothing to narrow. |
+| **Through a provider** | `{"images":{"actions":["build","push","list"],"within":{"identities":[…]}}}` | For `providers`, `providers_daemons`, `images`: `within` is `"any"` or a provider reach, by identity, by the provider record's tags, or both. `images` has no bare-array form. |
 
 Mixing shapes is malformed: `tag` among `actions` without `tags`, or `create` inside an Over object, does
 not decode. Write a making grant and an over grant as two separate grants.
