@@ -444,7 +444,7 @@ The images:
 | `diverge-examples/agents/human` | human | agent, no model, has a frontend | `{}` | none |
 
 Each image's full argument schema is the frontmatter of its `DIVERGE.md`. Running the image's program with
-`--schema` prints the same schema, and `diverge run images info` returns the DIVERGE.md of a deployed image.
+`--schema` prints the same schema, and `diverge run images read --info` returns the DIVERGE.md of an image a source holds.
 
 Dependency tools go into an agent's `arguments.dependencies` as
 `{"image":{"digest","references"},"memory","disk","arguments":{},"mode":"transient"}`. A service adds `"mode":"service","scope":"global"|"template"|"instance"`.
