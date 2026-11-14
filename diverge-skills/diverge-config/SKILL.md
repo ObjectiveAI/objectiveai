@@ -196,12 +196,15 @@ Facts and pitfalls:
 An identity is one subject at one issuer, signed in once and kept signed in by its refresh token. All programs
 on a root share `<root>/identities/`. No command prints a token or a private key.
 
-**Every identity has a key on its host.** `<subject>.key` is an Ed25519 private key that never leaves the
-host. Each ID token the issuer mints names its public half, and every connection made as the identity is
-signed with it, so a token copied off the wire or out of a log cannot be used by anyone else. The key is made
-by itself, at the login or the first time a token is needed, and there is no command for it. The same identity
-signed in on another host has a different key there. To replace a key you believe was copied, `remove` the
-identity and log in again.
+**Every identity has a key on its host.** `<subject>.key` is a P-256 private key that never leaves the host.
+Each request for tokens proves the key to the issuer (a DPoP proof, RFC 9449), the issuer binds the access
+token to it, and every connection made as the identity is signed with it. A token copied off the wire or out
+of a log cannot be used by anyone else. The key is made by itself, at the login or the first time a token is
+needed, and there is no command for it. The same identity signed in on another host has a different key there.
+
+The issuer binds the sign-in to that key: only the key it was signed in with can refresh it. So a key that is
+lost or replaced means logging in again. To replace a key you believe was copied, `remove` the identity and
+log in again.
 
 ### login
 
@@ -264,10 +267,11 @@ At every issuer:
 - The issuer must be reachable (its discovery document is fetched).
 - An identity whose refresh token was ended, or went unused past the issuer's refresh-token lifetime (30 days
   at `identity.diverge.network`), is *signed out*: its file stays, handshakes fail, and a new login fixes it.
-- **The issuer must write the key into the token.** `identity.diverge.network` does. An issuer that does not
-  answers tokens no Diverge program accepts, and the error says the issuer "answered an ID token that names
-  no key".
-- An identity signed in before keys existed gets one at its next token refresh, with no new login.
+- **The issuer must support DPoP with ES256.** `identity.diverge.network` does. A login at an issuer whose
+  discovery document does not list `ES256` under `dpop_signing_alg_values_supported` fails saying so, before
+  anything is asked of it. An issuer that lists it but answers access tokens that are opaque, or not bound to
+  the key, fails later with "answered an access token that is not bound to the identity's key".
+- An identity signed in before keys existed is bound to its key at its next token refresh, with no new login.
 
 
 ### list, remove
