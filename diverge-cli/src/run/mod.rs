@@ -138,7 +138,7 @@ pub enum Command {
     #[command(subcommand)]
     Events(events::Events),
     /// The requests over images: building one, pushing one, listing
-    /// the daemon's Stores, and reading one.
+    /// the daemon's Stores, getting one of them, and reading one.
     #[command(subcommand)]
     Images(images::Images),
     /// The requests over the daemon's host's identities: its issuers,

@@ -9,6 +9,7 @@ use clap::Subcommand;
 use crate::run::{Emitter, Error, Target};
 
 pub mod build;
+pub mod get;
 pub mod list;
 pub mod push;
 pub mod read;
@@ -18,6 +19,8 @@ pub mod read;
 pub enum Images {
     /// Build an image on a provider, from a Containerfile.
     Build(build::Arguments),
+    /// Get one image in a Store of the daemon's.
+    Get(get::Arguments),
     /// List the images in the daemon's Stores, and keep the list.
     List(list::Arguments),
     /// Push an image into the daemon's Store on a provider, from a
@@ -33,6 +36,7 @@ pub enum Images {
 pub async fn run(command: Images, target: &Target<'_>, emitter: &mut Emitter) -> Result<(), Error> {
     match command {
         Images::Build(arguments) => build::run(arguments, target, emitter).await,
+        Images::Get(arguments) => get::run(arguments, target, emitter).await,
         Images::List(arguments) => list::run(arguments, target, emitter).await,
         Images::Push(arguments) => push::run(arguments, target, emitter).await,
         Images::Read(arguments) => read::run(arguments, target, emitter).await,
