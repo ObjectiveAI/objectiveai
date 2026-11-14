@@ -85,9 +85,9 @@
 //!    it asked for none; a `resource` is asked again at every refresh,
 //!    so the token stays for it.
 //!
-//! 9. **Verifying another end's ID token** is [`KeySets::verify`],
+//! 9. **Verifying another end's access token** is [`KeySets::verify`],
 //!    against the token's issuer's keys, fetched once and cached until
-//!    they expire — an access token refused by its `typ`, the audience
+//!    they expire — a token bound to no key refused, the audience
 //!    never asked — see [`verify`] for its own rules.
 //!
 //! 10. **A program's own side.** [`Own`] is a program's one identity
@@ -95,9 +95,10 @@
 //!     daemon's or a provider's handshake is built on.
 //!
 //! 11. **A client's side.** [`Presenter`] is one identity presented,
-//!     and the other end's token taken at its word: what a program that
-//!     dials as one identity and judges nobody — a command line —
-//!     makes its handshake with.
+//!     and the other end's token verified and held to its key — and to
+//!     one identity, where the program was told which to expect: what
+//!     a program that dials as one identity and admits nobody — a
+//!     command line — makes its handshake with.
 //! [`Token`] is a token handed out: it has no way out but
 //! [`expose`](Token::expose), and its memory is zeroed on drop. The
 //! file's own record has no public type at all.

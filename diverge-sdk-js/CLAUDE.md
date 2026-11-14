@@ -172,10 +172,11 @@ importing it, `daemon.endpoints.accounts.get.client.execute(handle, { account: {
 
 `wire.client.dial(address, authenticator)` makes a handle
 over a real WebSocket, after the handshake — three auth frames: this
-end's one-time key and token, the daemon's one-time key, token and
-signature, and this end's signature, each signature by the key its
-end's token names — and with every frame after it sealed, AES-256-GCM
-under keys drawn from that exchange, by Web Crypto alone: it
+end's one-time key, public key and token, the daemon's one-time key,
+public key, token and signature, and this end's signature, each
+signature by the P-256 key its end's access token is bound to — and
+with every frame after it sealed, AES-256-GCM under keys drawn from
+that exchange, by Web Crypto alone: it
 speaks the nine-byte frames, mints scopes and channels, and routes
 what comes back. `wire.proxy.handle(transport)` makes a
 handle over a Tauri app's `invoke` and `Channel`, where the Rust side
