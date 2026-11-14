@@ -87,7 +87,7 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   (`pulses.told`) after the world holding their line is drawn.
 - **The hex world is the daemon drawn once** (`scenes/world.ts`, unlisted): eleven lists read to their `listed` (`world/snapshot.ts`),
   retried every 5 seconds until a read succeeds, never read again; then each tool's image is asked its
-  `images info` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool,
+  `images read` once (`world/names.ts`), and a tool is named by its image's DIVERGE.md `name` where it said one. Every account, agent, standalone tool,
   connected standalone tool, dependency tool, volume, provider and daemon is an entity; every event a directed link, and every volume an agent mounts a dashed
   mount between them (`world/model.ts`). Each connected group is an island
   (`islands.ts`). The grid is pointy-top hexes (`hex.ts`). `place.ts` puts an island's entities on slots 3 hexes apart
