@@ -6,12 +6,15 @@
 // proxy half that asks a Tauri app's Rust to do so. `shared` is the
 // shapes more than one endpoint is made of. `daemon` is the daemon
 // protocol: its exchange shapes and its endpoints. `provider` is the
-// provider protocol, as far as the daemon's records reach into it.
+// provider protocol, as far as the daemon's records reach into it,
+// and `container_proxy` the proxy's, as far as the daemon's wire does:
+// the asks a FUSE mount makes.
 
 export * as wire from "./wire/index.js";
 export * as shared from "./shared/index.js";
 export * as daemon from "./daemon/index.js";
 export * as provider from "./provider/index.js";
+export * as container_proxy from "./container_proxy/index.js";
 
 /**
  * The most bytes one frame of content carries, anywhere in this
