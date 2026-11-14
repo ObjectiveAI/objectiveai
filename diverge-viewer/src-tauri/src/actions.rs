@@ -1926,7 +1926,7 @@ pub async fn machines_remove(state: State<'_, AppState>, identity: ProviderView)
 /// The themes theme.css holds: the id of each `[data-theme="<id>"]` block, the
 /// default's first. Read from the sheet itself, so there is no second list to keep.
 pub fn theme_ids() -> Vec<&'static str> {
-    const CSS: &str = include_str!("../../src/theme.css");
+    const CSS: &str = include_str!("../../../diverge-theme/theme.css");
     CSS.split("[data-theme=\"").skip(1).filter_map(|rest| rest.split_once("\"]").map(|(id, _)| id))
         // Only real ids: the sheet's own comment names the pattern as `<id>`.
         .filter(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))

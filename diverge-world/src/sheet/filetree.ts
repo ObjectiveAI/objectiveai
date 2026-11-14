@@ -33,16 +33,20 @@ function open(files: Exclude<Files, { volume: unknown }>, route: Route) {
  *    and its tree is the root, told to `changed` naming no path.
  * 3. `not_found`, `not_directory`, `held`, `forbidden`, an error, a
  *    watch that ends and a connection that fails each end the read,
- *    said once to `ended` in words. A volume's answer ends nothing.
+ *    said once to `ended` in words, with whether it failed: a refusal,
+ *    a read the daemon could not make, a root that is no directory, or
+ *    an error failed; a volume or container not there, one held, or a
+ *    container that stopped is a state, not a failure. A volume's
+ *    answer ends nothing.
  * 4. `stop` cancels a watch, at once if it is open and as soon as it
  *    opens if not; after it, nothing more is told.
  * 5. The watch and the ask are both served along `route` (`relayed`).
  */
-export function readTree(files: Files, route: Route, changed: (root: Root, touched: string[][]) => void, ended: (why: string) => void): Following {
+export function readTree(files: Files, route: Route, changed: (root: Root, touched: string[][]) => void, ended: (why: string, failed: boolean) => void): Following {
   let stopped = false;
   let cancel: { cancel(): Promise<void> } | null = null;
   const fail = (error: unknown) => {
-    if (!stopped) ended(error instanceof Error ? error.message : String(error));
+    if (!stopped) ended(error instanceof Error ? error.message : String(error), true);
   };
   // Rule 2.
   if ("volume" in files) {
@@ -52,11 +56,11 @@ export function readTree(files: Files, route: Route, changed: (root: Root, touch
         if (stopped) return;
         if (typeof answer === "object" && "tree" in answer) return changed(new shared.filetree.response.Root(answer.tree), []);
         // Rule 3.
-        if (answer === "not_found") return ended("the volume is not found");
-        if (answer === "not_directory") return ended("the volume's root is not a directory");
-        if (answer === "held") return ended("in use by a running container, or a transfer");
-        if (answer === "forbidden") return ended("this account may not read the volume");
-        ended("the daemon could not read the volume");
+        if (answer === "not_found") return ended("the volume is not found", false);
+        if (answer === "not_directory") return ended("the volume's root is not a directory", true);
+        if (answer === "held") return ended("in use by a running container, or a transfer", false);
+        if (answer === "forbidden") return ended("this account may not read the volume", true);
+        ended("the daemon could not read the volume", true);
       } catch (error) {
         fail(error);
       }
@@ -76,15 +80,15 @@ export function readTree(files: Files, route: Route, changed: (root: Root, touch
       for await (const frame of stream as AsyncIterable<Watched>) {
         if (stopped) return;
         // Rule 3.
-        if (frame === "not_found") return ended("dependency" in files ? "not running" : "not found");
-        if (frame === "forbidden") return ended("this account may not read the files");
-        if ("error" in frame) return ended("the daemon could not read the files");
+        if (frame === "not_found") return ended("dependency" in files ? "not running" : "not found", false);
+        if (frame === "forbidden") return ended("this account may not read the files", true);
+        if ("error" in frame) return ended("the daemon could not read the files", true);
         const f = frame.filetree;
         root.update(f);
         changed(root, f.type === "inserted" || f.type === "modified" ? [f.path] : []);
       }
       // The container stopped, which ends its watch: the tree stays as it last was.
-      if (!stopped) ended("the container stopped — this is its tree as it last was");
+      if (!stopped) ended("the container stopped — this is its tree as it last was", false);
     } catch (error) {
       fail(error);
     }

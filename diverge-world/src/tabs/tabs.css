@@ -1,4 +1,6 @@
-/* The tab strip: the sheet's ink, cream and copper, along the top of the window. */
+/* The tab strip: the theme's ground along the top of the window. A tab is
+   its words, no box; the one shown is marked by the bar that says where
+   you are. Hover marks nothing while the keys are in use (`data-input`). */
 
 /* Rule 1: the full width over the canvas, under the sheet; its height is set from `TABS`. */
 .window-tabs {
@@ -8,48 +10,68 @@
   right: 0;
   box-sizing: border-box;
   display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 0 8px;
+  align-items: stretch;
   overflow-x: auto;
   overflow-y: hidden;
-  background: color-mix(in srgb, var(--sheet-ink) 92%, transparent);
-  border-bottom: 1px solid var(--sheet-line);
-  color: var(--sheet-text);
-  font: 12px ui-monospace, "JetBrains Mono", Consolas, monospace;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1.2;
   user-select: none;
   z-index: 9;
 }
 
-/* Rule 2: a tab, its name and its ✕; the one shown copper. */
+/* Rule 2: a tab, its name and its ✕, the strip's full height; the one shown in full words, heavier, the bar under it. */
 .window-tabs .tab {
   flex: none;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 10px;
-  border: 1px solid var(--sheet-line);
-  border-bottom: none;
-  border-radius: 4px 4px 0 0;
-  background: var(--sheet-raised);
-  color: var(--sheet-dim);
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  color: var(--text-2);
   white-space: nowrap;
   cursor: pointer;
 }
-.window-tabs .tab:hover { color: var(--sheet-cream); }
-.window-tabs .tab.on {
-  border-color: var(--sheet-copper);
-  background: var(--sheet-ink);
-  color: var(--sheet-copper-bright);
+.window-tabs .tab:has(.close) {
+  padding-right: var(--space-2);
 }
+:root:not([data-input="keys"]) .window-tabs .tab:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.window-tabs .tab.on {
+  color: var(--text);
+  font-weight: 600;
+}
+.window-tabs .tab.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--mark);
+  background: var(--here);
+}
+/* ✕: an icon button with no box until hovered or focused, when its edge lights; its glyph is its tab's words. */
 .window-tabs .close {
-  margin-right: -4px;
-  padding: 0 2px;
-  border: 0;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  padding: 0;
+  border: 1px solid transparent;
   background: none;
-  color: var(--sheet-dim);
+  color: inherit;
   font: inherit;
+  line-height: 1;
   cursor: pointer;
 }
-.window-tabs .close:hover { color: var(--sheet-cream); }
+:root:not([data-input="keys"]) .window-tabs .close:hover,
+.window-tabs .close:focus-visible {
+  border-color: var(--line-hover);
+}

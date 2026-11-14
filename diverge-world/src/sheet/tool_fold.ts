@@ -115,6 +115,7 @@ export class ToolFold {
         card.args.replaceChildren(jsonBlock(item.request));
         card.status.textContent = item.allowed ? "✓" : "✕";
         card.card.classList.toggle("failed", !item.allowed);
+        card.card.classList.toggle("done", item.allowed);
         this.open.blocks.append(card.card);
         break;
       }

@@ -71,7 +71,7 @@ function rules(name: string): Map<string, Map<string, string>> {
   return out;
 }
 const app = rules("app.css");
-const theme = rules("theme.css");
+const theme = rules("../../diverge-theme/theme.css");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const html = (type: (props: any) => ReactNode, props: Record<string, unknown>, ...children: string[]) => renderToStaticMarkup(createElement(type, props, ...children));
 

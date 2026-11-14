@@ -4,16 +4,21 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 
 ## The seams
 - **The page is a Phaser game, no React**: `src/main.ts` makes one `Phaser.Game` filling the window, one scene per
-  file under `src/scenes/`. `world` draws the map and starts `ui` over itself; `ui` draws the menus — game menus,
-  drawn in the engine — with a camera of its own: one menu, the outliner
-  (`scenes/outliner.ts`) top-right — Arrange and one row per line type at its top, the status row beneath, then
-  every node by kind, each kind's header an eye that shows or hides it (`KINDS`), a row's click (`FOCUS`) flying the board's camera to it and
-  opening its sheet, a row's hover (`HOVER`) focusing it; the board tells it the nodes (`OUTLINE`) and the open one
-  (`SELECTED`) through the registry, and pans and zooms for nothing over its bounds (`OUTLINER`). Text panels are the exception, HTML over the canvas: clicking an
+  file under `src/scenes/`. `ui` takes the keys only. **The look is the theme shared with the viewer**: `main.ts` imports
+  `diverge-theme/theme.css` first, `main.css` holding the world's own page rules beside it — every colour, size and space comes from its roles — and `lib/theme.ts`
+  resolves a role (`int`, `css`) for the canvas and xterm, since a role is often a `color-mix` only the page can resolve;
+  `data-input` on the root says whether the keys or the mouse are in use, so hover marks nothing while the keys do and
+  focus looks as hover does (no ring, no box round a row). The one menu is the outliner (`outliner/outliner.ts`), HTML
+  over the canvas: a card that floats where its header is dragged, snaps to edges, folds to its header, to the kinds'
+  shapes (upright at a side edge, lying along the top or bottom) or to one button, resizes by its corner's grip, and docks as a rail down the left (`--outliner-left` on the root, which the sheet starts beside) — Arrange,
+  fold and dock in its header, line types and kinds as show/hide chips (`LINES`, `KINDS`), then every node by kind,
+  a row's press (`FOCUS`) flying the board's camera to it and opening its sheet, its hover or focus (`HOVER`) focusing
+  it; the board tells it the nodes (`OUTLINE`) and the open one (`SELECTED`) through the registry, and it tells the
+  board its bounds (`OUTLINER`). Text panels are HTML over the canvas too: clicking an
   agent opens its bottom sheet (`src/sheet/`), the agent's log followed live (`agents logs` with `watch`) and folded
   into messages (`sheet/fold.ts`): assistant chunks join into one message (text contiguous, an image breaking it), each
   tool call a card holding its response, user parts join per sender and are labelled by the sender. Under an agent's
-  log, its composer (`sheet/composer.ts`) writes to it (`agents message`): text, then files attached by 📎 or a paste,
+  log, its composer (`sheet/composer.ts`) writes to it (`agents message`): text, then files attached by its Attach button or a paste,
   each known by its bytes (`file-type`, `sheet/attach.ts`) and sent as an MCP image, audio or resource block in base64;
   a message sent waits greyed at the log's bottom, one request and one answer with no cancel, in the page's outbox
   (`sheet/outbox.ts`, by route and agent, outliving every sheet); it stays greyed, delivered or not,
@@ -59,14 +64,18 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
   frame is spread with `relayed(route)` (`lib/wire.ts`) — `{}` for `[]`, so Home's frames carry no `relay`, else
   `{ relay: route }` — in `world/live.ts`, `world/names.ts` and every sheet tab (`Opened.route`); our daemon takes the
   first ID off and relays the rest. The hex world (`world/snapshot.ts`, `world/watch.ts`) stays Home's.
-- **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): a dark Tron grid, every agent,
-  standalone tool, connected standalone tool, dependency tool, account, volume, provider and daemon a glowing node in its kind's neon, first standing in a column
+- **The board is what opens** (`scenes/backdrop.ts`, `scenes/board.ts`, `src/grid/`): the theme's grid on its ground, every agent,
+  standalone tool, connected standalone tool, dependency tool, account, volume, provider and daemon a flat node in its family's colour
+  (`grid/palette.ts`: who acts in the accent, what they use in ink, where it runs in the quietest words; gold only for where you are), first standing in a column
   per kind (`grid/place.ts`) and then wherever it is dragged — the links have no say, and positions live only for the
-  page. Each way an event ran is a glowing line in the sender's neon with a chevron at the receiver, a mount a dashed
-  green line (`grid/links.ts`); a provider is attached to every agent and tool deployed on it (`grid/edges.ts`, rule 2d), a daemon to every connected tool whose `daemon` (first hop) it is (rule 2f); a working agent or tool breathes a halo; a node is bright only while deployed (an account: connected; a connected tool: its connect held; a provider: `connected`; a daemon: `connected`; a volume: mounted into a deployed container), and the sheet's dot is that brightness; a container
-  that is down dims its node (`grid/live.ts`); every rise in an event's count runs a pulse of light along its link
+  page. Each way an event ran is a line in the sender's family colour with a chevron at the receiver, an attachment
+  dashed in the strong edge, every line bowed a little so none runs under a node (`grid/links.ts`); a made-by line
+  shows only for the node pointed at or open, unless its chip is on; a provider is attached to every agent and tool deployed on it (`grid/edges.ts`, rule 2d), a daemon to every connected tool whose `daemon` (first hop) it is (rule 2f); a working agent or tool is traced, a line in ink drawn round its outline and let go (`grid/live.ts`, still and half drawn under reduced motion); the open node has gold corners (`grid/here.ts`); a node is bright only while deployed (an account: connected; a connected tool: its connect held; a provider: `connected`; a daemon: `connected`; a volume: mounted into a deployed container), and the sheet's dot is that brightness; a container
+  that is down makes its node faint, a still shape in the strong edge (`grid/live.ts`); every rise in an event's count runs a short ink stroke along its link
   (`grid/pulses.ts`, the events list kept open). The backdrop tiles the grid under the board's camera, as the sea does
-  for the hex map. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.
+  for the hex map. The game draws in the screen's own pixels (`lib/density.ts`: the canvas is the window times the
+  density, shown at the page's size), so a size meant on screen — a name, a grid line, a press's slack, the outliner's
+  bounds, the zoom's limits — is multiplied by `density()`; node textures are drawn `DETAIL` times finer and mipmapped. The hex map below (`Sea`, `World`) is kept, unlisted in `main.ts`.
 - **Live lights** (`render/lights.ts`, `world/watch.ts`): the accounts, agents, tools, providers and daemons lists stay open after the
   snapshot, and each entity's state lights it: a pulsing green halo and a plate dot while an agent or tool is `active`
   (working), a steady halo for a `connected` account. The map itself is not rebuilt.

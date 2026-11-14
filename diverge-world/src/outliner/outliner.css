@@ -1,0 +1,222 @@
+/* The outliner: the theme's ground with the strong edge, square, no
+   shadow. Under the mouse or the keys a thing lights up the way its kind
+   does — a box's edge to ink; a row's band lighter and its words brighter,
+   never a box round it — and while the keys are in use the mouse marks
+   nothing (`data-input` on the root). */
+
+/* Rule 1: over the canvas, under the tab strip (9) and the sheet (10). */
+.outliner {
+  position: fixed;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  overflow: hidden;
+}
+/* Held while dragged: the edge lights up to ink, no lift. */
+.outliner.held { border-color: var(--line-hover); }
+/* Docked: a rail the window's height, its edge on the board's side only. */
+.outliner[data-docked="true"] { border-width: 0 1px 0 0; border-color: var(--line); }
+
+/* Rule 2: the header, dragged by. */
+.outliner .head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 40px;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  cursor: grab;
+}
+.outliner.held .head { cursor: grabbing; }
+.outliner .title { color: var(--text); font-weight: 600; }
+.outliner .count { flex: 1; color: var(--text-3); font-size: var(--text-xs); }
+.outliner .said {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  line-height: var(--leading);
+}
+
+/* The marks: a kind's shape takes its family's colour. */
+.outliner .ico { flex: none; display: block; }
+.outliner .fam-accent .ico { color: var(--accent); }
+.outliner .fam-text .ico { color: var(--text); }
+.outliner .fam-text-3 .ico { color: var(--text-3); }
+
+/* Boxes you press: the icon buttons and the chips, edged in the strong edge. */
+.outliner .icon,
+.outliner .chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: var(--hit-min);
+  min-width: var(--hit-min);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  cursor: pointer;
+}
+.outliner .chip.line { padding: 0 var(--space-2); font-size: var(--text-xs); }
+:root:not([data-input="keys"]) .outliner :is(.icon, .chip):hover,
+.outliner :is(.icon, .chip):focus-visible { border-color: var(--line-hover); color: var(--text); }
+
+/* A chip pressed is shown on the board: tinted with the accent. Unpressed, its mark is quiet. */
+.outliner .chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); }
+.outliner .chip[aria-pressed="false"] .ico,
+.outliner .chip[aria-pressed="false"] .n { color: var(--text-3); }
+
+/* Rule 2: what to show on the board. */
+.outliner .show {
+  flex: none;
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-3);
+}
+.outliner .chips { display: flex; gap: var(--space-1); }
+.outliner .rule { flex: none; height: 1px; background: var(--line); }
+
+/* Rules 2 to 4: the list, scrolling within the card. */
+.outliner .list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1) 0 var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.outliner .group,
+.outliner .row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--hit-min);
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* A group's head: small caps in the quietest words, folding its rows; space above every head but the first, so the groups stand apart. */
+.outliner .group {
+  padding: 0 var(--space-3);
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.outliner .group:not(:first-child) { margin-top: var(--space-3); }
+.outliner .group .label { flex: 1; }
+.outliner .group .ico { transform: rotate(90deg); }
+.outliner .group[aria-expanded="false"] .ico { transform: none; }
+
+/* Rule 3: a row, hanging under its head's words — past the head's fold arrow (16px) and its gap — its gold bar at the far left. */
+.outliner .row {
+  position: relative;
+  padding: 0 var(--space-3) 0 calc(var(--mark) + var(--space-2) + var(--space-5));
+  color: var(--text-2);
+}
+.outliner .row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outliner .row.faint { color: var(--text-3); }
+.outliner .row.faint .ico { color: var(--line-strong); }
+.outliner .row.open { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.outliner .row.open::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--mark);
+  background: var(--here);
+}
+
+/* Rule 4: under the mouse or the keys, the band lightens and the words brighten. */
+:root:not([data-input="keys"]) .outliner :is(.row, .group):hover,
+.outliner :is(.row, .group):focus-visible { background: var(--surface-3); color: var(--text); }
+:root:not([data-input="keys"]) .outliner .row:hover .ico,
+.outliner .row:focus-visible .ico { color: var(--text); }
+
+/* Rule 5: folded to the kinds' shapes, a column. */
+.outliner .strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  cursor: grab;
+}
+.outliner .strip .rule { align-self: stretch; }
+/* Let go nearest the top or bottom edge, the shapes lie along it. */
+.outliner[data-along="true"] .strip { flex-direction: row; }
+.outliner[data-along="true"] .strip .rule { width: 1px; height: auto; }
+
+/* Rule 5: folded to one button — Outliner and its count — the card's edge its edge. */
+.outliner .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control);
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.outliner .pill .title { color: var(--text); }
+.outliner .pill .n { color: var(--text-3); font-size: var(--text-xs); }
+:root:not([data-input="keys"]) .outliner[data-form="button"]:hover,
+.outliner[data-form="button"]:has(.pill:focus-visible) { border-color: var(--line-hover); }
+
+/* Rule 7: the grip in an open card's corner, dragged to resize it. */
+.outliner .grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  padding: var(--space-1);
+  color: var(--text-3);
+  cursor: nwse-resize;
+}
+:root:not([data-input="keys"]) .outliner .grip:hover { color: var(--text); }
+/* On a card against the right edge, the grip is in the left corner, mirrored. */
+.outliner[data-anchor="right"] .grip { right: auto; left: 0; justify-content: flex-start; cursor: nesw-resize; }
+.outliner[data-anchor="right"] .grip .ico { transform: scaleX(-1); }
+
+/* Rule 6: where a drop docks it, shown while it is held near the left. */
+.dock-zone {
+  position: fixed;
+  z-index: 7;
+  left: 12px;
+  bottom: 12px;
+  width: 244px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line-strong);
+  color: var(--text-3);
+  font-size: var(--text-sm);
+}
+.dock-zone.on { display: flex; }
+
+@media (prefers-reduced-motion: reduce) {
+  .outliner * { transition: none; }
+}

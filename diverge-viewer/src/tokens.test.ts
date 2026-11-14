@@ -8,7 +8,9 @@ import { describe, expect, it } from "vitest";
 type Decl = { at: string; line: number; selector: string; within: string[]; prop: string; value: string };
 
 const SRC = fileURLToPath(new URL(".", import.meta.url));
-const SHEETS = ["theme.css", "app.css"];
+/** The theme (shared with the world), the viewer's page rules, and its layout. */
+const THEME = "../../diverge-theme/theme.css";
+const SHEETS = [THEME, "base.css", "app.css"];
 
 /** A small reader for the app's own sheets: comments blanked (lines kept), blocks nested by braces. */
 function declarations(name: string): Decl[] {
@@ -107,7 +109,7 @@ describe("tokens", () => {
 
   it("native controls take the theme's accent once, on :root", () => {
     const set = decls.filter((d) => d.prop === "accent-color");
-    expect(set.map((d) => `${d.at} ${d.selector} ${d.value}`)).toEqual(["theme.css :root var(--accent)"]);
+    expect(set.map((d) => `${d.at} ${d.selector} ${d.value}`)).toEqual([`${THEME} :root var(--accent)`]);
   });
 
   it("every endless animation stops when the system asks for less motion", () => {

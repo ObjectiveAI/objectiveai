@@ -24,13 +24,13 @@ const TALLEST = 160;
  *    item); a failed one is drawn red, with why, and clicking it
  *    dismisses it (`outbox.dismiss`).
  * 2. The composer (`root`) stands under the log: the files attached,
- *    then a text box, 📎 and send.
- * 3. Each file attached is a chip: an image its thumbnail, a sound ♪
- *    and its name, any other file 📄 and its name; each with ✕, which
- *    takes it off. Files are read as they are attached and kept in that
- *    order, whatever order their reads end in; a file that cannot be
- *    read is left out.
- * 4. 📎 picks files with the system's dialog, any number at once;
+ *    then a text box, Attach and send.
+ * 3. Each file attached is a chip: an image its thumbnail, a sound
+ *    `sound ·` and its name, any other file `file ·` and its name; each
+ *    with ✕, which takes it off. Files are read as they are attached and
+ *    kept in that order, whatever order their reads end in; a file that
+ *    cannot be read is left out.
+ * 4. Attach picks files with the system's dialog, any number at once;
  *    pasting files, a screenshot among them, attaches them too.
  * 5. The text box grows with its text, up to `TALLEST`. Enter sends;
  *    Shift+Enter breaks the line. Its keys are its own: none reaches
@@ -82,7 +82,7 @@ export class Composer {
     const clip = document.createElement("button");
     clip.type = "button";
     clip.className = "clip";
-    clip.textContent = "📎";
+    clip.textContent = "Attach";
     clip.title = "Attach files";
     this.send = document.createElement("button");
     this.send.type = "button";
@@ -166,7 +166,7 @@ export class Composer {
         } else {
           const name = document.createElement("span");
           name.className = "name";
-          name.textContent = `${read === undefined ? "…" : read?.kind === "audio" ? "♪" : "📄"} ${slot.file.name}`;
+          name.textContent = `${read === undefined ? "…" : read?.kind === "audio" ? "sound ·" : "file ·"} ${slot.file.name}`;
           chip.append(name);
         }
         const off = document.createElement("button");

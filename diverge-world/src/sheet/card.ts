@@ -33,4 +33,5 @@ export function answer(card: Card, drawn: HTMLElement[], failed: boolean): void 
   card.response.hidden = false;
   card.status.textContent = failed ? "✕" : "✓";
   card.card.classList.toggle("failed", failed);
+  card.card.classList.toggle("done", !failed);
 }

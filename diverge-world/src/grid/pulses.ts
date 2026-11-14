@@ -1,12 +1,15 @@
-// Pulses: a dot of light runs a link each time something passes along
-// it, as the events list tells.
+// Pulses: a short flat stroke runs a link each time something passes
+// along it, as the events list tells.
 
 import type { daemon, shared } from "@diverge/sdk";
 import type * as Phaser from "phaser";
-import type { Links } from "./links";
+import { asPoints, laneLength, type Links, span } from "./links";
 import type { Nodes } from "./nodes";
-import { NEON } from "./palette";
-import { PULSE } from "./textures";
+import { ink } from "./palette";
+
+/** The running stroke's length and width, in pixels. */
+const STROKE = 24;
+const WIDTH = 3;
 
 type Event = daemon.endpoints.events.Event;
 type Party = daemon.endpoints.events.Party;
@@ -43,8 +46,10 @@ export type Pulses = { told(change: shared.listing.Change<Event>): void };
  *    one first seen later starts at nothing. Only rises are pulses, so
  *    a list opened again sends nothing twice.
  * 2. Every rise sends that many pulses, no more than `CAP` along one
- *    edge at once, `SPACING` apart: a dot in the sender's neon from the
- *    sender to the receiver, on its call's lane (`Links.laneOf`).
+ *    edge at once, `SPACING` apart: a short stroke in ink, `STROKE`
+ *    long, running from the sender to the receiver along its call's
+ *    lane and its bow (`Links.laneOf`), flat — no glow — and gone as it
+ *    arrives.
  * 3. A pulse reads its lane at every step, so it follows a node being
  *    dragged and a lane that moves over.
  * 4. An edge with a node not on the board, or whose lane is hidden,
@@ -71,23 +76,30 @@ export function pulses(scene: Phaser.Scene, nodes: Nodes, links: Links, baseline
       flying.set(event.id, (flying.get(event.id) ?? 1) - 1);
       return;
     }
-    const dot = scene.add.image(first.a.x, first.a.y, PULSE).setTint(NEON[from.entity.kind]).setBlendMode("ADD").setDepth(8);
-    const length = Math.hypot(first.b.x - first.a.x, first.b.y - first.a.y);
+    const g = scene.add.graphics().setDepth(8);
+    const length = laneLength(first);
     scene.tweens.addCounter({
       from: 0,
       to: 1,
       duration: Math.max(SHORTEST, (1000 * length) / SPEED),
       ease: "Sine.easeInOut",
-      // Rule 3.
+      // Rule 3: the stroke's head runs the lane, its tail `STROKE` behind, both kept on the lane.
       onUpdate: (tween) => {
+        g.clear();
         const s = links.laneOf(fromKey, toKey, "call");
         if (!s) return;
-        const t = tween.getValue() ?? 0;
-        dot.setPosition(s.a.x + (s.b.x - s.a.x) * t, s.a.y + (s.b.y - s.a.y) * t);
+        const run = laneLength(s);
+        if (run <= 0) return;
+        const head = Math.min(run, (tween.getValue() ?? 0) * (run + STROKE));
+        const tail = Math.max(0, head - STROKE);
+        const piece = span(s, tail, head);
+        if (piece.length < 2) return;
+        g.lineStyle(WIDTH, ink(), 1);
+        g.strokePoints(asPoints(piece), false, false);
       },
       onComplete: () => {
         flying.set(event.id, (flying.get(event.id) ?? 1) - 1);
-        scene.tweens.add({ targets: dot, alpha: 0, scale: 2.2, duration: 220, onComplete: () => dot.destroy() });
+        g.destroy();
       },
     });
   };
