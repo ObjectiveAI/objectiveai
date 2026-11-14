@@ -18,7 +18,7 @@
 //! | [`volumes`] | create a volume on a provider; get one; list them across providers, narrowed; delete one; change its size or mode; walk one for its use and its hash; download files out of one, upload files into one, transfer files out of one; see one's tree |
 //! | [`postgres`] | see which database containers are served, the daemon's own or a remote one, as the daemon is configured; list the container connections open through it |
 //! | [`events`] | list the events — who sent what to whom through the daemon, a message, an MCP call or an MCP read, and how often — narrowed, the latest so many, and keep the list |
-//! | [`images`] | read an image's DIVERGE.md, from a container of it running or from a provider that can obtain it; build one on a provider |
+//! | [`images`] | ask whether an image can be supplied, and read it: its manifests, its blobs, its proof and its DIVERGE.md; build one on a provider |
 //! | [`info`] | say what the daemon is: its version |
 //! | [`logs`] | read an agent's or a tool's log, narrowed, and watch it |
 //!
@@ -141,7 +141,6 @@
 //! | `107` | [`vault::tag`] |
 //! | `108` | [`vault::untag`] |
 //! | `109` | [`events::list`] |
-//! | `110` | [`images::info`] |
 //! | `111` | [`info`] |
 //! | `112` | unused |
 //! | `113` | unused |
@@ -176,7 +175,7 @@
 //! | `142` | [`providers::untag`] |
 //! | `143` | [`providers::daemons::listen`] |
 //! | `144` | [`providers::daemons::message`] |
-//! | `145` | [`images::oci`] |
+//! | `145` | [`images::read`] |
 //! | `146` | [`connected_standalone_tools::create`] |
 //! | `147` | [`connected_standalone_tools::get`] |
 //! | `148` | [`connected_standalone_tools::list`] |
@@ -190,7 +189,8 @@
 //! | `156` | [`connected_standalone_tools::detach_agent_template`] |
 //! | `157` | [`images::build`] |
 //!
-//! One hundred and fifty-eight, so far. Every one of them carries the optional
+//! One hundred and fifty-seven, so far, the value `110` standing empty
+//! where an image's document was once its own request. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
 //! there, as a conduit; the member is taken out before the request

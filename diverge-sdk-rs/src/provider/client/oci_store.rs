@@ -45,7 +45,7 @@ pub struct Manifest {
 /// A caller need not hold the bytes itself: one whose image another
 /// provider can supply — from the caller's Store there, or from a
 /// registry that provider is configured with — answers from an
-/// [`images::oci`](crate::provider::endpoints::images::oci) scope it
+/// [`images::read`](crate::provider::endpoints::images::read) scope it
 /// holds there for the image, answered held: the manifests, the blobs
 /// and the proof all on that one scope. The provider asking never
 /// learns the difference.
@@ -75,7 +75,7 @@ pub trait OciStore: Send + Sync {
     /// [`Prover`](crate::shared::containers::oci::prove::proof::Prover)
     /// computes it. `None` for an image not held whole. A caller whose
     /// image another provider can supply answers from the
-    /// [`images::oci`](crate::provider::endpoints::images::oci) scope it
+    /// [`images::read`](crate::provider::endpoints::images::read) scope it
     /// holds there, with the same request, and moves no byte of it.
     fn prove(&self, image: &Image, request: &oci::prove::request::Request) -> impl Future<Output = Option<[u8; 32]>> + Send;
 }

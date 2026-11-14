@@ -1,0 +1,47 @@
+---
+title: 'Response'
+summary: 'The server answers with exactly one channel response, whose payload begins with the byte 0 followed by the document, is the byte 1 alone when the image ships no /DIVERGE.md, or begins with the byte 2 followed by an error, and the channel response finish follows it.'
+order: 2
+draft: false
+---
+
+```text
+[0][document JSON …]    the image's /DIVERGE.md, parsed
+[1]                     the image ships no /DIVERGE.md
+[2][error JSON …]       the file could not be read, or is not a document
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish. A channel response finish that no channel
+  response precedes states that the server did not serve the
+  question.
+- **The document.** The byte `0` is followed by exactly one JSON
+  object, the document that [Document](/shared/document/#the-document)
+  defines, read from the file that
+  [Document](/shared/document/#the-file) defines.
+- **Missing.** The byte `1` alone states that the image ships no
+  `/DIVERGE.md`, or that what the image holds at that path is not a
+  regular file. Nothing follows the byte. That is a fact about the
+  image and not a failure.
+- **The error.** The byte `2` is followed by exactly one JSON value
+  in the form defined on the
+  [volumes::list response](/endpoints/volumes-list/response/) page.
+  An error whose `kind` is `info` states that the file is
+  [not a document](/shared/document/#not-a-document), or that the
+  server could no longer obtain the image the scope held. Any other
+  error states that the server could not read the image.
+- **Malformed.** A payload with no byte, a payload whose first byte
+  is none of `0`, `1` and `2`, and a payload whose bytes after `0` or
+  `2` do not parse as the document or as the error are malformed. A
+  payload whose first byte is `1` is read by that byte alone; bytes
+  after it are not read.
+
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/images/read/server/channel_response/info/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/read/server/channel_response/info/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/info/response/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/response/frame.rs
+```

@@ -1,0 +1,90 @@
+---
+title: 'Document'
+summary: 'An image’s /DIVERGE.md: a frontmatter between two lines that are exactly ---, which is exactly one JSON object of the members name and schema and at most three more, and the markdown body after it; the parsed document is one JSON object of at least three and at most six members.'
+order: 2
+draft: false
+---
+
+Every image ships at most one document, the file `/DIVERGE.md` at the
+root of the image's filesystem. The document states what the
+`arguments` of a container of the image may be. This section defines
+the file and the JSON object a server sends for it.
+
+## The file
+
+- **The frontmatter.** The file begins with a line that is exactly
+  `---`. The lines after it, up to the next line that is exactly
+  `---`, are the frontmatter.
+- **One JSON object.** The frontmatter is exactly one JSON object. It
+  has the member `name`, a string, and the member `schema`, a JSON
+  object, and at most three further members: `frontend`, a boolean;
+  `chat`; and `structured_decisions`. The frontmatter has no other
+  member.
+- **`chat`.** The value of `chat` is the boolean `false` or an object
+  of exactly one member, `prompt_modalities`.
+- **`structured_decisions`.** The value of `structured_decisions` is
+  the boolean `false` or an object of exactly three members,
+  `prompt_modalities`, `instruction_modalities` and
+  `choice_modalities`.
+- **The modalities.** Each of those four members is an object of
+  exactly three members, `image`, `audio` and `file`, each a boolean.
+- **Never `true`.** A frontmatter in which `chat` or
+  `structured_decisions` is `true` is not a document.
+- **The body.** Every byte after the closing line is the body.
+- **UTF-8.** The file is read as UTF-8.
+
+## The document
+
+A server that reads the file sends exactly one JSON object of at
+least three and at most six members.
+
+- **`name`.** A string: the frontmatter's `name`, the image's own
+  name, as the image states it.
+- **`schema`.** A JSON object: the frontmatter's `schema`, the JSON
+  Schema of the `arguments` a container of the image accepts.
+- **`body`.** A string: the body, verbatim.
+- **`frontend`.** Present only with the value `true`, when the
+  frontmatter's `frontend` is `true`. It states that the image's
+  program serves a frontend, as the
+  [frontend](/container-proxy-endpoints/frontend/) endpoint provides.
+  Its absence states that the program serves none.
+- **`chat`.** Present only with the frontmatter's object, when the
+  frontmatter's `chat` is an object. It states how an agent's program
+  chats. Its absence states that the program does not chat.
+- **`structured_decisions`.** Present only with the frontmatter's
+  object, when the frontmatter's `structured_decisions` is an object.
+  It states how an agent's program makes structured decisions. Its
+  absence states that the program makes no structured decision.
+- **No other member.** The server reads no member further.
+
+## Not a document
+
+A file is not a document when it does not begin with a line that is
+exactly `---`, when no later line is exactly `---`, when the
+frontmatter is not a JSON object with the members stated above, when
+`schema` is not an object, or when its bytes are not UTF-8.
+
+The document is defined by `diverge-sdk-rs/src/shared/containers/info/document.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/document.rs
+```
+
+`chat` and `structured_decisions` are defined by `diverge-sdk-rs/src/shared/containers/info/false_or.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/false_or.rs
+```
+
+by `diverge-sdk-rs/src/shared/containers/info/chat.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/chat.rs
+```
+
+by `diverge-sdk-rs/src/shared/containers/info/structured_decisions.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/structured_decisions.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/info/modalities.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/info/modalities.rs
+```

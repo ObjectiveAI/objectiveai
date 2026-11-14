@@ -1,12 +1,12 @@
 ---
 title: 'images::stat'
-summary: 'Tag 16: a client names an image of its Store by digest; the server sends exactly one response carrying the image as the listing reports it and the Containerfile it was built from, absent for a pushed image, or an error, and the scope finishes.'
-order: 16
+summary: 'Tag 15: a client names an image of its Store by digest; the server sends exactly one response carrying the image as the listing reports it and the Containerfile it was built from, absent for a pushed image, or an error, and the scope finishes.'
+order: 15
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`16` followed by the digest of an image. The server sends exactly one
+`15` followed by the digest of an image. The server sends exactly one
 response, which is the image examined, the word that the server
 keeps no Store, or an error. The response finish follows the
 response, and no frame follows the finish.

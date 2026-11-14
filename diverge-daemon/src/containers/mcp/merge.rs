@@ -153,7 +153,6 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
     };
     let keys = context.served.lock().await.keys();
     let mut tools = Vec::new();
-    let mut cut = false;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
@@ -177,12 +176,8 @@ pub async fn list_tools(context: &Context, _: Option<PaginatedRequestParams>) ->
                     tools.push(tool);
                 }
             }
-            Err(AskError::Interrupted) => cut = true,
-            Err(AskError::Other(_)) => {}
+            Err(AskError::Interrupted | AskError::Other(_)) => {}
         }
-    }
-    if cut {
-        cut_short(context).await;
     }
     Ok(ListToolsResult::with_all_items(tools))
 }
@@ -194,7 +189,6 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
     };
     let keys = context.served.lock().await.keys();
     let mut resources = Vec::new();
-    let mut cut = false;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
@@ -214,12 +208,8 @@ pub async fn list_resources(context: &Context, _: Option<PaginatedRequestParams>
                     resources.push(resource);
                 }
             }
-            Err(AskError::Interrupted) => cut = true,
-            Err(AskError::Other(_)) => {}
+            Err(AskError::Interrupted | AskError::Other(_)) => {}
         }
-    }
-    if cut {
-        cut_short(context).await;
     }
     Ok(ListResourcesResult::with_all_items(resources))
 }
@@ -253,17 +243,12 @@ pub async fn call_tool(context: &Context, mut params: CallToolRequestParams) -> 
     params.name = name.into();
     let daemon = Arc::clone(&context.daemon);
     let sender = context.sender.clone();
-    let (answered, cut) = tokio::spawn(async move { asked_call(daemon, sender, caller, run, call, params).await })
+    tokio::spawn(async move { asked_call(daemon, sender, caller, run, call, params).await })
         .await
-        .unwrap_or_else(|error| (Err(ErrorData::internal_error(error.to_string(), None)), false));
-    if cut {
-        cut_short(context).await;
-    }
-    answered
+        .unwrap_or_else(|error| Err(ErrorData::internal_error(error.to_string(), None)))
 }
 
-/// The call, kept, routed and answered on `run`'s log; and whether it
-/// was cut short — the run's scope or a connection under it gone.
+/// The call, kept, routed and answered on `run`'s log.
 async fn asked_call(
     daemon: Arc<Daemon>,
     sender: Creator,
@@ -271,7 +256,7 @@ async fn asked_call(
     run: Arc<ToolRun>,
     call: log::Call,
     params: CallToolRequestParams,
-) -> (Result<CallToolResult, ErrorData>, bool) {
+) -> Result<CallToolResult, ErrorData> {
     let ask = tool_log::begin(&daemon, &run, Item::Call(call), Ask::Call).await;
     let answered = routed_call(&daemon, &sender, &caller, &run, params).await;
     tool_log::end(&daemon, &run, ask, |call| match &answered {
@@ -281,8 +266,8 @@ async fn asked_call(
     })
     .await;
     match answered {
-        Ok(result) => (Ok(result), false),
-        Err(error) => (Err(error.to_error_data(run.ending.lock().await.and_then(End::reason))), error == AskError::Interrupted),
+        Ok(result) => Ok(result),
+        Err(error) => Err(error.to_error_data(run.ending.lock().await.and_then(End::reason))),
     }
 }
 
@@ -315,7 +300,6 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
     attest_request(&mut params, &caller);
     let keys = context.served.lock().await.keys();
     let mut last = None;
-    let mut cut = false;
     for key in keys {
         let Ok(run) = running(context, key).await else {
             continue;
@@ -329,14 +313,8 @@ pub async fn read_resource(context: &Context, mut params: ReadResourceRequestPar
             .unwrap_or_else(|error| Err(AskError::Other(error.to_string())));
         match read {
             Ok(result) => return Ok(result),
-            Err(error) => {
-                cut |= error == AskError::Interrupted;
-                last = Some(error.to_string());
-            }
+            Err(error) => last = Some(error.to_string()),
         }
-    }
-    if cut {
-        cut_short(context).await;
     }
     Err(ErrorData::invalid_params(
         last.unwrap_or_else(|| format!("no served tool holds {}", params.uri)),
@@ -372,17 +350,6 @@ async fn asked_read(daemon: Arc<Daemon>, sender: Creator, caller: attestation::C
             tool_log::end(&daemon, &run, ask, |read| Answer::Kept(Item::ReadError(log::ReadError { read, error: tool_log::words(&words) }))).await;
             Err(error)
         }
-    }
-}
-
-/// An exchange for the asker was cut short — a scope or a connection
-/// under it gone, no clean completion: an agent asking is cut, and
-/// stays active until it is proven alive or its run goes down — see
-/// [`cut`](crate::containers::cut). Run before the exchange's own
-/// count goes out, so the agent is never seen idle first.
-async fn cut_short(context: &Context) {
-    if let Key::Agent(id) = context.user {
-        crate::containers::cut(&context.daemon, id).await;
     }
 }
 

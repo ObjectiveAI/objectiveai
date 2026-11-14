@@ -11,14 +11,13 @@ use super::super::channel_request;
 use super::{Exec, ExecStream, Filetree, FiletreeStream, Read, ReadStream, Transfer, WritePath};
 use crate::wire::encode::{Encode, Writer};
 use crate::provider::endpoints::containers::agents::run::server;
-use crate::provider::endpoints::containers::client::answered::{Enqueue, FuseMount, Info, Secrets};
+use crate::provider::endpoints::containers::client::answered::{Enqueue, FuseMount, Secrets};
 use crate::provider::endpoints::containers::client::{ChannelStream, OpenError, Scoped, UnaryError, WaitError};
 use crate::shared::containers::fuse::Kind;
 use crate::shared::containers::exec;
 use crate::shared::containers::terminal;
 use crate::provider::endpoints::containers::client::answered::{FrontendOutput, TerminalDone, TerminalOpened, TerminalOutput};
 use crate::shared::containers::frontend;
-use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{enqueue, fuse_mount, read, transfer, write_path};
 
@@ -191,13 +190,6 @@ impl ExecuteHandle {
         self.0.unary::<Transfer>(&payload).await
     }
 
-    /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
-    /// its name, its schema and its body — or `None` for an image that ships
-    /// none.
-    pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
-        let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
-        self.0.unary::<Info>(&payload).await
-    }
 
     /// A batch of messages for the agent, in order — starting a loop
     /// when none runs, queued when one does — answered with its fate,

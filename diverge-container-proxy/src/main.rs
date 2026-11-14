@@ -29,9 +29,10 @@
 //! with the program's own server on the loopback when the server
 //! begins, and hands the server the dependencies the program answered
 //! with and the secrets it takes — by name and mode, never a value.
-//! What the arguments may be is the image's `/DIVERGE.md`, which the
-//! proxy reads from the container's root at every ask and answers
-//! with, parsed; the program is never asked. The
+//! What the arguments may be is the image's `/DIVERGE.md`, which is
+//! read of the image and not of the container: the proxy answers it
+//! to nobody, and reads it only to learn whether the image serves a
+//! frontend. The
 //! values of those secrets the server feeds on a channel of the begin
 //! scope, before the container's first work and again at every
 //! activation; the proxy hands each feed to the program and delivers

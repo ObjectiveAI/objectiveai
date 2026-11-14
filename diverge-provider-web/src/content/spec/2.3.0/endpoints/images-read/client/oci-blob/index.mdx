@@ -1,0 +1,20 @@
+---
+title: 'OCI blob'
+summary: 'Tag 1: the client asks the server for a blob the image of the scope reaches, by digest; the server answers with the bytes in zero or more channel responses and the channel response finish; a finish with nothing before it states that the server does not answer the digest on the scope.'
+order: 1
+draft: false
+---
+
+The client opens this channel to pull a blob of the image of the
+scope: a config or a layer of an image manifest the image reaches, by
+digest.
+
+- **The request.** The tag byte `1` followed by the digest as JSON.
+  [Request](/endpoints/images-read/client/oci-blob/request/) states its form.
+- **The response.** The bytes of the blob in zero or more channel
+  responses and the channel response finish.
+  [Response](/endpoints/images-read/client/oci-blob/response/) states the sequence.
+- **What the image reaches.** The server answers only a digest the
+  image of the scope reaches, as [images::read](/endpoints/images-read/)
+  states. The server answers any other digest with the channel
+  response finish and nothing before it.

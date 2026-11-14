@@ -17,9 +17,9 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
   identifies the image; `references` is an array of objects of
   `registry` and `name`, each a registry host and a repository path
   under which the bytes may be fetched, absent when empty, as
-  [images::oci](/endpoints/images-oci/request/) states them. The
+  [images::read](/endpoints/images-read/request/) states them. The
   `image` is the form of the request of
-  [images::oci](/endpoints/images-oci/request/), and is the request of
+  [images::read](/endpoints/images-read/request/), and is the request of
   the run's [oci-has](/endpoints/containers-agents-run/server/oci-has/) ask. The request
   names no source: the server consults the sources in the order that
   [Image sources](/endpoints/#image-sources) states for a run.
@@ -67,8 +67,8 @@ as JSON, read as [Notation](/endpoints/#notation) provides.
 - **`arguments`.** Any JSON value. The server relays it verbatim in
   the begin request it opens on the proxy and does not read it. What
   the value may be is what the image's `/DIVERGE.md` states, which the
-  container's [info](/endpoints/containers-agents-run/client/info/)
-  channel answers.
+  [info](/endpoints/images-read/client/info/) channel of an
+  [images::read](/endpoints/images-read/) scope answers.
 - **No secret.** The request carries no secret, and the server holds
   none. Which secrets the container's program takes is its own
   answer at its registration, carried to the client on the

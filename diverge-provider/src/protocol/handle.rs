@@ -185,13 +185,6 @@ where
                     endpoints::containers::fuse_serve::handle(scope, frame, &identity, directory).await;
                 });
             }
-            ClientRequest::ContainersInfo(frame) => {
-                let identity = Arc::clone(&client_identity);
-                let deployer = Arc::clone(&deployer);
-                scopes.spawn(async move {
-                    endpoints::containers::info::handle(scope, frame, &identity, &*deployer).await;
-                });
-            }
             ClientRequest::VolumesList(_) => {
                 let scope = match singles.volumes_list.claim(scope) {
                     Ok(single) => single,
@@ -385,12 +378,13 @@ where
                     endpoints::images::delete::handle(scope, frame, &identity, &*manager, changes, &capabilities).await;
                 });
             }
-            ClientRequest::ImagesOci(frame) => {
+            ClientRequest::ImagesRead(frame) => {
                 let identity = Arc::clone(&client_identity);
                 let store = Arc::clone(&oci_store);
+                let deployer = Arc::clone(&deployer);
                 let capabilities = Arc::clone(&capabilities);
                 scopes.spawn(async move {
-                    endpoints::images::oci::handle(scope, frame, &identity, &*store, &capabilities).await;
+                    endpoints::images::read::handle(scope, frame, &identity, &*store, deployer, &capabilities).await;
                 });
             }
             ClientRequest::Info(_) => {

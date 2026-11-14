@@ -8,7 +8,7 @@ whose image declares it, and messaging that agent.
 
 What the program declares, one object per dependency. For the agent-loop images in this repository it is
 copied from the agent template's `arguments.dependencies`; a custom agent image may hard-code its own. Check
-the agent image's `DIVERGE.md` (`diverge run images info`, `diverge-images`).
+the agent image's `DIVERGE.md` (`diverge run images read --info`, `diverge-images`).
 
 ```json
 {

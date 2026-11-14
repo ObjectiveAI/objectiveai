@@ -3,11 +3,9 @@
 use super::super::channel_request;
 use crate::wire::client::handle::{Handle, SendError};
 use crate::wire::encode::{Encode, Writer};
-use crate::provider::endpoints::containers::client::answered::{Daemon, Info,
-    McpCallTool, McpCloseSession, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Secrets,
+use crate::provider::endpoints::containers::client::answered::{Daemon,     McpCallTool, McpCloseSession, McpListResources, McpListTools, McpNotifications, McpReadResource, Postgres, Secrets,
 };
 use crate::provider::endpoints::containers::client::{Answered, ChannelStream, OpenError, UnaryError, unary};
-use crate::shared::containers::info::Document;
 use crate::shared::containers::secrets::Values;
 use crate::shared::containers::{daemon, postgres};
 use crate::shared::mcp;
@@ -50,14 +48,6 @@ impl ExecuteHandle {
         self.scope
     }
 
-    /// What the arguments may be: the image's `/DIVERGE.md`, parsed —
-    /// its name, its schema and its body — or `None` for an image that ships
-    /// none. The proxy reads the file from the container's root; the
-    /// program is never asked.
-    pub async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
-        let payload = payload(&channel_request::Frame::Info).map_err(UnaryError::Request)?;
-        unary::<Info>(&self.handle, self.scope, &payload).await
-    }
 
     /// What tools the container's server has.
     pub async fn list_tools(

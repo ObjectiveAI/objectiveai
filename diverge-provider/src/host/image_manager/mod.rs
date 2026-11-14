@@ -32,7 +32,7 @@
 //!
 //! # How an image is served
 //!
-//! An `images::oci` scope resolves the image once, as it opens — see
+//! An `images::read` scope resolves the image once, as it opens — see
 //! [`resolve`]: the caller's own Store when it owns the digest, else
 //! the first reference whose registry the configuration lists and
 //! that has the manifest, else nowhere; never another identity's

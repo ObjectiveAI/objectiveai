@@ -16,7 +16,7 @@ Conventions used below:
   key: `diverge run agents create '{"template":"<id>","name":"x","secrets":{"<NAME>":"<vault key>"}}'`.
   The create must bind every name the template declares and no other.
 - The authoritative schema of an image's arguments is its `DIVERGE.md` frontmatter:
-  `diverge run images info --jq '.info.schema' '{"image":{…}}'`.
+  `diverge run images read --info --jq '.info? // empty | .schema' '{"image":{…}}'`.
 
 ## The `dependencies` member (every agent-loop image)
 

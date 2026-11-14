@@ -11,7 +11,7 @@ use super::image_source::Manifest;
 use diverge_sdk::shared::containers::request::Image;
 
 /// The images a provider serves to a caller's pull: what the
-/// `images::oci` scope answers from, one image per scope.
+/// `images::read` scope answers from, one image per scope.
 ///
 /// The mirror of the caller half's `OciStore`: there a caller answers
 /// a provider's asks from what it holds, and here a provider answers

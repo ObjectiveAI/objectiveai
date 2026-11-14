@@ -1,6 +1,6 @@
 ---
 title: 'Endpoints'
-summary: 'A request’s payload begins with one tag byte designating the endpoint; thirty endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
+summary: 'A request’s payload begins with one tag byte designating the endpoint; twenty-nine endpoints are defined, and a request the server cannot read is answered by a bare response finish.'
 order: 7
 draft: false
 ---
@@ -15,33 +15,32 @@ endpoint's request content, in the form the endpoint defines.
 | `0` | [containers::agents::run](/endpoints/containers-agents-run/) |
 | `1` | [containers::tools::run](/endpoints/containers-tools-run/) |
 | `2` | [containers::fuse_serve](/endpoints/containers-fuse-serve/) |
-| `3` | [containers::info](/endpoints/containers-info/) |
-| `4` | [volumes::list](/endpoints/volumes-list/) |
-| `5` | [volumes::stat](/endpoints/volumes-stat/) |
-| `6` | [volumes::read](/endpoints/volumes-read/) |
-| `7` | [volumes::write](/endpoints/volumes-write/) |
-| `8` | [volumes::filetree](/endpoints/volumes-filetree/) |
-| `9` | [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) |
-| `10` | [volumes::create_capacity](/endpoints/volumes-create-capacity/) |
-| `11` | [volumes::create](/endpoints/volumes-create/) |
-| `12` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
-| `13` | [volumes::edit](/endpoints/volumes-edit/) |
-| `14` | [volumes::delete](/endpoints/volumes-delete/) |
-| `15` | [images::list](/endpoints/images-list/) |
-| `16` | [images::stat](/endpoints/images-stat/) |
-| `17` | [images::build](/endpoints/images-build/) |
-| `18` | [images::push](/endpoints/images-push/) |
-| `19` | [images::edit](/endpoints/images-edit/) |
-| `20` | [images::delete](/endpoints/images-delete/) |
-| `21` | [images::oci](/endpoints/images-oci/) |
-| `22` | [info](/endpoints/info/) |
-| `23` | [capacity](/endpoints/capacity/) |
-| `24` | [daemons::accept](/endpoints/daemons-accept/) |
-| `25` | [daemons::connect](/endpoints/daemons-connect/) |
-| `26` | [daemons::list](/endpoints/daemons-list/) |
-| `27` | [daemons::listen](/endpoints/daemons-listen/) |
-| `28` | [daemons::message](/endpoints/daemons-message/) |
-| `29` | [daemons::announce](/endpoints/daemons-announce/) |
+| `3` | [volumes::list](/endpoints/volumes-list/) |
+| `4` | [volumes::stat](/endpoints/volumes-stat/) |
+| `5` | [volumes::read](/endpoints/volumes-read/) |
+| `6` | [volumes::write](/endpoints/volumes-write/) |
+| `7` | [volumes::filetree](/endpoints/volumes-filetree/) |
+| `8` | [volumes::fuse_serve](/endpoints/volumes-fuse-serve/) |
+| `9` | [volumes::create_capacity](/endpoints/volumes-create-capacity/) |
+| `10` | [volumes::create](/endpoints/volumes-create/) |
+| `11` | [volumes::edit_capacity](/endpoints/volumes-edit-capacity/) |
+| `12` | [volumes::edit](/endpoints/volumes-edit/) |
+| `13` | [volumes::delete](/endpoints/volumes-delete/) |
+| `14` | [images::list](/endpoints/images-list/) |
+| `15` | [images::stat](/endpoints/images-stat/) |
+| `16` | [images::build](/endpoints/images-build/) |
+| `17` | [images::push](/endpoints/images-push/) |
+| `18` | [images::edit](/endpoints/images-edit/) |
+| `19` | [images::delete](/endpoints/images-delete/) |
+| `20` | [images::read](/endpoints/images-read/) |
+| `21` | [info](/endpoints/info/) |
+| `22` | [capacity](/endpoints/capacity/) |
+| `23` | [daemons::accept](/endpoints/daemons-accept/) |
+| `24` | [daemons::connect](/endpoints/daemons-connect/) |
+| `25` | [daemons::list](/endpoints/daemons-list/) |
+| `26` | [daemons::listen](/endpoints/daemons-listen/) |
+| `27` | [daemons::message](/endpoints/daemons-message/) |
+| `28` | [daemons::announce](/endpoints/daemons-announce/) |
 
 The tag values are normative as tabulated. Each endpoint has its own
 section. Every section of this layer states requirements of the
@@ -182,8 +181,8 @@ owns.
    any Store. The server removes every manifest and every blob that
    it stored for the request and that no image in any client's Store,
    and no image whose nonce check passed before, references.
-10. **What an oci scope answers from.** A server answers the request
-   of an [images::oci](/endpoints/images-oci/) scope, and serves its
+10. **What a read scope answers from.** A server answers the request
+   of an [images::read](/endpoints/images-read/) scope, and serves its
    channels, from the image the request names as the server can supply
    it from exactly the following sources, in the following order: the
    client's Store, where the client owns the digest; otherwise a

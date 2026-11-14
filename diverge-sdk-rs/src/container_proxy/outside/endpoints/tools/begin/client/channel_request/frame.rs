@@ -21,7 +21,7 @@ use crate::shared::mcp::session::Sessioned;
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`Info`](Self::Info) |
+/// | `1` | unused |
 /// | `2` | [`Daemon`](Self::Daemon) |
 /// | `3` | [`McpListTools`](Self::McpListTools) |
 /// | `4` | [`McpListResources`](Self::McpListResources) |
@@ -31,7 +31,8 @@ use crate::shared::mcp::session::Sessioned;
 /// | `8` | [`Secrets`](Self::Secrets) |
 /// | `9` | [`McpCloseSession`](Self::McpCloseSession) |
 ///
-/// The first two are the same in both begin scopes, so a reader of
+/// The first two tags are the same in both begin scopes — the second
+/// unused in each — so a reader of
 /// one is a reader of both; what follows is this family's own
 /// exchange, and then the feed, which both scopes have again under a
 /// tag of their own, and then the close of a caller's MCP session. All
@@ -46,13 +47,6 @@ pub enum Frame {
     /// driver wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// What the arguments may be. Tag `1`.
-    ///
-    /// Carries nothing — the variant is bare — and the proxy answers
-    /// with the image's DIVERGE.md, parsed — read from the
-    /// container's root, the program never asked — or that it has
-    /// none. See [`info`](crate::shared::containers::info).
-    Info,
     /// A daemon connection the program opened, by the id the proxy
     /// announced: the server's half of it. Tag `2`.
     ///
@@ -119,9 +113,6 @@ pub enum Frame {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::Info`].
-const INFO: u8 = 1;
-
 /// Tag for [`Frame::Daemon`].
 const DAEMON: u8 = 2;
 
@@ -157,10 +148,6 @@ impl Encode for Frame {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
-            }
-            Frame::Info => {
-                out.extend_from_slice(&[INFO]);
-                Ok(())
             }
             Frame::Daemon(request) => {
                 out.extend_from_slice(&[DAEMON]);
@@ -208,7 +195,6 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            INFO => Ok(Frame::Info),
             DAEMON => daemon::request::Daemon::decode(rest)
                 .map(Frame::Daemon)
                 .map_err(FrameError::Daemon),

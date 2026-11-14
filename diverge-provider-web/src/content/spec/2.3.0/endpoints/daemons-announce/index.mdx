@@ -1,12 +1,12 @@
 ---
 title: 'daemons::announce'
-summary: 'Tag 29: a client asks to be listed with one announcement; the server lists the client’s identity in every daemons::list listing for exactly as long as the scope is open, sends no response while it is, and finishes when the client cancels.'
-order: 29
+summary: 'Tag 28: a client asks to be listed with one announcement; the server lists the client’s identity in every daemons::list listing for exactly as long as the scope is open, sends no response while it is, and finishes when the client cancels.'
+order: 28
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`29` followed by the announcement. The server lists the identity of
+`28` followed by the announcement. The server lists the identity of
 the connection, with that announcement, in every
 [daemons::list](/endpoints/daemons-list/) listing it keeps, for
 exactly as long as the scope is open, and sends no response while the

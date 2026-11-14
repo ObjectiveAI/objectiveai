@@ -52,7 +52,7 @@ pub struct Answerer {
     pub mounts: Arc<Mounts>,
     /// The tools the run is served.
     pub served: Arc<Mutex<Served>>,
-    /// The `images::oci` scopes the run's pull opened: released by the
+    /// The `images::read` scopes the run's pull opened: released by the
     /// start once the run is answered.
     pub pulls: Arc<Pulls>,
     /// Where a use is noted.

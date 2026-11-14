@@ -2,7 +2,7 @@
 // exchanges reach it: the image a container runs, the dependencies
 // an agent's program declares, and a piece of a file being written
 // in, and the OCI asks over one image — a manifest, a blob, the
-// proof — that the daemon's oci scope carries. The rest of the
+// proof — that the daemon's read scope carries. The rest of the
 // container vocabulary — what a program asks its proxy, the secrets
 // contract, FUSE — rides the provider and proxy wires and is not here
 // yet.

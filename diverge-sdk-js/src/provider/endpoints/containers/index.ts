@@ -4,4 +4,3 @@
 
 export * as agents from "./agents/index.js";
 export * as client from "./client/index.js";
-export * as info from "./info/index.js";

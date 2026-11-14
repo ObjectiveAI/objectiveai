@@ -1,12 +1,12 @@
 ---
 title: 'images::build'
-summary: 'Tag 17: a client hands a Containerfile, an optional description and a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image is in the client’s Store, that the client owned its digest already, that the server has insufficient capacity for it, or an error, and the scope finishes; the image stays in the Store until the client deletes it.'
-order: 17
+summary: 'Tag 16: a client hands a Containerfile, an optional description and a directory of one of its volumes as the context, or none; the server sends the build’s output line by line, then exactly one response stating that the image is in the client’s Store, that the client owned its digest already, that the server has insufficient capacity for it, or an error, and the scope finishes; the image stays in the Store until the client deletes it.'
+order: 16
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`17` followed by the description, the Containerfile, and the context
+`16` followed by the description, the Containerfile, and the context
 of the build. The server sends zero or more responses, each one line
 of the build's output, then exactly one response which states that
 the image is in the client's Store, that the client owned the
@@ -69,7 +69,7 @@ response, and no frame follows the finish.
 - **The client.** The client is the identity under which the
   connection was authorized. The image enters that identity's Store,
   and that identity alone can examine it, edit it, pull it, delete it,
-  or run it from its Store: an [images::oci](/endpoints/images-oci/)
+  or run it from its Store: an [images::read](/endpoints/images-read/)
   request by that identity naming the image's digest is answered Held, and a
   container request by that identity naming the digest runs the image
   from the Store, as [Image sources](/endpoints/#image-sources)

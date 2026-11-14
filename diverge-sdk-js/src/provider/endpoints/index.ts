@@ -2,8 +2,8 @@
 // into them: a volume's mode and a write's content answer, the two
 // answers a provider gives about itself that a provider record
 // embeds, `info` and `capacity`, the chunks an agent's run streams,
-// which the daemon's logs keep, and the oci scope's channels, which
-// the daemon's own oci scope carries.
+// which the daemon's logs keep, and the read scope's channels, which
+// the daemon's own read scope carries.
 
 export * as capacity from "./capacity/index.js";
 export * as containers from "./containers/index.js";

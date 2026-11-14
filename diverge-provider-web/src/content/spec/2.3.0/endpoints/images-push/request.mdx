@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 18 followed by a JSON object that names the image by manifest digest and by zero or more references, and carries an optional description.'
+summary: 'The payload is the tag byte 17 followed by a JSON object that names the image by manifest digest and by zero or more references, and carries an optional description.'
 order: 1
 draft: false
 ---
@@ -9,7 +9,7 @@ The payload of the request is the tag byte followed by the request as
 JSON, running to the end of the payload:
 
 ```text
-[18][request JSON …]
+[17][request JSON …]
 ```
 
 - **`image`.** An object of two fields: `{"digest":…,"references":…}`,
@@ -18,7 +18,7 @@ JSON, running to the end of the payload:
   has. `digest` is the manifest digest of the image, of the form
   `<algorithm>:<hex>`, and identifies the image; `references` is an
   array of objects of two fields, `registry` and `name`, as
-  [images::oci](/endpoints/images-oci/request/) states them, and
+  [images::read](/endpoints/images-read/request/) states them, and
   is absent when there are none. A reference locates the image and
   does not identify it.
 - **`description`.** Absent, the image is to have no description; or
@@ -28,7 +28,7 @@ JSON, running to the end of the payload:
   parse.
 - **No name.** The request names no image other than by its digest.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `18`, and a payload whose bytes after the tag do not parse as
+  is not `17`, and a payload whose bytes after the tag do not parse as
   the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

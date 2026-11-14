@@ -18,12 +18,13 @@ use crate::shared::containers::{enqueue, postgres};
 /// | tag | asks for |
 /// |-----|----------|
 /// | `0` | [`Postgres`](Self::Postgres) |
-/// | `1` | [`Info`](Self::Info) |
+/// | `1` | unused |
 /// | `2` | [`Enqueue`](Self::Enqueue) |
 /// | `3` | unused |
 /// | `4` | [`Secrets`](Self::Secrets) |
 ///
-/// The first two are the same in both begin scopes, so a reader of
+/// The first two tags are the same in both begin scopes — the second
+/// unused in each — so a reader of
 /// one is a reader of both; what follows is this family's own
 /// exchange — no daemon connection among them, since an agent
 /// container holds no account and asks the daemon nothing — and
@@ -41,13 +42,6 @@ pub enum Frame {
     /// driver wrote. See
     /// [`postgres`](crate::shared::containers::postgres) for the pair.
     Postgres(postgres::request::Postgres),
-    /// What the arguments may be. Tag `1`.
-    ///
-    /// Carries nothing — the variant is bare — and the proxy answers
-    /// with the image's DIVERGE.md, parsed — read from the
-    /// container's root, the program never asked — or that it has
-    /// none. See [`info`](crate::shared::containers::info).
-    Info,
     /// A batch of messages for the agent, in order. Tag `2`.
     ///
     /// The one way into it: a batch with no loop running starts one,
@@ -76,9 +70,6 @@ pub enum Frame {
 /// Tag for [`Frame::Postgres`].
 const POSTGRES: u8 = 0;
 
-/// Tag for [`Frame::Info`].
-const INFO: u8 = 1;
-
 /// Tag for [`Frame::Enqueue`].
 const ENQUEUE: u8 = 2;
 
@@ -96,10 +87,6 @@ impl Encode for Frame {
                 // Its error is `Infallible`, and an empty match on one
                 // is how you say so: there is no value to handle.
                 request.encode(out).map_err(|error| match error {})
-            }
-            Frame::Info => {
-                out.extend_from_slice(&[INFO]);
-                Ok(())
             }
             Frame::Enqueue(request) => {
                 out.extend_from_slice(&[ENQUEUE]);
@@ -123,7 +110,6 @@ impl Decode<'_> for Frame {
             POSTGRES => postgres::request::Postgres::decode(rest)
                 .map(Frame::Postgres)
                 .map_err(FrameError::Postgres),
-            INFO => Ok(Frame::Info),
             ENQUEUE => enqueue::request::Request::decode(rest)
                 .map(Frame::Enqueue)
                 .map_err(FrameError::Enqueue),

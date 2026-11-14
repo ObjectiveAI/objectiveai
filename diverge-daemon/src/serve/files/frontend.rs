@@ -5,7 +5,6 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use diverge_sdk::daemon::endpoints::images::info::server::response::Frame as Info;
 use diverge_sdk::daemon::endpoints::standalone_tools::frontend::client::channel_request;
 use diverge_sdk::shared::containers::frontend;
 use diverge_sdk::shared::containers::request::Image;
@@ -29,12 +28,11 @@ use crate::store;
 /// none, and `Err` with the reason where the document could not be
 /// read.
 pub async fn declares(daemon: &Arc<Daemon>, image: &Image) -> Result<Result<bool, String>, store::Error> {
-    Ok(match images::info(daemon, image, &[]).await? {
-        Info::Info(document) => Ok(document.frontend),
-        Info::Missing => Ok(false),
-        Info::NoSource => Err("the image's document could not be read: no source holds the image".to_string()),
-        Info::Forbidden => Err("the image's document could not be read".to_string()),
-        Info::Error(error) => Err(format!("the image's document could not be read: {}", error.0)),
+    Ok(match images::info(daemon, image).await? {
+        images::Read::Info(document) => Ok(document.frontend),
+        images::Read::Missing => Ok(false),
+        images::Read::NoSource => Err("the image's document could not be read: no source holds the image".to_string()),
+        images::Read::Error(error) => Err(format!("the image's document could not be read: {}", error.0)),
     })
 }
 

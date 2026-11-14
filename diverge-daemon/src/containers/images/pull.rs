@@ -1,5 +1,5 @@
 //! Pulling a manifest, a blob or the proof of an image through the one
-//! held source's `images::oci` scope.
+//! held source's `images::read` scope.
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -17,7 +17,7 @@ use super::Source;
 /// order, ending at its finish or short where the source went.
 pub type Blob = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
 
-/// The one `images::oci` scope held for an image: the source that
+/// The one `images::read` scope held for an image: the source that
 /// answered held first, and the way to it.
 ///
 /// The rules:
@@ -29,7 +29,7 @@ pub type Blob = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
 ///    answered not held.
 /// 2. **Let go when answered.** Whoever keeps a source releases it
 ///    when done — a run once its executor has returned, the container's
-///    id or the failure; a client's oci scope once it ends — through
+///    id or the failure; a client's read scope once it ends — through
 ///    [`release`](Self::release): a source holds what it fetched for a
 ///    scope pinned until the scope ends, so a scope left open would
 ///    keep it. A source kept after the release is cancelled at once.

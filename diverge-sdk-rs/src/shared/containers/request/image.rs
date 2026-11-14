@@ -7,8 +7,8 @@ use super::Reference;
 
 /// The image, by its manifest digest and the references under which
 /// its bytes may be fetched — what
-/// [`images::oci`](crate::provider::endpoints::images::oci::client::request::Frame)
-/// asks about, so an oci scope that came back held names an image a
+/// [`images::read`](crate::provider::endpoints::images::read::client::request::Frame)
+/// asks about, so a read scope that came back held names an image a
 /// run can ask for, with nothing to translate between them. The same
 /// value is the whole of the shared
 /// [`oci::has`](crate::shared::containers::oci::has) request a

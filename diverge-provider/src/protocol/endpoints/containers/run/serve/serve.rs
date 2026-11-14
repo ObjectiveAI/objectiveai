@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::super::family::{Opened, Runs};
 use super::super::run::Run;
-use super::{daemon, exec, filetree, frontend, fuse_mount, info, postgres, read, secrets, terminal, transfer, write};
+use super::{daemon, exec, filetree, frontend, fuse_mount, postgres, read, secrets, terminal, transfer, write};
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::frame::client::ClientFrame;
 
@@ -79,7 +79,6 @@ pub(crate) async fn serve<F: Runs>(run: &Arc<Run>) -> End {
             Opened::Postgres(connection_id) => {
                 run.spawn(postgres::postgres(Arc::clone(&run), channel, connection_id)).await
             }
-            Opened::Info => run.spawn(info::info(Arc::clone(&run), channel)).await,
             Opened::Secrets(values) => run.spawn(secrets::secrets(Arc::clone(&run), channel, values)).await,
             Opened::FuseMount(request) => {
                 run.spawn(fuse_mount::fuse_mount::<F>(Arc::clone(&run), channel, request)).await

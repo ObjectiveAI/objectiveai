@@ -209,8 +209,6 @@ pub enum ClientRequest<'a> {
     VaultUntag(vault::untag::client::request::Frame),
     /// Tag `109`. List the events, narrowed, and keep the list.
     EventsList(events::list::client::request::Frame),
-    /// Tag `110`. Read an image's DIVERGE.md.
-    ImagesInfo(images::info::client::request::Frame),
     /// Tag `111`. Say what the daemon is: its version.
     Info(info::client::request::Frame),
     /// Tag `114`. Read an agent's or a tool's log, and perhaps watch it.
@@ -277,7 +275,7 @@ pub enum ClientRequest<'a> {
     /// Tag `144`. One direct message, through a provider the daemon chooses.
     ProvidersDaemonsMessage(providers::daemons::message::client::request::Frame),
     /// Tag `145`. Whether the daemon can supply an image, and its parts.
-    ImagesOci(images::oci::client::request::Frame),
+    ImagesRead(images::read::client::request::Frame),
     /// Tag `157`. Build an image on a provider, from a Containerfile.
     ImagesBuild(images::build::client::request::Frame),
     /// Tag `146`. Hold another daemon's standalone tool under a name.
@@ -408,7 +406,6 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VaultTag(frame) => frame.encode(out),
             ClientRequest::VaultUntag(frame) => frame.encode(out),
             ClientRequest::EventsList(frame) => frame.encode(out),
-            ClientRequest::ImagesInfo(frame) => frame.encode(out),
             ClientRequest::Info(frame) => frame.encode(out),
             ClientRequest::Logs(frame) => frame.encode(out),
             ClientRequest::AgentsExec(frame) => frame.encode(out),
@@ -440,7 +437,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersUntag(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsListen(frame) => frame.encode(out),
             ClientRequest::ProvidersDaemonsMessage(frame) => frame.encode(out),
-            ClientRequest::ImagesOci(frame) => frame.encode(out),
+            ClientRequest::ImagesRead(frame) => frame.encode(out),
             ClientRequest::ImagesBuild(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsCreate(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsGet(frame) => frame.encode(out),
@@ -742,9 +739,6 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             109 => events::list::client::request::Frame::decode(bytes)
                 .map(ClientRequest::EventsList)
                 .ok(),
-            110 => images::info::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ImagesInfo)
-                .ok(),
             111 => info::client::request::Frame::decode(bytes)
                 .map(ClientRequest::Info)
                 .ok(),
@@ -838,8 +832,8 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             144 => providers::daemons::message::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ProvidersDaemonsMessage)
                 .ok(),
-            145 => images::oci::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ImagesOci)
+            145 => images::read::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesRead)
                 .ok(),
             157 => images::build::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesBuild)
@@ -977,7 +971,6 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VaultTag(_) => f.write_str("vault tag"),
             ClientRequest::VaultUntag(_) => f.write_str("vault untag"),
             ClientRequest::EventsList(_) => f.write_str("events list"),
-            ClientRequest::ImagesInfo(_) => f.write_str("images info"),
             ClientRequest::Info(_) => f.write_str("info"),
             ClientRequest::Logs(_) => f.write_str("logs"),
             ClientRequest::AgentsExec(_) => f.write_str("agents exec"),
@@ -1009,7 +1002,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersUntag(_) => f.write_str("providers untag"),
             ClientRequest::ProvidersDaemonsListen(_) => f.write_str("providers daemons listen"),
             ClientRequest::ProvidersDaemonsMessage(_) => f.write_str("providers daemons message"),
-            ClientRequest::ImagesOci(_) => f.write_str("images oci"),
+            ClientRequest::ImagesRead(_) => f.write_str("images read"),
             ClientRequest::ImagesBuild(_) => f.write_str("images build"),
             ClientRequest::ConnectedStandaloneToolsCreate(_) => f.write_str("connected standalone tools create"),
             ClientRequest::ConnectedStandaloneToolsGet(_) => f.write_str("connected standalone tools get"),
@@ -1123,7 +1116,6 @@ pub fn tag(path: &str) -> Option<u8> {
         "vault/tag" => Some(107),
         "vault/untag" => Some(108),
         "events/list" => Some(109),
-        "images/info" => Some(110),
         "info" => Some(111),
         "logs" => Some(114),
         "agents/exec" => Some(115),
@@ -1155,7 +1147,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/untag" => Some(142),
         "providers/daemons/listen" => Some(143),
         "providers/daemons/message" => Some(144),
-        "images/oci" => Some(145),
+        "images/read" => Some(145),
         "images/build" => Some(157),
         "connected_standalone_tools/create" => Some(146),
         "connected_standalone_tools/get" => Some(147),
@@ -1266,7 +1258,6 @@ impl ClientRequest<'_> {
             ClientRequest::VaultTag(_) => "vault/tag",
             ClientRequest::VaultUntag(_) => "vault/untag",
             ClientRequest::EventsList(_) => "events/list",
-            ClientRequest::ImagesInfo(_) => "images/info",
             ClientRequest::Info(_) => "info",
             ClientRequest::Logs(_) => "logs",
             ClientRequest::AgentsExec(_) => "agents/exec",
@@ -1298,7 +1289,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersUntag(_) => "providers/untag",
             ClientRequest::ProvidersDaemonsListen(_) => "providers/daemons/listen",
             ClientRequest::ProvidersDaemonsMessage(_) => "providers/daemons/message",
-            ClientRequest::ImagesOci(_) => "images/oci",
+            ClientRequest::ImagesRead(_) => "images/read",
             ClientRequest::ImagesBuild(_) => "images/build",
             ClientRequest::ConnectedStandaloneToolsCreate(_) => "connected_standalone_tools/create",
             ClientRequest::ConnectedStandaloneToolsGet(_) => "connected_standalone_tools/get",

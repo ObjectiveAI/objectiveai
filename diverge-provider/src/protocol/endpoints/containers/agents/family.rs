@@ -58,7 +58,6 @@ impl Family for Agents {
                 destination: request.destination,
             },
             channel_request::Frame::Postgres(request) => Opened::Postgres(request.connection_id),
-            channel_request::Frame::Info => Opened::Info,
             channel_request::Frame::Secrets(values) => Opened::Secrets(values),
             channel_request::Frame::FuseMount(request) => Opened::FuseMount(request),
             channel_request::Frame::Exec(request) => Opened::Exec(request),

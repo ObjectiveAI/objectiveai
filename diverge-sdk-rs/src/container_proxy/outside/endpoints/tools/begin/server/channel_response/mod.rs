@@ -2,8 +2,7 @@
 //!
 //! [`daemon`] is what the program sent on a daemon connection,
 //! [`postgres`] is what the container's driver wrote on a database
-//! connection, [`info`] what its arguments may be — the image's
-//! DIVERGE.md, read by the proxy itself. The five `mcp_*`
+//! connection. The five `mcp_*`
 //! are what the container's own MCP server answered — the family's own,
 //! each an alias of the shape [`shared::mcp`](crate::shared::mcp)
 //! defines — and [`mcp_close_session`] what the proxy answers when a
@@ -16,5 +15,4 @@ pub mod mcp_list_tools;
 pub mod mcp_notifications;
 pub mod mcp_read_resource;
 pub mod daemon;
-pub mod info;
 pub mod postgres;

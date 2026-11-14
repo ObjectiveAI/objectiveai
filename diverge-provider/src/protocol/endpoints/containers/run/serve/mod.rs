@@ -21,7 +21,6 @@ pub(crate) mod exec;
 pub(crate) mod filetree;
 pub(crate) mod frontend;
 pub(crate) mod fuse_mount;
-pub(crate) mod info;
 pub(crate) mod postgres;
 pub(crate) mod read;
 pub(crate) mod secrets;

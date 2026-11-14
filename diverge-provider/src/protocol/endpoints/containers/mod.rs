@@ -5,12 +5,11 @@
 //! relaying what it asks, serving what the caller opens — written
 //! once; [`agents`] and [`tools`] are the two families over it, and
 //! [`fuse_serve`] reaches into a running container of either for
-//! its runner. [`info`] runs nothing: it reads an image's DIVERGE.md
-//! out of the image, through the deployer.
+//! its runner. An image's DIVERGE.md is read on no scope here: it is
+//! the image's own, [`images::read`](super::images::read).
 
 pub(crate) mod run;
 
 pub mod agents;
 pub mod fuse_serve;
-pub mod info;
 pub mod tools;

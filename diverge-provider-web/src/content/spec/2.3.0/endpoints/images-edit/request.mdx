@@ -1,6 +1,6 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 19 followed by the digest of the image and the optional description, in the postcard wire format.'
+summary: 'The payload is the tag byte 18 followed by the digest of the image and the optional description, in the postcard wire format.'
 order: 1
 draft: false
 ---
@@ -10,8 +10,8 @@ the postcard wire format, as the postcard reading of
 [Notation](/endpoints/#notation) provides:
 
 ```text
-[19][digest_len: varint][digest: utf8 …][0]
-[19][digest_len: varint][digest: utf8 …][1][description_len: varint][description: utf8 …]
+[18][digest_len: varint][digest: utf8 …][0]
+[18][digest_len: varint][digest: utf8 …][1][description_len: varint][description: utf8 …]
 ```
 
 - **`digest`.** The manifest digest of the image, UTF-8, of the form
@@ -28,7 +28,7 @@ the postcard wire format, as the postcard reading of
   follows the `description` field. A request whose payload extends
   past the request is not malformed.
 - **Malformed.** A payload with no byte, a payload whose first byte
-  is not `19`, and a payload whose bytes after the tag do not decode
+  is not `18`, and a payload whose bytes after the tag do not decode
   as the request are malformed. [Endpoints](/endpoints/) states how a
   server answers a request it cannot read.
 

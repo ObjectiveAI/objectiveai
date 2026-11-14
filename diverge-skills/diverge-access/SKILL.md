@@ -131,7 +131,7 @@ diverge run roles create '{"name":"operator","description":"runs the crew agents
   {"agents":{"actions":["tag","untag"],"within":"any","tags":["crew"]}},
   {"agents_templates":{"actions":["get","list"],"within":"any"}},
   {"events":["list"]},
-  {"images":["info"]}]}'
+  {"providers":{"actions":["read"],"within":"any"}}]}'
 # -> "created" | "exists" | "forbidden" | {"error":…}
 
 diverge run roles get  '{"name":"operator"}'          # -> {"found":{name, description, grants, accounts, tags, created, creator}}

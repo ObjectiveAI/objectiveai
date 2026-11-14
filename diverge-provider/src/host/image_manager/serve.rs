@@ -89,7 +89,7 @@ pub async fn resolve(store: Option<&Store>, registries: &RegistryClient, client_
     }
 }
 
-/// The image one `images::oci` scope serves.
+/// The image one `images::read` scope serves.
 #[derive(Debug)]
 pub enum Served {
     /// From the caller's own Store.

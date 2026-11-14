@@ -1,12 +1,12 @@
 ---
 title: 'images::push'
-summary: 'Tag 18: a client names an image by digest and references, with an optional description; the server obtains the image from a registry it uses or from the client, makes the nonce check where the client supplied it, sends one response per blob it took from the client, then exactly one response stating that the image is in the client’s Store and its source, that the client owned the digest already, or a refusal, or an error, and the scope finishes.'
-order: 18
+summary: 'Tag 17: a client names an image by digest and references, with an optional description; the server obtains the image from a registry it uses or from the client, makes the nonce check where the client supplied it, sends one response per blob it took from the client, then exactly one response stating that the image is in the client’s Store and its source, that the client owned the digest already, or a refusal, or an error, and the scope finishes.'
+order: 17
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`18` followed by the request as JSON: the image, named by its digest
+`17` followed by the request as JSON: the image, named by its digest
 and by zero or more references, and a description, or none. The
 server obtains the image from exactly one source, as
 [Image sources](/endpoints/#image-sources) states for a push, and

@@ -1,0 +1,37 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the client sends: the tag byte 2 and the prove ask.'
+order: 1
+draft: false
+---
+
+```text
+[2][request JSON …]
+```
+
+- **The ask.** The `prove` ask that
+  [Possession](/shared/possession/#the-ask) defines:
+  `{"platform":"<algorithm>:<hex>","nonce":"<64 hex>"}`, with
+  `platform` absent where no platform is named. The ask names no
+  image: the image is the image of the scope.
+- **`platform`.** Absent, or the digest of one manifest that the image
+  index the request of the scope names lists, of the form
+  `<algorithm>:<hex>`, with the meaning the `platform` of the
+  [`prove` ask](/shared/possession/#the-ask) has.
+- **`nonce`.** The nonce, a JSON string of exactly 64 hexadecimal
+  characters, as the [`prove` ask](/shared/possession/#the-ask)
+  states.
+- **Malformed.** A channel request whose payload does not decode as
+  stated, among them one whose `nonce` is not exactly 64 hexadecimal
+  characters, is answered by a channel response finish that no channel
+  response precedes.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/images/read/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/read/client/channel_request/frame.rs
+```
+
+and by `diverge-sdk-rs/src/shared/containers/oci/prove/request/request.rs`:
+
+```rust include=diverge-sdk-rs/src/shared/containers/oci/prove/request/request.rs
+```
