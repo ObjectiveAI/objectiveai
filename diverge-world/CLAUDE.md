@@ -112,7 +112,8 @@ Diverge World: a Tauri app beside the viewer, empty up-front. The product's owne
 - **The root and the config are the viewer's**: `--config <dir>`, else `DIVERGE_CONFIG`, else `~/.diverge`, and
   `<root>/viewer.yaml` read with the viewer's own type (`diverge-viewer/config`, crate `diverge-viewer-config`):
   `daemon.address`, `daemon.issuer`, `daemon.subject` — one of `<root>/identities/`, signed in by
-  `diverge identities login` — and `daemon.redial`. A document naming no daemon stops the start.
+  `diverge identities login` — `daemon.identity`, the daemon's own identity, which must answer where it is stated,
+  and `daemon.redial`. A document naming no daemon stops the start.
   `diverge viewer config get|set|patch` edits it.
 - **The link dials again by itself**: as `daemon.redial` says — every 5 seconds when absent, as the daemon redials a
   provider, a whole number of seconds, or `never` — after a failed dial and after a connection that ended, dialling at
