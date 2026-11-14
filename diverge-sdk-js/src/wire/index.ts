@@ -13,6 +13,7 @@ export * as frame from "./frame/index.js";
 export * as client from "./client/index.js";
 export * as proxy from "./proxy/index.js";
 export * as postcard from "./postcard.js";
+export * as seal from "./seal.js";
 export * from "./encode.js";
 export * from "./decode.js";
 export * from "./connection.js";

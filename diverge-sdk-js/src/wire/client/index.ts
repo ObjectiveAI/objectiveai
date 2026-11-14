@@ -24,6 +24,7 @@ export * from "./router.js";
 export * from "./socket_handle.js";
 export * from "./authenticator.js";
 export * from "./authorize.js";
+export * as transcript from "./transcript.js";
 export * from "./handshake_error.js";
 export * from "./dial.js";
 export * from "./error.js";

@@ -8,6 +8,7 @@
 // scope on it is over.
 
 import { Receiver } from "./client/receiver.js";
+import type { Seal } from "./seal.js";
 
 /** Why a socket could not be opened or written. */
 export type ConnectionErrorKind = "open" | "closed" | "send";
@@ -33,21 +34,69 @@ export class ConnectionError extends Error {
  * `WebSocket` is the one used — Node 22, Deno, Bun and every browser
  * have it — with its binary type set to `arraybuffer` so a message
  * arrives as bytes and never as a Blob.
+ *
+ * Once `seal` is called — the handshake's last act — every frame
+ * crosses the socket encrypted:
+ *
+ * 1. A frame sent is sealed under this end's direction, and a message
+ *    received is opened under the other end's, each under the count
+ *    of the messages its direction carried before it.
+ * 2. The count is taken as `send` is called and as a message arrives,
+ *    and the sealing and the opening, which are asynchronous, run one
+ *    after another in that order: frames leave and reach `frames` in
+ *    the order they were sent.
+ * 3. A message that does not open closes the socket, and `frames`
+ *    ends.
+ * 4. `frames` ends only after every message that arrived before the
+ *    socket's end has been opened.
  */
 export class Connection {
   readonly #socket: WebSocket;
   readonly #frames = new Receiver<Uint8Array>();
+  /** The two directions, once sealed: this end's, and the other end's. */
+  #sealed: { readonly send: Seal; readonly receive: Seal } | undefined;
+  /** How many messages each direction has carried since the sealing. */
+  #sent = 0;
+  #received = 0;
+  /** The sealing and the opening still to run, each chain in its order. */
+  #outgoing: Promise<void> = Promise.resolve();
+  #incoming: Promise<void> = Promise.resolve();
 
   private constructor(socket: WebSocket) {
     this.#socket = socket;
     socket.addEventListener("message", (event) => {
       const data: unknown = event.data;
-      if (data instanceof ArrayBuffer) {
-        this.#frames.push(new Uint8Array(data));
+      if (!(data instanceof ArrayBuffer)) {
+        return;
       }
+      const message = new Uint8Array(data);
+      const sealed = this.#sealed;
+      if (sealed === undefined) {
+        this.#frames.push(message);
+        return;
+      }
+      // Rules 1 to 3.
+      const count = this.#received++;
+      this.#incoming = this.#incoming.then(async () => {
+        try {
+          this.#frames.push(await sealed.receive.open(count, message));
+        } catch {
+          this.#frames.close();
+          this.#socket.close();
+        }
+      });
     });
-    socket.addEventListener("close", () => this.#frames.close());
-    socket.addEventListener("error", () => this.#frames.close());
+    // Rule 4.
+    const ended = () => {
+      this.#incoming = this.#incoming.then(() => this.#frames.close());
+    };
+    socket.addEventListener("close", ended);
+    socket.addEventListener("error", ended);
+  }
+
+  /** Seal the connection from here on: `send` this end's direction, `receive` the other end's. The handshake's last act, made in the same turn as its last frame is sent. */
+  seal(send: Seal, receive: Seal): void {
+    this.#sealed = { send, receive };
   }
 
   /**
@@ -85,8 +134,33 @@ export class Connection {
     return this.#frames;
   }
 
-  /** One binary message out. A socket not open is the `closed` error. */
+  /**
+   * One frame out. A socket not open is the `closed` error. On a
+   * sealed connection the frame is sealed first, and leaves after
+   * every frame sent before it; a frame that then cannot be sealed or
+   * written closes the socket, since the count it took is spent.
+   */
   send(bytes: Uint8Array): void {
+    if (this.#socket.readyState !== WebSocket.OPEN) {
+      throw new ConnectionError("closed");
+    }
+    const sealed = this.#sealed;
+    if (sealed === undefined) {
+      this.#write(bytes);
+      return;
+    }
+    const count = this.#sent++;
+    this.#outgoing = this.#outgoing.then(async () => {
+      try {
+        this.#write(await sealed.send.seal(count, bytes));
+      } catch {
+        this.#socket.close();
+      }
+    });
+  }
+
+  /** One binary message onto the socket, as it is. */
+  #write(bytes: Uint8Array): void {
     if (this.#socket.readyState !== WebSocket.OPEN) {
       throw new ConnectionError("closed");
     }

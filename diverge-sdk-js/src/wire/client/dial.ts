@@ -19,10 +19,12 @@ export function url(address: string): string {
 
 /**
  * The daemon at `address` dialled, the handshake made as its
- * connector — this end's token presented, the daemon's own
- * verified, both through `authenticator` — and the
- * connection split: the router reading on its own, the handle every
- * request is put on, and the daemon, verified. A socket that could
+ * connector — this end's token presented and its key proven, the
+ * daemon's own token verified and the daemon held to the key it
+ * names, both through `authenticator` — the connection sealed, so
+ * every frame after the handshake crosses the socket encrypted, and
+ * split: the router reading on its own, the handle every request is
+ * put on, and the daemon, verified. A socket that could
  * not be made is a `ConnectionError`; a handshake that did not
  * complete, a `HandshakeError`, the socket closed.
  */
