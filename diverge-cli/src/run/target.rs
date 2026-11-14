@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use diverge_sdk::identities::{Identities, Name, Presenter};
+use diverge_sdk::shared::Identity;
 use diverge_sdk::wire::client::dial::{DialError, dial};
 use diverge_sdk::wire::client::handle::Handle;
 
@@ -21,15 +22,19 @@ pub struct Target<'a> {
     pub root: &'a Path,
     /// The account: the identity the CLI presents.
     pub account: &'a Account,
+    /// The daemon's own identity, where the document states it: who
+    /// must answer.
+    pub expected: Option<&'a Identity>,
 }
 
 impl Target<'_> {
     /// The daemon dialled as the account, with the SDK's [`dial`]: the
     /// handshake made as its connector by a [`Presenter`] — the
-    /// account's ID token presented, refreshed where it must be, and
-    /// the daemon's answer taken at its word, whatever issuer it is
-    /// from,
-    /// since the CLI judges no daemon — then the router reading on a
+    /// account's ID token presented, refreshed where it must be, with
+    /// the account's key on this host; the daemon's token verified
+    /// against its issuer's keys and the daemon held to the key it
+    /// names; and, where the document states the daemon's identity,
+    /// that identity and no other accepted — then the router reading on a
     /// task of its own, the handle every request is put on. Identities
     /// that could not be opened are [`Error::Identities`]; a socket
     /// that could not be made is [`Error::Dial`]; a handshake that did
@@ -43,7 +48,7 @@ impl Target<'_> {
             issuer: self.account.issuer.clone(),
             subject: self.account.subject.clone(),
         };
-        let presenter = Presenter::new(identities, name);
+        let presenter = Presenter::new(identities, name).expecting(self.expected.cloned());
         let (handle, run, _) = dial(self.address, &presenter)
             .await
             .map_err(|error| match error {
