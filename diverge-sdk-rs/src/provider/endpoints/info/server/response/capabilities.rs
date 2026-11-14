@@ -66,7 +66,7 @@ pub struct Capabilities {
     /// [`push`](crate::provider::endpoints::images::push),
     /// [`edit`](crate::provider::endpoints::images::edit) and
     /// [`delete`](crate::provider::endpoints::images::delete), and
-    /// [`images::oci`](crate::provider::endpoints::images::oci) looks
+    /// [`images::read`](crate::provider::endpoints::images::read) looks
     /// in it first. Absent — `false` — each of the six answers
     /// `Unsupported`, and `oci` answers `Unsupported` when
     /// [`images_registries`](Self::images_registries) is empty as
@@ -77,7 +77,7 @@ pub struct Capabilities {
     /// [`Reference`](crate::shared::containers::request::Reference)
     /// names it — `docker.io`, `ghcr.io`, `registry.example.com:5000`
     /// — and the whole of them. An
-    /// [`images::oci`](crate::provider::endpoints::images::oci)
+    /// [`images::read`](crate::provider::endpoints::images::read)
     /// consults exactly these after the caller's Store, and a reference
     /// naming any other is ignored; a run's image whose references
     /// name none of these, and that neither the caller's Store nor the

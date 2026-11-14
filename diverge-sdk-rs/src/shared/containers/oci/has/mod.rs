@@ -4,7 +4,7 @@
 //! opens a channel with a [`request::Request`] carrying the run's own
 //! [`Image`](crate::shared::containers::request::Image) — the same
 //! argument the provider endpoint
-//! [`images::oci`](crate::provider::endpoints::images::oci) takes —
+//! [`images::read`](crate::provider::endpoints::images::read) takes —
 //! and the caller answers with one [`response::Frame`] — the byte
 //! `0`, not held, or the byte `1` and a name — then the finish; the
 //! empty finish is not held. A provider that would take an image from

@@ -31,7 +31,7 @@ pub struct Frame(
 /// at once.
 const TAG: u8 = 0;
 
-/// JSON, matching [`images::oci`](crate::provider::endpoints::images::oci)
+/// JSON, matching [`images::read`](crate::provider::endpoints::images::read)
 /// rather than the postcard [`volumes`](crate::provider::endpoints::volumes)
 /// uses. One of these is sent per container rather than per
 /// filesystem event, so there is no throughput to optimize for — and

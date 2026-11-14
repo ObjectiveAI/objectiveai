@@ -38,7 +38,7 @@ use crate::wire::encode::{Encode, Writer};
 ///
 /// # On the wire
 ///
-/// JSON after the tag, as [`images::oci`](crate::provider::endpoints::images::oci)
+/// JSON after the tag, as [`images::read`](crate::provider::endpoints::images::read)
 /// and the runs carry an [`Image`]: its references are absent when
 /// there are none, which a format with no self-description cannot
 /// say.
@@ -65,7 +65,7 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 18;
+const TAG: u8 = 17;
 
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.

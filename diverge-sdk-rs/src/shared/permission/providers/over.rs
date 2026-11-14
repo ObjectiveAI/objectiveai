@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The actions over providers' records, which a grant reaches as far
 /// as its `within` says: the providers whose records the `within`
 /// reaches, by their tags. Snake case on the wire: `"get"`, `"list"`,
-/// `"oci"`, `"edit"`, `"delete"`, `"enable"`, `"disable"`. What is done
+/// `"read"`, `"edit"`, `"delete"`, `"enable"`, `"disable"`. What is done
 /// through them to the daemons connected to them is the
 /// [`providers_daemons`](crate::shared::permission::providers_daemons)
 /// grant's.
@@ -20,10 +20,11 @@ pub enum Over {
     /// [`providers::list`](crate::daemon::endpoints::providers::list)
     /// does; the list sends what the grant reaches.
     List,
-    /// Ask them for images, as
-    /// [`images::oci`](crate::daemon::endpoints::images::oci) does; the
+    /// Ask them for images — whether one can be supplied, and its
+    /// manifests, blobs, proof and DIVERGE.md — as
+    /// [`images::read`](crate::daemon::endpoints::images::read) does; the
     /// daemon asks only the providers the grant reaches.
-    Oci,
+    Read,
     /// Change one, as
     /// [`providers::edit`](crate::daemon::endpoints::providers::edit) does.
     Edit,

@@ -6,14 +6,14 @@
 //! [`response::Frame`], the 32 bytes of the proof, then the finish;
 //! the empty finish is not held. The image is not in the ask: it is
 //! the one the scope carrying the ask names — a run's image, a push's
-//! image, an [`images::oci`](crate::provider::endpoints::images::oci)
+//! image, an [`images::read`](crate::provider::endpoints::images::read)
 //! scope's image — and every ask on that scope is over it. It is the
 //! last ask of every image a provider takes from the caller, by a run
 //! or by an
 //! [`images::push`](crate::provider::endpoints::images::push),
 //! whether or not the provider pulled any byte of it: a digest names
 //! an image, and only the bytes prove that the caller has them. On an
-//! [`images::oci`](crate::provider::endpoints::images::oci) scope the
+//! [`images::read`](crate::provider::endpoints::images::read) scope the
 //! roles turn round: the caller asks, and the provider answers over
 //! the image as it can supply it.
 //!

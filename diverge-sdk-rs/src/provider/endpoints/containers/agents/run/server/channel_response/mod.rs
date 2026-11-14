@@ -4,8 +4,7 @@
 //! [`write_path`] whether one landed, [`transfer`] whether one landed
 //! in another container, [`fuse_mount`] whether one more mount asked
 //! for while the container runs is made, [`postgres`] what the
-//! container wrote on a database connection, [`info`] what its
-//! arguments may be — the image's DIVERGE.md. [`enqueue`] is the fate of what a caller
+//! container wrote on a database connection. [`enqueue`] is the fate of what a caller
 //! sent the agent — the family's own, an alias of the shape
 //! [`shared::containers`](crate::shared::containers) defines.
 //! What the agent says is not here: it rides the scope's own main
@@ -15,7 +14,6 @@ pub mod enqueue;
 pub mod exec;
 pub mod filetree;
 pub mod fuse_mount;
-pub mod info;
 pub mod postgres;
 pub mod read;
 pub mod transfer;

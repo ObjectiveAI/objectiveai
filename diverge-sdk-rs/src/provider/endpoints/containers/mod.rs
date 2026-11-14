@@ -16,16 +16,14 @@
 //! caller is running, of either family, and a directory of it, and
 //! answers the nine FUSE asks from it live — the volume FUSE serve's own
 //! vocabulary, with a container at the far end — so that a mount
-//! elsewhere can be a running container's directory. And [`info`],
-//! which runs nothing: it names an image and answers the image's
-//! DIVERGE.md, read out of the image, so a caller learns what a
-//! container of it takes before it asks for one.
+//! elsewhere can be a running container's directory. What a
+//! container of an image takes is no scope here: an image's DIVERGE.md
+//! is read on the image's own scope,
+//! [`images::read`](crate::provider::endpoints::images::read).
 //!
 //! Everything else is identical, and it is most of the wire: the
 //! request that makes a container carries its arguments — a JSON value
-//! the image defines, fixed for the container's life — and an `info`
-//! channel answers the image's DIVERGE.md, which says what they may
-//! be; each family has a `run` that owns the container's life; every
+//! the image defines, fixed for the container's life; each family has a `run` that owns the container's life; every
 //! scope reads and writes files, watches the
 //! tree, and relays what the container asks of the caller — its
 //! database connections, its daemon connection, its tool
@@ -73,7 +71,6 @@
 
 pub mod agents;
 pub mod fuse_serve;
-pub mod info;
 pub mod tools;
 
 pub mod client;

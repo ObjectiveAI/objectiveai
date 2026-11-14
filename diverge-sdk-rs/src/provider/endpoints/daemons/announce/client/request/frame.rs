@@ -30,7 +30,7 @@ pub struct Frame {
 
 /// This frame's tag among the scope-opening requests. See the table
 /// in [`endpoints`](crate::provider::endpoints).
-const TAG: u8 = 29;
+const TAG: u8 = 28;
 
 /// The tag, then the announcement's own bytes.
 impl Encode for Frame {
