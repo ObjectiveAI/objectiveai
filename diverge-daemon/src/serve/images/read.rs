@@ -1,10 +1,11 @@
-//! Whether the daemon can supply an image, and its parts: one scope.
+//! Whether the daemon can supply an image, and everything read of it:
+//! one scope.
 
 use std::sync::Arc;
 
 use diverge_sdk::CHUNK_SIZE;
-use diverge_sdk::daemon::endpoints::images::oci::client::{channel_request, request};
-use diverge_sdk::daemon::endpoints::images::oci::server::response::Frame;
+use diverge_sdk::daemon::endpoints::images::read::client::{channel_request, request};
+use diverge_sdk::daemon::endpoints::images::read::server::response::Frame;
 use diverge_sdk::shared::containers::oci;
 use diverge_sdk::shared::permission;
 use diverge_sdk::wire::decode::Decode as _;
@@ -25,11 +26,11 @@ use crate::store;
 ///
 /// The rules:
 ///
-/// 1. **Forbidden.** An account that holds `oci` over neither providers
+/// 1. **Forbidden.** An account that holds `read` over neither providers
 ///    nor remote daemons is answered `Forbidden`, and nothing is asked.
 /// 2. **The reach.** The providers asked are those a `providers` grant
-///    reaches with `oci`; the remote daemons, the records a `daemons`
-///    grant reaches with `oci`, as a list reports them.
+///    reaches with `read`; the remote daemons, the records a `daemons`
+///    grant reaches with `read`, as a list reports them.
 /// 3. **The first held.** The sources are asked as
 ///    [`images::locate`] asks them, `ignore` passed on: the first held
 ///    is `Held`, every other cancelled; none is `NotFound`. A store
@@ -41,7 +42,10 @@ use crate::store;
 ///    pieces, each split at [`CHUNK_SIZE`], then the finish; a proof
 ///    with one frame of its 32 bytes then the finish — the empty finish
 ///    being a part the source did not answer, after which it is let go
-///    and every later ask is answered empty. A channel request that
+///    and every later ask is answered empty. The image's document is
+///    answered with exactly one frame then the finish, as
+///    [`images::through`] reads it: from the daemon's record of the
+///    digest, else through the source. A channel request that
 ///    will not decode is finished with nothing.
 /// 5. **The end.** The caller's `Cancel`, the caller gone, the caller
 ///    reading no more of the scope, or the source's scope ending ends
@@ -49,6 +53,7 @@ use crate::store;
 ///    caller reading no more is not waited on, and then the scope. The
 ///    source is cancelled after the finish.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
+    let digest = frame.image.digest.clone();
     let source = match open(&scope, frame, who, daemon).await {
         Ok(Ok(source)) => source,
         Ok(Err(answer)) => {
@@ -98,6 +103,9 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
             Ok(channel_request::Frame::OciProve(request)) => {
                 tasks.spawn(prove(Arc::clone(&scope), Arc::clone(&pulls), channel, request));
             }
+            Ok(channel_request::Frame::Info) => {
+                tasks.spawn(info(Arc::clone(&scope), Arc::clone(daemon), Arc::clone(&pulls), channel, digest.clone()));
+            }
             Ok(channel_request::Frame::Cancel) => break,
             Err(_) => scope.send_channel_response_finish(channel).await,
         }
@@ -122,17 +130,17 @@ async fn open(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc
     let Some(standing) = Standing::of(&mut conn, who).await? else {
         return Ok(Err(Frame::Forbidden));
     };
-    let over_providers = judge::providers::holds(&standing, permission::providers::Over::Oci);
-    let over_daemons = judge::daemons::holds(&standing, permission::daemons::Over::Oci);
+    let over_providers = judge::providers::holds(&standing, permission::providers::Over::Read);
+    let over_daemons = judge::daemons::holds(&standing, permission::daemons::Over::Read);
     if !over_providers && !over_daemons {
         return Ok(Err(Frame::Forbidden));
     }
     scope.allowed().await;
     // Rule 2.
-    let providers = judge::providers::reached(&standing, permission::providers::Over::Oci, &daemon.providers.all());
+    let providers = judge::providers::reached(&standing, permission::providers::Over::Read, &daemon.providers.all());
     let daemons = if over_daemons {
         let records = store::daemons::all(&mut conn).await?;
-        judge::daemons::reached(&standing, permission::daemons::Over::Oci, records, &daemon.live.connected_daemons().await)
+        judge::daemons::reached(&standing, permission::daemons::Over::Read, records, &daemon.live.connected_daemons().await)
     } else {
         Vec::new()
     };
@@ -177,6 +185,13 @@ async fn prove(scope: Arc<ScopeHandle>, pulls: Arc<images::Pulls>, channel: u32,
     if let Some(proof) = images::prove(&pulls, &request).await {
         respond(&scope, channel, &oci::prove::response::Frame { proof }).await;
     }
+    scope.send_channel_response_finish(channel).await;
+}
+
+/// Exactly one frame — the document, that the image ships none, or an
+/// error — then the finish.
+async fn info(scope: Arc<ScopeHandle>, daemon: Arc<Daemon>, pulls: Arc<images::Pulls>, channel: u32, digest: String) {
+    respond(&scope, channel, &images::through(&daemon, &pulls, &digest).await).await;
     scope.send_channel_response_finish(channel).await;
 }
 

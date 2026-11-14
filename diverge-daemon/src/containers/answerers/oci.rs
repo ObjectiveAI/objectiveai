@@ -10,7 +10,7 @@ use crate::containers::images;
 
 /// A provider asked whether the caller holds an image is answered
 /// from the other providers connected and the remote daemons recorded:
-/// an `images::oci` scope is opened with the image on each, the first
+/// an `images::read` scope is opened with the image on each, the first
 /// answered held is the run's source, every other is cancelled, and
 /// its manifests, blobs and proof are taken through it — see
 /// [`images`](crate::containers::images). A provider asking needs no

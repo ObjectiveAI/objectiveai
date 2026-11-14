@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use diverge_sdk::daemon::endpoints::daemons::DaemonId;
-use diverge_sdk::daemon::endpoints::images::oci::client::{execute as daemon_execute, request as daemon_request};
-use diverge_sdk::provider::endpoints::images::oci::client::{execute, request};
+use diverge_sdk::daemon::endpoints::images::read::client::{execute as daemon_execute, request as daemon_request};
+use diverge_sdk::provider::endpoints::images::read::client::{execute, request};
 use diverge_sdk::shared::Identity;
 use diverge_sdk::shared::containers::oci;
 use diverge_sdk::shared::containers::request::Image;
@@ -42,7 +42,7 @@ pub enum Holder {
 }
 
 /// The one scope that answered held: the source an image's manifests,
-/// blobs and proof are taken through. A provider's oci scope and a
+/// blobs and proof are taken through. A provider's read scope and a
 /// remote daemon's share their channels byte for byte, so either is
 /// held by the same handle.
 #[derive(Debug)]
@@ -65,8 +65,8 @@ pub type Asks = FuturesUnordered<BoxFuture<'static, Option<Source>>>;
 ///    reaches whose remote is neither in `ignore` nor this daemon
 ///    itself — the identity it is.
 /// 2. **Asked alike, all at once.** Each provider is asked by opening an
-///    `images::oci` scope with the image, references and all; each
-///    remote daemon by opening its own `images::oci` scope with the
+///    `images::read` scope with the image, references and all; each
+///    remote daemon by opening its own `images::read` scope with the
 ///    image and `ignore`, this daemon's identity added, on the
 ///    connection [`daemons::connect`] holds or opens for the record —
 ///    the routes found as for every relay. A record that will not
