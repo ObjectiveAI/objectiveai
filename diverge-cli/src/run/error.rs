@@ -59,6 +59,9 @@ pub enum Error {
     /// a schema is asked for — and stated so that the absence is an
     /// error and never a panic.
     NoRequest,
+    /// The request is one this program states and does not put: what
+    /// it is, and why a command cannot perform it. Nothing was dialled.
+    Unsupported(&'static str),
 }
 
 impl fmt::Display for Error {
@@ -86,6 +89,7 @@ impl fmt::Display for Error {
                 write!(f, "the request was not complete within {seconds} seconds")
             }
             Error::NoRequest => f.write_str("no request was put, and no schema asked for"),
+            Error::Unsupported(why) => write!(f, "not supported from the command line: {why}"),
         }
     }
 }
@@ -106,7 +110,8 @@ impl std::error::Error for Error {
             | Error::Handshake(_)
             | Error::Exchange(_)
             | Error::Timeout(_)
-            | Error::NoRequest => None,
+            | Error::NoRequest
+            | Error::Unsupported(_) => None,
         }
     }
 }

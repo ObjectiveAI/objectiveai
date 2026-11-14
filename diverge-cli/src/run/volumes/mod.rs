@@ -12,6 +12,7 @@ pub mod delete;
 pub mod download;
 pub mod edit;
 pub mod filetree;
+pub mod fuse_serve;
 pub mod get;
 pub mod list;
 pub mod stat;
@@ -23,6 +24,9 @@ pub mod upload;
 /// The requests over volumes.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Volumes {
+    /// A volume served over FUSE through the daemon: stated here, and
+    /// not supported from the command line.
+    FuseServe(fuse_serve::Arguments),
     /// Creating a volume on a provider.
     Create(create::Arguments),
     /// Deleting a volume.
@@ -60,6 +64,7 @@ pub async fn run(
     emitter: &mut Emitter,
 ) -> Result<(), Error> {
     match command {
+        Volumes::FuseServe(arguments) => fuse_serve::run(arguments, target, emitter).await,
         Volumes::Create(arguments) => create::run(arguments, target, emitter).await,
         Volumes::Delete(arguments) => delete::run(arguments, target, emitter).await,
         Volumes::Download(arguments) => download::run(arguments, target, emitter).await,

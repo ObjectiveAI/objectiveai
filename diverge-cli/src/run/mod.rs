@@ -9,7 +9,9 @@
 //! file per request, each file holding the request's arguments and its
 //! run. What a request alone takes is on its own leaf: the eight that
 //! read or write files take `--path`, the connect holds its scope for
-//! the one MCP exchange its own subcommand names; nothing is checked at
+//! the one MCP exchange its own subcommand names; and one request,
+//! `volumes fuse-serve`, is stated and never put, since it answers a
+//! filesystem for as long as its scope is held; nothing is checked at
 //! run time that the command line did not already shape.
 //! Beneath every request are `request-schema`, which prints the JSON
 //! Schema of the body it takes as the SDK states it, and
