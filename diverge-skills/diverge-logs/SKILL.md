@@ -100,7 +100,7 @@ Every entry has `logs_index`, `created` and `type`. The common ones:
 | `tool_response` | That call's result. | `id` (the call's), `content`, `isError` |
 | `assistant_refusal` | The model declined. | `text` |
 | `user_structured_decisions` | A structured decision that landed, whole. | `id` (the log's number for it), `key`, `content`, `questions`, `sender` |
-| `structured_decisions_response` | The agent's answers to one. | `id`, `decisions`: question id → `{"noul":n}`, `{"probabilities":{value:n}}` or `{"score":n,"probabilities":[n…]}` |
+| `structured_decisions_response` | The agent's answers to one. | `id`, `decisions`: question id → `{"noul":n}`, `{"choice":value,"probabilities":{value:n}}` or `{"score":n,"probabilities":[n…]}`. `choice` (highest probability, alphabetically first on a tie) and `score` (sum of probability × level position, first level 0) are the daemon's, computed as the item is written |
 | `usage` | Token usage so far. | `prompt_tokens`, `completion_tokens`, `total_tokens` |
 | `notification` | Something about the run itself. | `message`, `is_fatal` |
 | `error` | A run that would not start, or a message the agent refused. | `error` (free-form) |

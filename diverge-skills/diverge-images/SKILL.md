@@ -218,7 +218,10 @@ What each member means:
 - **What a program is handed.** Its `POST /run` body is tagged: `{"type":"chat","messages":[…]}` or
   `{"type":"structured_decisions","key":…,"content":[…],"questions":[…]}`. A program that declares
   structured decisions answers that run by echoing the decision as one `user_structured_decisions` chunk,
-  saying its answers in one `structured_decisions_response` chunk, and ending the stream. `POST /enqueue`
+  saying its answers in one `structured_decisions_response` chunk, and ending the stream. Its answers are
+  probabilities only — `{"noul":n}`, `{"probabilities":{"<option value>":n,…}}` for a choice,
+  `{"probabilities":[n,…]}` for a score, one per level in order. It names no `choice` and states no
+  `score`: a `score` member makes the chunk malformed, and the daemon computes both for the log. `POST /enqueue`
   is chat only: the proxy never enqueues a decision, and hands a program nothing while a decision's run is
   open.
 - **Echo what you take.** A program says a request back as it takes it up: a chat message as its user

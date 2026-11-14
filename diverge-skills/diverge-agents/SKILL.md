@@ -272,8 +272,18 @@ under), a `type`, and `instructions` (content blocks):
 | `type` | adds | answered with |
 |---|---|---|
 | `noul` | nothing | `{"noul": 0.25}` |
-| `choice` | `options`: each `{"value": "<text>", "description"?: [blocks]}` | `{"probabilities": {"<value>": 0.7, …}}` |
-| `score` | `levels`: each a list of blocks | `{"score": 3.4, "probabilities": [0.1, 0.2, …]}` |
+| `choice` | `options`: each `{"value": "<text>", "description"?: [blocks]}` | `{"choice": "<value>", "probabilities": {"<value>": 0.7, …}}` |
+| `score` | `levels`: each a list of blocks | `{"score": 1.7, "probabilities": [0.1, 0.2, …]}` |
+
+`choice` and `score` are **computed by the daemon** from the probabilities when it writes the answer to the
+agent's log; the agent's program states only probabilities:
+
+- `choice` is the option with the highest probability. On a tie, the one that sorts first alphabetically
+  (byte order). With no probabilities, `""`.
+- `score` is the sum of each level's probability times its position, **the first level counting 0**. Three
+  levels with probabilities `[0.1, 0.2, 0.7]` score `0.2×1 + 0.7×2 = 1.6`.
+- Nothing is checked against the question: probabilities that do not sum to 1, a key that is no option, or
+  a wrong number of levels are computed as given.
 
 Rules:
 
