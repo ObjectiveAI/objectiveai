@@ -11,8 +11,9 @@
 //! [`daemons`], [`agents_templates`],
 //! [`standalone_tools_templates`], [`dependency_tools`], [`agents`],
 //! [`standalone_tools`], [`connected_standalone_tools`], [`vault`],
-//! [`events`] and
-//! [`volumes`] are the tests.
+//! [`events`], [`images`] and
+//! [`volumes`] are the tests. The images filter is its list's alone:
+//! a grant over images reaches providers, not images.
 //!
 //! Evaluated here, in the daemon, against records loaded whole, and
 //! not translated into the database's own queries: one truth for the
@@ -27,6 +28,7 @@ pub mod connected_standalone_tools;
 pub mod dependency_tools;
 pub mod events;
 pub mod identities;
+pub mod images;
 pub mod daemons;
 pub mod providers;
 pub mod roles;
