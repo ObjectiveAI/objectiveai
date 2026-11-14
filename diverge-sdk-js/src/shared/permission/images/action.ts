@@ -4,11 +4,13 @@ import { z } from "zod";
 
 /**
  * The actions over images, each the endpoint of the same name under `images`.
- * Snake case on the wire: `"build"`. Reading an image is none of
- * them: `images.read` is held over the providers and the daemons it
- * asks.
+ * Snake case on the wire: `"build"`, `"push"`, `"list"`. Reading an
+ * image is none of them: `images.read` is held over the providers and
+ * the daemons it asks.
  *
- * - `build`: Build an image on a provider, from a Containerfile.
+ * - `build`: Build an image on a provider, from a Containerfile, into the daemon's Store there, as `images.build` does.
+ * - `push`: Push an image into the daemon's Store on a provider, as `images.push` does.
+ * - `list`: List the images in the daemon's Stores, as `images.list` does; the list sends what the grant reaches.
  */
-export const Action = z.enum(["build"]);
+export const Action = z.enum(["build", "push", "list"]);
 export type Action = z.infer<typeof Action>;

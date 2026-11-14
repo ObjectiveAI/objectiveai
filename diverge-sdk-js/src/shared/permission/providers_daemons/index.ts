@@ -7,7 +7,8 @@
 // grant over `providers` does; and `Permission`, one grant's worth of
 // them. Nothing is made and nothing is tagged here: the records are the
 // providers', and the providers grant makes and tags them. The daemon's
-// grant through providers is this one, re-exported.
+// own grant through providers may also name them by identity: see
+// `daemon.grant.providers_daemons`.
 
 export * from "./over.js";
 export * from "./permission.js";
