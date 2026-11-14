@@ -189,6 +189,8 @@
 //! | `156` | [`connected_standalone_tools::detach_agent_template`] |
 //! | `157` | [`images::build`] |
 //! | `158` | [`volumes::fuse_serve`] |
+//! | `159` | [`images::list`] |
+//! | `160` | [`images::push`] |
 //!
 //! One hundred and fifty-eight, so far, the value `110` standing empty
 //! where an image's document was once its own request. Every one of them carries the optional

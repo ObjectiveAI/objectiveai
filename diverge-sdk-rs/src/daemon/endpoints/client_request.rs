@@ -280,6 +280,10 @@ pub enum ClientRequest<'a> {
     ImagesBuild(images::build::client::request::Frame),
     /// Tag `158`. Serve a volume over FUSE, through the daemon.
     VolumesFuseServe(volumes::fuse_serve::client::request::Frame),
+    /// Tag `159`. List the images in the daemon's Stores.
+    ImagesList(images::list::client::request::Frame),
+    /// Tag `160`. Push an image into the daemon's Store on a provider.
+    ImagesPush(images::push::client::request::Frame),
     /// Tag `146`. Hold another daemon's standalone tool under a name.
     ConnectedStandaloneToolsCreate(connected_standalone_tools::create::client::request::Frame),
     /// Tag `147`. Get one connected tool.
@@ -442,6 +446,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ImagesRead(frame) => frame.encode(out),
             ClientRequest::ImagesBuild(frame) => frame.encode(out),
             ClientRequest::VolumesFuseServe(frame) => frame.encode(out),
+            ClientRequest::ImagesList(frame) => frame.encode(out),
+            ClientRequest::ImagesPush(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsCreate(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsGet(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsList(frame) => frame.encode(out),
@@ -844,6 +850,12 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             158 => volumes::fuse_serve::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesFuseServe)
                 .ok(),
+            159 => images::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesList)
+                .ok(),
+            160 => images::push::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesPush)
+                .ok(),
             146 => connected_standalone_tools::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ConnectedStandaloneToolsCreate)
                 .ok(),
@@ -1011,6 +1023,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ImagesRead(_) => f.write_str("images read"),
             ClientRequest::ImagesBuild(_) => f.write_str("images build"),
             ClientRequest::VolumesFuseServe(_) => f.write_str("volumes fuse serve"),
+            ClientRequest::ImagesList(_) => f.write_str("images list"),
+            ClientRequest::ImagesPush(_) => f.write_str("images push"),
             ClientRequest::ConnectedStandaloneToolsCreate(_) => f.write_str("connected standalone tools create"),
             ClientRequest::ConnectedStandaloneToolsGet(_) => f.write_str("connected standalone tools get"),
             ClientRequest::ConnectedStandaloneToolsList(_) => f.write_str("connected standalone tools list"),
@@ -1300,6 +1314,8 @@ impl ClientRequest<'_> {
             ClientRequest::ImagesRead(_) => "images/read",
             ClientRequest::ImagesBuild(_) => "images/build",
             ClientRequest::VolumesFuseServe(_) => "volumes/fuse_serve",
+            ClientRequest::ImagesList(_) => "images/list",
+            ClientRequest::ImagesPush(_) => "images/push",
             ClientRequest::ConnectedStandaloneToolsCreate(_) => "connected_standalone_tools/create",
             ClientRequest::ConnectedStandaloneToolsGet(_) => "connected_standalone_tools/get",
             ClientRequest::ConnectedStandaloneToolsList(_) => "connected_standalone_tools/list",

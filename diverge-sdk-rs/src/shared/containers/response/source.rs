@@ -40,6 +40,7 @@ use serde::{Deserialize, Serialize};
 /// `"client"` or `"store"` in JSON, and the variant's index then its
 /// fields in postcard.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Source {
     /// A registry the provider uses served the image.
