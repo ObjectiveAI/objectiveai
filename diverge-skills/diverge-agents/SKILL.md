@@ -128,7 +128,7 @@ diverge run agents create '{
 - `provider`: pins the agent to one provider (by `{"issuer","subject"}`) and mounts that provider's volumes.
   Absent, the daemon picks a provider at each start and the agent mounts no volume.
 - `fuse_file_mounts`, `fuse_directory_mounts`: files or directories of any provider's volume, served live
-  through the daemon.
+  through the daemon. A mount that names a `daemon` reaches a volume on another daemon.
 
 Mount shapes, rules and edit patches are in [references/mounts.md](references/mounts.md). There is no
 environment, entrypoint or port to set: the mounts and the template's arguments are the only provisioning.
@@ -351,7 +351,7 @@ undeployed          container is down: {"interrupted":false} and no "reason" whe
 ```
 
 - `undeployed` with a `reason` is an unexpected end: `provider_lost`, `provider_disabled`,
-  `provider_edited`, `daemon_stopped`, `exited` (the container exited by itself) or `failed` (an `error`
+  `provider_edited`, `daemon_stopped`, `mount_lost` (a FUSE mount lost its serve), `exited` (the container exited by itself) or `failed` (an `error`
   item just before says how). `interrupted: true` means it was working when it went down.
 - A run that never came up keeps an `error` item and no `deployed`.
 - Each user part carries `sender` (who sent the message) and `key` (which message it belongs to).

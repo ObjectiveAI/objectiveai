@@ -11,7 +11,7 @@ There are two kinds of mount. Choose by where the volume lives and what you need
 | | volume mount | FUSE mount |
 |---|---|---|
 | stated in | `provider.volume_mounts` | `fuse_file_mounts`, `fuse_directory_mounts` |
-| which volumes | only volumes of the **one provider the container is pinned to** | a file or a directory of **any** provider's volume |
+| which volumes | only volumes of the **one provider the container is pinned to** | a file or a directory of **any** provider's volume, or of a volume on **another daemon** |
 | how it is served | the provider mounts the volume's filesystem directly | every read, write, listing, rename is one ask, forwarded by the daemon to the volume's provider |
 | cost | native filesystem speed | a round trip per operation |
 | typical use | data, workspaces, caches | a credential file or directory a vendor CLI rewrites; state shared across providers |
@@ -68,7 +68,9 @@ There are two kinds of mount. Choose by where the volume lives and what you need
 
 | member | meaning |
 |---|---|
-| `provider` | the provider that holds the volume (each mount may name a different one; it may be the provider the container runs on) |
+| `daemon` | optional. The ID of this daemon's record of a **remote daemon** the volume is on. Absent, the volume is a provider's of this daemon's own |
+| `route` | optional, only with `daemon`. Further remote-daemon records beyond `daemon`, each on the daemon before; the volume is on the last |
+| `provider` | the provider that holds the volume (each mount may name a different one; it may be the provider the container runs on). With `daemon`, a provider of that daemon's, not checked here |
 | `volume_name` | the volume, by its listed name. A name the provider holds no volume by is the create's error |
 | `volume_relative_path` | where in the volume. A file mount names an existing **regular file**, a directory mount an existing **directory**; anything else is the create's error |
 | `volume_mode` | the mode the mount expects, as for a volume mount |
@@ -84,6 +86,18 @@ There are two kinds of mount. Choose by where the volume lives and what you need
   buffered: what the container sees is the volume as it is.
 - The daemon opens one serve per distinct provider and volume for the container's run. The volume is
   held from the container's start until its run ends; between runs it is free.
+- **A serve that ends ends the run.** If the volume's provider goes, or the connection to the volume's
+  daemon drops at any hop, the container is stopped and the run ends `undeployed` with reason
+  `mount_lost`.
+
+### A volume on another daemon
+
+With `daemon` set, naming the volume takes `relay` over that daemon's record and **nothing else here**:
+no `mount` grant, and no check of the provider, the volume, the path or the mode at the create. At the
+container's start this daemon opens the other daemon's `volumes fuse_serve` as the account the record
+names; that account needs `fuse_serve` over the volume **there**. A refusal there is the start's error.
+The record cannot be deleted while a mount names it. Details and a troubleshooting table are in
+`diverge-daemons`, section 5b.
 
 ## Rules for every mount
 
@@ -98,8 +112,9 @@ There are two kinds of mount. Choose by where the volume lives and what you need
   the container or the serve (`ephemeral`), refused as a read-only filesystem (`read_only`).
 - A volume is not deleted while any agent or tool names it in a mount, running or not
   (`volumes delete` answers `in_use`).
-- While a container runs with a volume, `volumes stat`, `edit`, `filetree`, `download`, `upload` and
-  `transfer` on that volume answer `held`.
+- While a container runs with a volume, or while a `volumes fuse_serve` of it is open (another daemon's
+  container mounting from it), `volumes stat`, `edit`, `filetree`, `download`, `upload` and `transfer` on
+  that volume answer `held`, and `volumes delete` answers `in_use`.
 
 ## What the provider's capabilities mean
 

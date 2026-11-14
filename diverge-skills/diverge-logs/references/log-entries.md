@@ -33,6 +33,7 @@ Only the daemon writes these. A log reads `deployed`, zero or more `active … i
 | `provider_disabled` | The provider was disabled (`providers disable`). |
 | `provider_edited` | The provider's record was edited so that its `ips` no longer admit the connected provider's source address, which closes the connection. No other edit does. |
 | `daemon_stopped` | The daemon stopped. |
+| `mount_lost` | A FUSE mount of the run's lost its serve: the provider holding the mounted volume went, or the connection to the daemon the volume is on went, at any hop. |
 | `exited` | The container exited on its own. |
 | `failed` | The run's stream failed; the `error` entry kept just before says how. |
 

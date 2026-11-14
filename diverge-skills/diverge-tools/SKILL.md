@@ -88,8 +88,8 @@ edited) with two differences:
 
 `standalone-tools create` takes exactly what `agents create` takes: `template` (required), optional `name`,
 `secrets` (each template secret name → vault key), `provider` (pin + `volume_mounts`), `fuse_file_mounts`,
-`fuse_directory_mounts`. Mount shapes and rules are the agents' own: see the `diverge-agents` skill's
-`references/mounts.md`. Answers `"created"`, `"in_use"` (the name is a standalone or connected tool's
+`fuse_directory_mounts`. Mount shapes and rules are the agents' own, a FUSE mount of a volume on another
+daemon and the `mount_lost` end included: see the `diverge-agents` skill's `references/mounts.md`. Answers `"created"`, `"in_use"` (the name is a standalone or connected tool's
 already), `"forbidden"`, `{"error":…}`. A create runs nothing.
 
 ```bash

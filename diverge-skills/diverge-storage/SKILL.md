@@ -60,8 +60,8 @@ Uploads at rest land in all three modes; the mode governs containers, not `volum
 filesystem's journal. A too-small size comes back as `{"error":…}`.
 
 **At rest, or held.** A volume is read, written, walked, resized and deleted only *at rest*. While a
-running container has it, or while a download, upload or transfer is on it, those requests answer
-`"held"`: wait and ask again. Agents are stopped after the daemon's `idle_seconds` (default 10) of
+running container has it, or while a download, upload, transfer or FUSE serve is on it, those requests
+answer `"held"`: wait and ask again. Agents are stopped after the daemon's `idle_seconds` (default 10) of
 disuse, so a volume an idle agent mounted frees itself shortly.
 
 ## Create
@@ -157,7 +157,7 @@ diverge run volumes delete '{"volume":{"provider":{…},"name":"data"}}'
 
 Irreversible: the content is gone. Answers: `"deleted"`, `"not_found"`, `"in_use"`, `"forbidden"`,
 `{"error":…}`. **`in_use`** means some agent or tool of the daemon's names the volume in its mounts —
-whether or not it is running — or a download, upload or transfer is on it now. Find the mounters with
+whether or not it is running — or a download, upload, transfer or FUSE serve is on it now. Find the mounters with
 `volumes get` (`agents`, `tools`), take the volume out of their mounts (an edit of the agent or tool)
 or delete them, and ask again. To get space back and keep the name, delete and create. Grant:
 `delete`.
@@ -249,7 +249,9 @@ Naming a volume in a mount takes the `mount` grant over it. Two ways:
 Key rules: `volume_mode` must equal the volume's actual mode or the start fails; `overlay_disk` is
 required for an `ephemeral` FUSE mount and forbidden otherwise; no mount path may be the root or lie
 inside another mount; a persistent volume cannot be FUSE-served while a container mounts it or
-another serve holds it. Full rules, the capability flags and every start error are in
+another serve holds it; a FUSE mount with `"daemon":"<record id>"` reaches a volume on another daemon,
+judged here only by `relay` over that record; a FUSE mount whose serve is lost ends the run
+(`mount_lost`). Full rules, the capability flags and every start error are in
 [references/mounting.md](references/mounting.md). The create and edit commands themselves are in
 `diverge-agents` and `diverge-tools`.
 
@@ -445,12 +447,14 @@ actually using their database. Grant: `{"postgres":["list"]}`.
 
 | family | make (bare array) | over actions (`{"actions":[…],"within":…}`) | tagging |
 |---|---|---|---|
-| `volumes` | `create` | `get`, `list`, `delete`, `edit`, `stat`, `download`, `upload`, `transfer`, `filetree`, `mount` | `tag`, `untag` |
+| `volumes` | `create` | `get`, `list`, `delete`, `edit`, `stat`, `download`, `upload`, `transfer`, `filetree`, `mount`, `fuse_serve` | `tag`, `untag` |
 | `vault` | `insert` (a new key) | `get`, `list`, `insert`, `delete`, `use` | `tag`, `untag` |
 | `postgres` | — | bare array: `get`, `list` | — |
 
 `mount` (volumes) and `use` (vault) are not commands: they are what naming a volume in a mount, or a
-key in a `secrets` binding, takes. Admins hold everything. Shapes, `within` and diagnosing
+key in a `secrets` binding, takes. `fuse_serve` (volumes) is what **another daemon's account** holds here
+so that its containers can FUSE-mount the volume; `diverge run volumes fuse-serve` exists only for its
+schemas, and the CLI refuses to put the request. Admins hold everything. Shapes, `within` and diagnosing
 `forbidden` are in `diverge-access`.
 
 ## Not verified

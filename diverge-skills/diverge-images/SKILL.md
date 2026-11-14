@@ -273,7 +273,7 @@ first.
 |---|---|
 | `"held"` | a source can supply the image; the scope is served through that one source |
 | `"not_found"` | no source the daemon asked holds the image |
-| `"forbidden"` | the account holds `read` over no provider and no remote daemon record |
+| `"forbidden"` | the account holds neither `read` over any provider nor `relay` over any remote daemon record |
 | `{"error":…}` | a failure; after `"held"`, the source could not read the document, or it is not one |
 | `{"info":{"name":…,"schema":{…},"frontend":true,"chat":{…},"body":"…"}}` | the document, parsed (`frontend`, `chat` and `structured_decisions` each absent when false) |
 | `"missing"` | the image ships no `/DIVERGE.md` |
@@ -291,8 +291,9 @@ Rules:
   Store there, or a registry the provider lists serves it under one of the image's references. An image
   that is only in a provider's cache is not held, and has no readable document.
 - **Only sources the caller's grants reach are asked**: a provider where a `providers` grant holds `read`
-  over it, a remote daemon where a `daemons` grant holds `read` over its record. See `diverge-access`.
-  A remote daemon is asked as the account this daemon holds there, which needs `read` on that daemon too.
+  over it, a remote daemon where a `daemons` grant holds `relay` over its record. See `diverge-access`.
+  A remote daemon is asked as the account this daemon holds there, which needs its own grants on that
+  daemon too.
 - **The document is recorded.** Once the daemon has read a document for a digest it keeps it (a digest
   never changes what it ships) and answers `--info` from its record, asking the source nothing. Only a
   document is recorded: a `"missing"` and an `{"error":…}` are asked again. The image must still be
@@ -306,8 +307,9 @@ Rules:
   `ignore` out.
 - The CLI cancels the scope after the one ask; each invocation is a fresh question.
 
-Grant: `read` over providers and over daemons, for example
-`{"providers":{"actions":["read"],"within":"any"}}`. There is no grant over images for it.
+Grant: `read` over providers and `relay` over daemons, for example
+`{"providers":{"actions":["read"],"within":"any"}}`. There is no grant over images for it, and no `read`
+over daemons: `relay` is the one grant to use a remote daemon.
 
 ## The images in this repository
 

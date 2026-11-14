@@ -9,7 +9,7 @@ of `agents edit` and `standalone-tools edit`. Volumes themselves (create, list, 
 | | volume mount | FUSE mount |
 |---|---|---|
 | where it is stated | `provider.volume_mounts` on the create | `fuse_file_mounts` / `fuse_directory_mounts` on the create |
-| whose volume | only the provider the container is pinned to | any provider the daemon knows; each mount names its own |
+| whose volume | only the provider the container is pinned to | any provider the daemon knows, or a volume on another daemon; each mount names its own |
 | how it is served | mounted directly by that provider | every read and write is forwarded by the daemon to the volume's provider, live, nothing buffered |
 | cost | none | one round trip per file operation |
 | pins the container | yes, to that provider | no |
@@ -79,6 +79,11 @@ single file (for example a credential file a vendor CLI rewrites).
   A program that saves by writing a temporary file and renaming it over the original fails at the rename:
   give it a **directory mount** instead.
 - A `read_only` volume is served read-only; writes fail inside the container as a read-only filesystem.
+- **A volume on another daemon**: add `"daemon": "<record id>"` (and optionally `"route": ["<id>", …]`) to
+  the mount. `provider` and `volume_name` then name the volume as that daemon names it. The create checks
+  only that you hold `relay` over the record; the volume, its path and its mode are checked by the other
+  daemon at the container's start, where the account the record names needs `fuse_serve` over the volume.
+  See `diverge-daemons`, section 5b.
 
 ## Rules for every mount
 
@@ -93,8 +98,11 @@ single file (for example a credential file a vendor CLI rewrites).
   does not exist or is the wrong kind, `overlay_disk` present or absent the wrong way round, overlapping
   container paths. What only a start reveals (kept in the agent's log as an `error`, with the message
   answered `{"error":…}`): a mode mismatch, a persistent volume already held, a provider that cannot serve
-  the volume. A create that succeeds is therefore not proof that the mounts work: send a message and read
-  the log.
+  the volume, and everything about a volume on another daemon. A create that succeeds is therefore not
+  proof that the mounts work: send a message and read the log.
+- **A FUSE mount that loses its serve ends the run.** If the volume's provider goes, or the connection to
+  the volume's daemon drops, the container is stopped and the run ends `undeployed` with reason
+  `mount_lost`.
 
 ## Editing mounts
 

@@ -297,9 +297,11 @@ Rules:
   provider is one of them), `ips` (the via's `ip` is in one of them), `addresses` (the via's `address` is
   exactly one of them; a via with no address passes no `addresses` filter). A route must pass every filter
   given. One passing route is chosen at random; if none passes, the remote is not reached, with no fallback.
-- `delete` answers `in_use` while a connected tool names the record; delete those tools first. Deleting
-  drops a held connection.
-- Grants: `{"daemons":["add"]}`; `get`, `list`, `edit`, `delete`, `connect`, `relay`, `read` over daemons
+- `delete` answers `in_use` while a connected tool names the record, or an agent's or a standalone tool's
+  FUSE mount does; delete those tools, or take the mounts out, first. Deleting drops a held connection.
+- Grants: `{"daemons":["add"]}`; `get`, `list`, `edit`, `delete`, `relay` over daemons. `relay` is the one
+  grant to **use** a remote daemon: relaying a request, holding a connected tool on it, FUSE-mounting a
+  volume on it, and asking it for images
   (`within` filter members `ids`, `issuers`, `creators`, `connected`, tags, created range); tagging shape.
 - There is no `daemons accept` or `daemons connections` request. Whether a daemon accepts other daemons
   through a provider is `accept_daemons` on its record of that provider (default `true`).
@@ -422,9 +424,45 @@ Grants needed:
 
 | Where | Who | Grant |
 |---|---|---|
-| This daemon | the caller of `create` | `{"connected_standalone_tools":["create"]}` and `connect` over the daemons record |
+| This daemon | the caller of `create` | `{"connected_standalone_tools":["create"]}` and `relay` over the daemons record |
 | This daemon | the caller of an attach / detach | `attach` / `detach` over the connected tool, and `edit` over the agent (or `attach` over the agent template) |
 | Remote daemon | the account the record names | `{"standalone_tools":{"actions":["connect"],"within":…}}` reaching the tool; for a `route`, `relay` over each further record on each hop |
+
+## 5b. Mounting a volume that is on another daemon
+
+An agent or a standalone tool on this daemon can FUSE-mount a file or a directory of a volume that belongs
+to a provider of **another daemon's**. The mount entry names the remote daemon:
+
+```json
+"fuse_directory_mounts": [
+  {"daemon": "3kTq9ZbW1xY", "route": [],
+   "provider": {"issuer": "…", "subject": "github.12345.provider-of-b"},
+   "volume_name": "shared", "volume_relative_path": [],
+   "volume_mode": "read_only", "container_path": ["shared"]}
+]
+```
+
+- `daemon` is this daemon's record of the remote; `route` (optional) names further records beyond it, each
+  on the daemon before, exactly as a connected tool's `daemon` and `route` do. A `route` without a `daemon`
+  is the create's error. `provider` and `volume_name` name the volume **as the last daemon names it**.
+- **The create checks one thing: `relay` over the `daemon` record.** It does not look at the remote volume,
+  its provider, its path or its mode. A wrong name is not the create's error.
+- **At the container's start** this daemon opens the remote's `volumes fuse_serve` of the volume, as the
+  account the record names, and forwards every file operation to it. The remote refuses with its own
+  answers (`forbidden`, `not_found`, `mounted`, `fuse_served`, `held`, a mode mismatch, `unsupported`); any
+  of them is the start's error, in the agent's or tool's log.
+- **The account on the remote needs `fuse_serve` over the volume there**:
+  `{"volumes":{"actions":["fuse_serve"],"within":…}}`. `mount` there is not enough. For a `route`, the
+  account at each hop needs `relay` over the next record.
+- While the serve is open the remote counts the volume as in use: `volumes delete` there answers `in_use`
+  and the at-rest requests answer `held`.
+- **A lost serve ends the run.** If the connection to the remote daemon ends at any hop, or the remote's
+  provider goes, the container is stopped and the run ends as `undeployed` with reason `mount_lost`. The
+  same now holds for a FUSE mount of a local provider's volume whose provider goes.
+- `diverge run volumes fuse-serve` exists as a command so its `request-schema` and `response-schema` can be
+  read, but the request itself is refused by the CLI: it holds a scope open and answers a filesystem, which
+  a command cannot do. It is what one daemon asks of another.
+- Dependency tools cannot mount from another daemon; they mount only from their agent's container.
 
 ## 6. Worked example: A records B, relays, and holds B's tool
 
@@ -492,7 +530,9 @@ Template and tool bodies are covered in `diverge-tools`; image digests in `diver
 | Relayed request answers `{"error":…}` | No record of that ID; B not announced on a provider A is connected to by a route the record allows; B has no **account** for the identity presented (admins do not count); B's record of that provider has `accept_daemons: false`; the account is already held by another daemon connection; the identity is not signed in on A's host. |
 | Relayed request answers `"forbidden"` | Caller lacks `relay` over the record on A, or the account on B lacks the grant for the request itself. |
 | Connected tool never `deployed`, agent's calls fail | Wrong tool name on B; B's account lacks `connect` over that tool; B unreachable. Check with a relayed `standalone-tools get`. |
-| `daemons delete` answers `in_use` | A connected tool names the record. |
+| `daemons delete` answers `in_use` | A connected tool names the record, or an agent's or tool's FUSE mount does. |
+| A run ends `undeployed` with reason `mount_lost` | A FUSE mount's serve ended under the running container: the link to the volume's daemon dropped at some hop, or the volume's provider went. Restore the link and message again. |
+| A container with a remote FUSE mount fails at start | The account on the remote lacks `fuse_serve` over the volume; wrong provider or volume name there; the volume is in another mode; the remote is unreachable. Read the start error in the log. |
 | `message` answers `not_listening` | The receiving daemon's record of the shared provider is not `messageable: true`, or the provider relays no messages. |
 | `message` answers `not_found` | The receiver is not announced (no `announcement`) on a provider this daemon is connected to and the grant reaches. It may be listening all the same: the sender finds it through the listing. |
 | `listen` prints nothing | No connected provider's record is `messageable: true`. |
@@ -500,7 +540,8 @@ Template and tool bodies are covered in `diverge-tools`; image digests in `diver
 ## Not verified
 
 - **Daemon-to-daemon has never been run live**: remote records connecting, `relay` (single or multi-hop),
-  connected standalone tools (create, attach, calls, logs), and `route` on a connected tool. Everything in
+  connected standalone tools (create, attach, calls, logs), `route` on a connected tool, and FUSE mounts of
+  a volume on another daemon (`volumes fuse_serve`). Everything in
   sections 3 to 6 is from the SDK, the daemon source, the CLI schemas and
   `reports/SETUP_INSTRUCTIONS_1.md` step 10, which itself says to expect debugging.
 - **Direct messages** (`providers daemons listen|message`) and incoming-direction providers have not been

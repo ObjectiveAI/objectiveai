@@ -81,7 +81,7 @@ Another daemon's standalone tool, held here under a name.
 
 | Shape | Action | Allows |
 |---|---|---|
-| Make | `create` | `connected-standalone-tools create` (plus `connect` over the `daemons` record it names) |
+| Make | `create` | `connected-standalone-tools create` (plus `relay` over the `daemons` record it names) |
 | Over | `get`, `list`, `edit`, `delete` | the request of the same name |
 | Over | `attach` | `attach-agent-instance` (plus `edit` over the agent), `attach-agent-template` (plus `attach` over the template) |
 | Over | `detach` | `detach-agent-instance`, `detach-agent-template` |
@@ -145,10 +145,12 @@ Remote daemons' records.
 |---|---|---|
 | Make | `add` | `daemons add` |
 | Over | `get`, `list`, `edit`, `delete` | the request of the same name |
-| Over | `connect` | naming the record as `daemon` in `connected-standalone-tools create` |
-| Over | `relay` | any request whose `relay` starts with the record's ID |
-| Over | `read` | `images read`: the daemon asks only the remote daemons the grant reaches |
+| Over | `relay` | **using** the remote daemon, whatever the use: any request whose `relay` starts with the record's ID; naming the record as `daemon` in `connected-standalone-tools create`; naming it as `daemon` in a container's FUSE mount; `images read`, which asks only the remote daemons the grant reaches |
 | Tagging | `tag`, `untag` | `daemons tag` / `untag` |
+
+`relay` is the one permission to use a remote daemon. There is no `connect` or `read` over daemons: a role
+that still lists either does not decode and must be edited to `relay`. What the remote daemon then allows
+the account the record names is the remote's own to judge.
 
 `within`: `ids`, `issuers`, `creators`, `connected`, `all_tags`, `any_tags`, `created_from`, `created_to`.
 
@@ -190,6 +192,7 @@ hold; `create` over roles plus `grant` within `"any"` plus `edit` over accounts 
 | Over | `get`, `list`, `edit`, `delete`, `stat` | the request of the same name |
 | Over | `download`, `upload`, `transfer`, `filetree` | the file requests; `upload` also covers a transfer landing in the volume |
 | Over | `mount` | naming the volume in a container's mounts at its create or edit (beside the container's grant) |
+| Over | `fuse_serve` | `volumes fuse_serve`: having the volume served over FUSE to the caller. What **another daemon's account** needs here so that its containers can FUSE-mount the volume. `mount` does not imply it |
 | Tagging | `tag`, `untag` | `volumes tag` / `untag` |
 
 `within`: `providers`, `names`, `modes`, `mounted`, `all_tags`, `any_tags`, `created_from`, `created_to`.
@@ -215,7 +218,7 @@ A grant reaches a volume or a container whole; it cannot narrow by path.
 |---|---|---|
 | `postgres` | `get`, `list` | `postgres get` (which database, no password), `postgres list` (container connections) |
 | `events` | `list` | `events list` |
-| `images` | `build` | `images build` (with `mount` over the context volume). `images read`, an image's DIVERGE.md included, is judged by `read` over providers and over daemons instead |
+| `images` | `build` | `images build` (with `mount` over the context volume). `images read`, an image's DIVERGE.md included, is judged by `read` over providers and `relay` over daemons instead |
 
 Examples: `{"postgres":["get","list"]}`, `{"events":["list"]}`, `{"images":["build"]}`.
 
@@ -244,7 +247,7 @@ The identities signed in on the daemon's host.
  {"dependency_tools":{"actions":["get","list","logs"],"within":"any"}},
  {"providers":{"actions":["get","list","read"],"within":"any"}},
  {"providers_daemons":{"actions":["list"],"within":"any"}},
- {"daemons":{"actions":["get","list","read"],"within":"any"}},
+ {"daemons":{"actions":["get","list"],"within":"any"}},
  {"accounts":{"actions":["get","list"],"within":"any"}},
  {"roles":{"actions":["get","list"],"within":"any"}},
  {"volumes":{"actions":["get","list","stat"],"within":"any"}},

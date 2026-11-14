@@ -89,9 +89,12 @@ A request naming several things is allowed only when every one is:
   ones kept included; an edit that leaves the roles as they were needs none.
 - Attaching or detaching a tool and one agent: `attach`/`detach` over the tool **and** `edit` over the agent.
   With an agent template: `attach`/`detach` over the tool **and** `attach` over the template.
-- `connected-standalone-tools create`: `create` over connected tools **and** `connect` over the remote
+- `connected-standalone-tools create`: `create` over connected tools **and** `relay` over the remote
   daemon's record.
 - Mounting a volume in a container's create or edit: the container's grant **and** `mount` over the volume.
+  A FUSE mount of a volume on **another daemon** (the mount names `daemon`): the container's grant **and**
+  `relay` over that daemon's record, and nothing over the volume here; the other daemon judges its own
+  `fuse_serve` grant for the account the record names.
 - Binding a vault key in `secrets`: the container's grant **and** `use` over the key.
 - A transfer: `transfer` over the source **and** `upload` over where it lands.
 - Any request with `relay`: `relay` over the daemons record that is the first ID, on this daemon; the
