@@ -32,8 +32,8 @@ pub enum ExecuteError {
     /// No source the daemon asked can supply the image, and it said so;
     /// its finish follows, and no ask is answered.
     NotFound,
-    /// The account the request is served for holds `read` over neither
-    /// providers nor daemons; nothing was asked.
+    /// The account the request is served for holds neither `read` over a
+    /// provider nor `relay` over a daemon; nothing was asked.
     Forbidden,
     /// The daemon could not answer, and said so.
     ///

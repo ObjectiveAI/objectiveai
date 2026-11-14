@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub enum Make {
     /// Hold another daemon's standalone tool under a name, as
     /// [`connected_standalone_tools::create`](crate::daemon::endpoints::connected_standalone_tools::create)
-    /// does, the daemon it is on judged by a `connect` grant over
+    /// does, the daemon it is on judged by a `relay` grant over
     /// daemons.
     Create,
 }

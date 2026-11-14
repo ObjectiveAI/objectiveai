@@ -23,9 +23,10 @@
 //!    at once.
 //! 2. **Only what the grants reach.** A provider is asked only where a
 //!    `providers` grant reaches it with `read`, and a remote daemon only
-//!    where a `daemons` grant reaches its record with `read`; see
-//!    [`grant`](crate::daemon::grant). An account that holds `read` over
-//!    neither is answered
+//!    where a `daemons` grant reaches its record with `relay`, the one
+//!    permission to use a remote daemon; see
+//!    [`grant`](crate::daemon::grant). An account that holds neither is
+//!    answered
 //!    [`Forbidden`](server::response::Frame::Forbidden), and nothing is
 //!    asked.
 //! 3. **Never one it is told to ignore.** A remote daemon whose

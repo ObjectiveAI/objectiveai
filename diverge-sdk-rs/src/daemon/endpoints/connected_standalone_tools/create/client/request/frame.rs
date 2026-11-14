@@ -60,7 +60,7 @@ pub struct Frame {
     /// it — and so the account of ours it is reached as: see
     /// [`daemons`](crate::daemon::endpoints::daemons).
     /// An ID no record has is the create's error. The
-    /// caller must hold the daemons grant's `connect`.
+    /// caller must hold the daemons grant's `relay` over it.
     pub daemon: DaemonId,
     /// The remote-daemon records the tool's connect is relayed through
     /// beyond `daemon`, each by its ID on the daemon before it: the tool is

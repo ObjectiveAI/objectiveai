@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 
 /// The actions over remote daemons' records, which a grant reaches as
 /// far as its `within` says. Snake case on the wire: `"get"`, `"list"`,
-/// `"edit"`, `"delete"`, `"connect"`, `"relay"`, `"read"`.
+/// `"edit"`, `"delete"`, `"relay"`. The first four are over the record
+/// itself; `relay` is the one permission to USE the daemon the record
+/// reaches, whatever the use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -23,17 +25,23 @@ pub enum Over {
     /// [`daemons::delete`](crate::daemon::endpoints::daemons::delete)
     /// does.
     Delete,
-    /// Hold a connected tool on one, as
-    /// [`connected_standalone_tools::create`](crate::daemon::endpoints::connected_standalone_tools::create)
-    /// does.
-    Connect,
-    /// Relay any request to one, served there: the first ID of a
-    /// request's `relay`, see [`Relay`](crate::shared::relay::Relay).
+    /// Use the daemon the record reaches, as the account the record
+    /// names. One action for every use, since each of them is this
+    /// daemon asking that one for something as that account:
+    ///
+    /// 1. Relay any request to it, served there: the first ID of a
+    ///    request's `relay`, see [`Relay`](crate::shared::relay::Relay).
+    /// 2. Hold a connected tool on it, as
+    ///    [`connected_standalone_tools::create`](crate::daemon::endpoints::connected_standalone_tools::create)
+    ///    does.
+    /// 3. Name a volume on it in a container's FUSE mounts, at the
+    ///    container's create or edit.
+    /// 4. Ask it for images, as
+    ///    [`images::read`](crate::daemon::endpoints::images::read)
+    ///    does: the daemon asks only the remote daemons whose records
+    ///    the grant reaches.
+    ///
+    /// What the daemon reached then allows that account is that
+    /// daemon's to judge, by its own grants.
     Relay,
-    /// Ask one for images — whether one can be supplied, and its
-    /// manifests, blobs, proof and DIVERGE.md — as
-    /// [`images::read`](crate::daemon::endpoints::images::read) does; the
-    /// daemon asks only the remote daemons whose records the grant
-    /// reaches.
-    Read,
 }
