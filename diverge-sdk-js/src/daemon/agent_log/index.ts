@@ -10,6 +10,7 @@ export * from "./item.js";
 export * from "./item_type.js";
 export * from "./user.js";
 export * from "./user_structured_decisions.js";
+export * from "./answer.js";
 export * from "./structured_decisions_response.js";
 export * from "./error.js";
 export * from "./deployed.js";
