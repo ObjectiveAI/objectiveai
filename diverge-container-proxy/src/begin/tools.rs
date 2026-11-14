@@ -1,6 +1,5 @@
-//! A tool container's begin: the arguments registered, the image's
-//! `/DIVERGE.md` and the exchanges with the tool's own MCP server
-//! served.
+//! A tool container's begin: the arguments registered, and the
+//! exchanges with the tool's own MCP server served.
 
 use std::sync::Arc;
 
@@ -15,7 +14,7 @@ use tokio::task::JoinSet;
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
-use crate::{info, inside, program, tool};
+use crate::{inside, program, tool};
 
 /// Serve the begin for the connection's life.
 ///
@@ -30,8 +29,7 @@ use crate::{info, inside, program, tool};
 /// secret, closed until the server's first feed for one that does.
 /// The scope is published to every surface inside the container, and
 /// every channel the server opens on the scope is served on a task
-/// of its own: the image's `/DIVERGE.md` read from the root at every
-/// ask, the program asked nothing; one exchange with the tool's
+/// of its own: one exchange with the tool's
 /// server each — its answer as the tool's server gave it, the exchange
 /// entered and left as the container's activity — the notifications
 /// for as long as the channel lives, a session's close answered once
@@ -101,9 +99,6 @@ pub async fn tools(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame)
             }
             Ok(channel_request::Frame::Postgres(request)) => {
                 tasks.spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
-            }
-            Ok(channel_request::Frame::Info) => {
-                tasks.spawn(info::info(scope, channel));
             }
             Ok(channel_request::Frame::McpListTools(request)) => {
                 tasks.spawn(async move { tool::list_tools(&proxy, &scope, channel, request).await });

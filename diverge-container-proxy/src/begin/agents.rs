@@ -14,7 +14,7 @@ use tokio::task::JoinSet;
 use super::Family;
 use crate::encode::encoded;
 use crate::proxy::{Begun, Proxy};
-use crate::{agent, info, inside, program};
+use crate::{agent, inside, program};
 
 /// Serve the begin for the connection's life.
 ///
@@ -32,10 +32,8 @@ use crate::{agent, info, inside, program};
 /// is then the provider's at the deploy. The scope is published to
 /// every surface inside the container, the queue's driver and the
 /// resident notifications ask are started, and every channel the
-/// server opens on the scope is served on a task of its own — the
-/// image's `/DIVERGE.md` read from the root at every ask, the program
-/// asked nothing; a channel this end cannot read is finished with
-/// nothing. No daemon
+/// server opens on the scope is served on a task of its own; a
+/// channel this end cannot read is finished with nothing. No daemon
 /// connection is among them: an agent container holds no account and
 /// asks the daemon nothing, so the server never opens one, and
 /// `/daemon` closes on an agent container at once. The loop is raced
@@ -101,9 +99,6 @@ pub async fn agents(proxy: Arc<Proxy>, scope: ScopeHandle, frame: request::Frame
         match channel_request::Frame::decode(payload) {
             Ok(channel_request::Frame::Postgres(request)) => {
                 tasks.spawn(inside::postgres::attach(proxy, scope, channel, request.connection_id));
-            }
-            Ok(channel_request::Frame::Info) => {
-                tasks.spawn(info::info(scope, channel));
             }
             Ok(channel_request::Frame::Enqueue(request)) => {
                 tasks.spawn(agent::enqueue(proxy, scope, channel, request));
