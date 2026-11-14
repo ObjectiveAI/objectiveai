@@ -39,6 +39,10 @@ pub struct Pending {
     pub(super) token_endpoint: String,
     pub(super) scope: String,
     pub(super) resource: Option<String>,
+    /// The public half of the identity's key on this host, as the
+    /// JSON Web Key the token request carries: the key the ID token
+    /// answered names.
+    pub(super) jwk: String,
     pub(super) device_code: Zeroizing<String>,
     pub(super) interval: u64,
     pub(super) expires: i64,
@@ -65,6 +69,7 @@ impl Pending {
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
                 ("device_code", self.device_code.as_str()),
                 ("client_id", self.client_id.as_str()),
+                ("jwk", self.jwk.as_str()),
             ];
             let answer: Answer<Tokens> = post(&self.identities.http, &self.token_endpoint, &form).await?;
             match answer {

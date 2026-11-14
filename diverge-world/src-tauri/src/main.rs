@@ -43,11 +43,12 @@ fn main() {
                 Ok::<_, Box<dyn std::error::Error>>((daemon, identities))
             })?;
             // The daemon's connection, held for the page: the SDK's
-            // runner, presenting the identity, taking the daemon's
-            // answer at its word, and dialling again as viewer.yaml's
-            // `redial` says.
+            // runner, presenting the identity and its key, holding the
+            // daemon to the key its own token names — and to the
+            // identity viewer.yaml states for it, where it states one —
+            // and dialling again as viewer.yaml's `redial` says.
             let name = Name { issuer: daemon.issuer, subject: daemon.subject };
-            let presenter = Arc::new(Presenter::new(identities, name));
+            let presenter = Arc::new(Presenter::new(identities, name).expecting(daemon.identity));
             app.manage(diverge_sdk::tauri_proxy::TauriProxy::new(daemon.address, presenter, daemon.redial));
             // The window, made here and not by the configuration, so a
             // link that opens a new window can be answered: the page or

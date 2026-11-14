@@ -14,7 +14,8 @@
 //!   default, [`Config::default`]. No other name is looked for — see
 //!   [`load`].
 //! - The document is [`Config`]: `daemons`, by name, each a
-//!   [`Daemon`] — its `address`, its `accounts` by name, each an
+//!   [`Daemon`] — its `address`, its own `identity` where the CLI is to
+//!   hold it to one, its `accounts` by name, each an
 //!   [`Account`]: the `issuer` and `subject` of one of the root's
 //!   identities, the account the daemon admits — and its `default`
 //!   account, where it has one — and the `default` daemon. A key the document does not have is

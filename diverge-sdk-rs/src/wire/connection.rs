@@ -7,6 +7,8 @@ use std::task::{Context, Poll, ready};
 use bytes::Bytes;
 use futures_util::{Sink, Stream};
 
+use super::seal::Seal;
+
 /// A connection, however it was made.
 ///
 /// # The variant is about the socket, not about the protocol
@@ -91,6 +93,31 @@ pub enum Connection {
         /// gone fails, as a write to a closed socket does.
         outgoing: tokio::sync::mpsc::UnboundedSender<Bytes>,
     },
+    /// A connection past its [`handshake`](crate::wire::handshake):
+    /// any of the others, with every payload sealed as it is sent and
+    /// opened as it arrives — see [`Seal`]. Everything above reads and
+    /// writes frames as before; what crosses the transport is
+    /// ciphertext.
+    Sealed {
+        /// The connection the sealed payloads cross.
+        inner: Box<Connection>,
+        /// What this end seals with: its own direction.
+        send: Seal,
+        /// What this end opens with: the other end's direction.
+        receive: Seal,
+        /// Whether a payload failed to open: the connection is then
+        /// over, and yields nothing more.
+        broken: bool,
+    },
+}
+
+impl Connection {
+    /// This connection, sealed from here on: `send` this end's
+    /// direction, `receive` the other end's. What a handshake hands
+    /// back.
+    pub fn sealed(self, send: Seal, receive: Seal) -> Connection {
+        Connection::Sealed { inner: Box::new(self), send, receive, broken: false }
+    }
 }
 
 /// The binary payloads, one at a time, until the connection ends.
@@ -170,6 +197,24 @@ impl Stream for Connection {
                 Connection::Local { incoming, .. } => {
                     return Poll::Ready(ready!(incoming.poll_recv(cx)).map(Ok));
                 }
+                // Each payload opened as it arrives. One that does not
+                // open is the connection's end: the error once, and
+                // nothing after it.
+                Connection::Sealed { inner, receive, broken, .. } => {
+                    if *broken {
+                        return Poll::Ready(None);
+                    }
+                    return match ready!(Pin::new(&mut **inner).poll_next(cx)) {
+                        Some(Ok(bytes)) => match receive.open(&bytes) {
+                            Ok(opened) => Poll::Ready(Some(Ok(opened))),
+                            Err(_) => {
+                                *broken = true;
+                                Poll::Ready(Some(Err(Error::Sealed)))
+                            }
+                        },
+                        other => Poll::Ready(other),
+                    };
+                }
             }
         }
     }
@@ -210,6 +255,7 @@ impl Sink<Bytes> for Connection {
             // An unbounded channel is always ready; whether the peer
             // is still there is learned at the send.
             Connection::Local { .. } => Poll::Ready(Ok(())),
+            Connection::Sealed { inner, .. } => Pin::new(&mut **inner).poll_ready(cx),
         }
     }
 
@@ -227,6 +273,10 @@ impl Sink<Bytes> for Connection {
                 ))
                 .map_err(Error::Outgoing),
             Connection::Local { outgoing, .. } => outgoing.send(payload).map_err(|_| Error::Local),
+            Connection::Sealed { inner, send, .. } => {
+                let sealed = send.seal(&payload).map_err(|_| Error::Sealed)?;
+                Pin::new(&mut **inner).start_send(sealed)
+            }
         }
     }
 
@@ -244,6 +294,7 @@ impl Sink<Bytes> for Connection {
             // Nothing is buffered: a sent payload is already the
             // peer's.
             Connection::Local { .. } => Poll::Ready(Ok(())),
+            Connection::Sealed { inner, .. } => Pin::new(&mut **inner).poll_flush(cx),
         }
     }
 
@@ -268,6 +319,7 @@ impl Sink<Bytes> for Connection {
                 Pin::new(stream).poll_close(cx).map_err(Error::Outgoing)
             }
             Connection::Local { .. } => Poll::Ready(Ok(())),
+            Connection::Sealed { inner, .. } => Pin::new(&mut **inner).poll_close(cx),
         }
     }
 }
@@ -278,6 +330,7 @@ impl fmt::Debug for Connection {
             Connection::Incoming(_) => f.write_str("Connection::Incoming"),
             Connection::Outgoing(_) => f.write_str("Connection::Outgoing"),
             Connection::Local { .. } => f.write_str("Connection::Local"),
+            Connection::Sealed { .. } => f.write_str("Connection::Sealed"),
         }
     }
 }
@@ -296,6 +349,9 @@ pub enum Error {
     /// The peer of a connection carried inside the process is gone,
     /// so the payload had nowhere to go.
     Local,
+    /// A payload of a sealed connection did not open, or could not be
+    /// sealed: the connection is over.
+    Sealed,
 }
 
 impl fmt::Display for Error {
@@ -304,6 +360,7 @@ impl fmt::Display for Error {
             Error::Incoming(error) => write!(f, "websocket failed: {error}"),
             Error::Outgoing(error) => write!(f, "websocket failed: {error}"),
             Error::Local => f.write_str("the in-process peer is gone"),
+            Error::Sealed => f.write_str("a sealed message did not open"),
         }
     }
 }
@@ -313,7 +370,7 @@ impl std::error::Error for Error {
         match self {
             Error::Incoming(error) => Some(error),
             Error::Outgoing(error) => Some(error),
-            Error::Local => None,
+            Error::Local | Error::Sealed => None,
         }
     }
 }

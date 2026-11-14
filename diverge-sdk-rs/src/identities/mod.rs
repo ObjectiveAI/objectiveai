@@ -9,6 +9,7 @@
 //! <root>/identities/
 //!   https%3A%2F%2Fauth.example.com/   the issuer, percent-encoded
 //!     alice.json                      the identity, by subject
+//!     alice.key                       its key on this host
 //!     alice.lock                      its lock
 //! ```
 //!
@@ -108,6 +109,7 @@ mod encode;
 mod error;
 mod fresh;
 mod identities;
+mod key;
 mod list;
 mod login;
 mod name;
@@ -124,6 +126,7 @@ pub mod verify;
 
 pub use error::*;
 pub use identities::*;
+pub use key::Key;
 pub use login::*;
 pub use name::*;
 pub use own::*;

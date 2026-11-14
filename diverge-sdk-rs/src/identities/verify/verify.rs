@@ -4,7 +4,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use serde::Deserialize;
 
 use super::{KeySets, Verified, VerifyError};
-use crate::identities::claims::claims;
+use crate::identities::claims::{Confirmation, claims};
 
 /// The algorithms a key set can check — see the [rules](super), rule
 /// 2.
@@ -29,6 +29,7 @@ struct Checked {
     iss: String,
     sub: String,
     exp: i64,
+    cnf: Option<Confirmation>,
 }
 
 impl KeySets {
@@ -37,8 +38,9 @@ impl KeySets {
     /// `at+jwt`, which RFC 9068 requires of a JWT access token, is
     /// [`VerifyError::AccessToken`] — its issuer accepted by
     /// `trusted`, its signature that issuer's, it unexpired, and its
-    /// `aud` holding `audience` where one is given. The answer is who
-    /// it names.
+    /// `aud` holding `audience` where one is given, and its `cnf`
+    /// naming an Ed25519 key, else [`VerifyError::Unbound`]. The
+    /// answer is who it names, and that key.
     pub async fn verify(
         &self,
         token: &str,
@@ -69,6 +71,7 @@ impl KeySets {
             None => validation.validate_aud = false,
         }
         let checked = jsonwebtoken::decode::<Checked>(token, &key, &validation).map_err(VerifyError::Invalid)?.claims;
-        Ok(Verified { issuer: checked.iss, subject: checked.sub, expires: checked.exp })
+        let key = checked.cnf.as_ref().and_then(Confirmation::key).ok_or(VerifyError::Unbound)?;
+        Ok(Verified { issuer: checked.iss, subject: checked.sub, expires: checked.exp, key })
     }
 }

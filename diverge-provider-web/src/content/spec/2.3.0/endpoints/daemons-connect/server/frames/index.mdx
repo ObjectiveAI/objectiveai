@@ -1,6 +1,6 @@
 ---
 title: 'Frames'
-summary: 'No tag: the server opens the channel once the acceptor took the connection; the connector answers with everything it sends to the acceptor, one client frame per channel response, and its channel response finish hangs up.'
+summary: 'No tag: the server opens the channel once the acceptor took the connection; the connector answers with everything it sends to the acceptor, one message per channel response, and its channel response finish hangs up.'
 order: 0
 draft: false
 ---
@@ -12,9 +12,9 @@ connector sends to the acceptor.
 - **The request.** The channel request carries nothing.
   [Request](/endpoints/daemons-connect/server/frames/request/) states
   its form.
-- **The response.** The frames the connector sends, as channel
-  responses, each one client frame, and the channel response finish,
-  which hangs up.
+- **The response.** The messages the connector sends, as channel
+  responses, each one message of the relayed connection, and the
+  channel response finish, which hangs up.
   [Response](/endpoints/daemons-connect/server/frames/response/)
   states the sequence.
 - **What the server does with it.** The server relays each channel

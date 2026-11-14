@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use diverge_sdk::identities::{Identities, Own};
 use diverge_sdk::shared::Identity;
-use diverge_sdk::wire::handshake::{Authenticator, Peer};
+use diverge_sdk::wire::handshake::{Authenticator, Judged, Peer, Presented};
 use futures_util::future::BoxFuture;
 use tokio::sync::{Mutex, watch};
 
@@ -319,25 +319,28 @@ pub struct Judging<'a> {
 }
 
 impl Authenticator for Judging<'_> {
-    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>> {
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<Presented, String>> {
         Box::pin(self.authenticator.own.present())
     }
 
-    fn verify<'a>(&'a self, token: &'a str, address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
+    fn verify<'a>(&'a self, token: &'a str, address: IpAddr) -> BoxFuture<'a, Result<Judged, String>> {
         Box::pin(async move {
             // Rule 2: whom it claims to be is judged first, and only
             // then is its issuer trusted and its keys fetched.
             let claimed = self.authenticator.own.claimed(token)?;
             self.authenticator.admissible(self.expected, &claimed, address, self.dialled).await?;
-            let peer = self.authenticator.own.verify_from(token, &claimed.issuer).await?;
-            if peer != claimed {
+            // The identity, and the key its token names: the handshake
+            // holds the other end to the key.
+            let judged = self.authenticator.own.verify_from(token, &claimed.issuer).await?;
+            let peer = &judged.peer;
+            if *peer != claimed {
                 return Err(format!("{peer} is not {claimed}, whom the token claimed"));
             }
-            let held = self.authenticator.take(self.expected, &peer).await?;
+            let held = self.authenticator.take(self.expected, peer).await?;
             if held && let Some(took) = self.took {
                 took.send_replace(true);
             }
-            Ok(peer)
+            Ok(judged)
         })
     }
 
@@ -350,9 +353,11 @@ impl Authenticator for Judging<'_> {
 /// account of ours there, as a record of it names the two. The rules:
 ///
 /// 1. **Presenting.** The ID token of `ours`, one of the host's
-///    identities, whatever the daemon's own `identity` is.
+///    identities, whatever the daemon's own `identity` is, and that
+///    identity's key on this host.
 /// 2. **Verifying.** The answer's token is verified against the remote's
-///    issuer's keys, that issuer trusted for this answer alone.
+///    issuer's keys, that issuer trusted for this answer alone, and
+///    must name a key, which the handshake holds the remote to.
 /// 3. **The one answer.** The answer must be `remote`, and nothing else:
 ///    a record names the daemon it reaches.
 /// 4. **Nothing held.** Several records may reach the same remote, each
@@ -366,20 +371,20 @@ pub struct Toward<'a> {
 }
 
 impl Authenticator for Toward<'_> {
-    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>> {
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<Presented, String>> {
         Box::pin(async move {
             let name = diverge_sdk::identities::Name { issuer: self.ours.issuer.clone(), subject: self.ours.subject.clone() };
             self.authenticator.own.present_as(&name).await
         })
     }
 
-    fn verify<'a>(&'a self, token: &'a str, _address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
+    fn verify<'a>(&'a self, token: &'a str, _address: IpAddr) -> BoxFuture<'a, Result<Judged, String>> {
         Box::pin(async move {
-            let peer = self.authenticator.own.verify_from(token, &self.remote.issuer).await?;
-            if peer != self.remote {
-                return Err(format!("{peer} answered where {} was reached", self.remote));
+            let judged = self.authenticator.own.verify_from(token, &self.remote.issuer).await?;
+            if judged.peer != self.remote {
+                return Err(format!("{} answered where {} was reached", judged.peer, self.remote));
             }
-            Ok(peer)
+            Ok(judged)
         })
     }
 

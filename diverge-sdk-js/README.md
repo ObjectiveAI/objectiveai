@@ -27,10 +27,32 @@ above them tells the difference.
 
 **Over the wire.** `wire.client.dial(address, authenticator)` opens a
 WebSocket to the daemon — `ws://<address>/` when the address carries
-no scheme, port 14980 by default — presents the account's token as
-the first frame, and returns a handle that speaks the protocol itself.
-This is the handle for Node, Deno, Bun and any browser allowed to
-open the socket.
+no scheme, port 14980 by default — makes the handshake, and returns a
+handle that speaks the protocol itself. This is the handle for Node,
+Deno, Bun and any browser allowed to open the socket.
+
+The handshake is three frames. This end sends a one-time key and the
+account's token; the daemon answers with its own one-time key, its
+token, and a signature by the key its token names; this end checks
+it and sends its own signature. Every frame after that is encrypted,
+AES-256-GCM under keys only the two ends hold. The `authenticator`
+supplies both halves of this end's part:
+
+- `present()` answers `{ token, sign }`: the account's ID token,
+  whose `cnf` claim names an Ed25519 public key, and a function that
+  signs with that key's private half. The package holds no key and
+  no token of its own.
+- `verify(token)` judges the daemon's token and answers
+  `{ peer, key }`: who it is, and the Ed25519 key its `cnf` claim
+  names. It must verify the token against its issuer's keys: the
+  handshake holds the daemon to whatever key this answers.
+
+It uses the platform's Web Crypto and nothing else: X25519, Ed25519,
+HKDF and AES-GCM from `crypto.subtle`. Node 22 and the current
+releases of Chrome, Firefox and Safari have all four; X25519 and
+Ed25519 reached browsers only recently, and a runtime without them
+fails the dial with a `HandshakeError` of kind `exchange`. Exact
+minimum browser versions were not confirmed when this was written.
 
 **Through a proxy.** `wire.proxy.handle(transport)` returns a handle
 whose connection lives on the other side of a Tauri boundary: the

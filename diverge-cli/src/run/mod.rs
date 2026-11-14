@@ -181,6 +181,7 @@ pub async fn run(root: &Path, selected: &Selected<'_>, run: Run) -> Result<(), E
         address: &selected.daemon.address,
         root,
         account: selected.account,
+        expected: selected.daemon.identity.as_ref(),
     };
     let exchange = async { dispatch(run.command, &target, &mut emitter).await };
     match run.timeout {

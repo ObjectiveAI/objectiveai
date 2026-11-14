@@ -9,6 +9,7 @@ use super::claims::{claims, now};
 use super::name::Paths;
 use super::oauth::Tokens;
 use super::{Error, Name, Token};
+use crate::wire::frame::auth::KEY_LEN;
 
 /// Everything an identity's file holds: who it is, how it refreshes,
 /// and the tokens it holds now. No type outside this module has it.
@@ -54,6 +55,13 @@ impl Record {
     /// The ID token, as handed out, where there is one.
     pub(super) fn id(&self) -> Option<Token> {
         Some(Token::new(self.id_token.as_deref()?, self.id_expires?))
+    }
+
+    /// Whether the ID token held names `key`, in its `cnf`: the one
+    /// ID token a handshake signed with that key can present. `false`
+    /// where there is none, or it names another key or no key.
+    pub(super) fn names(&self, key: &[u8; KEY_LEN]) -> bool {
+        self.id_token.as_deref().and_then(claims).and_then(|claims| claims.cnf).and_then(|cnf| cnf.key()).is_some_and(|named| named == *key)
     }
 
     /// The record `answer` makes for a new sign-in: the issuer's

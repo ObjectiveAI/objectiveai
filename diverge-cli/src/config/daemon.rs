@@ -1,5 +1,6 @@
 //! One daemon, as the document holds it.
 
+use diverge_sdk::shared::Identity;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,14 @@ pub struct Daemon {
     /// its name in `accounts`. Absent, a run must name one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default: Option<String>,
+    /// The daemon's own identity, `{issuer, subject}`: who must answer
+    /// at the address. Stated, the handshake fails unless that
+    /// identity answers and proves the key its token names, so the
+    /// CLI reached the daemon it meant. Absent, whichever identity
+    /// answers with a token that verifies is taken: the CLI then
+    /// knows it reached someone who is who they say, and not whom.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<Identity>,
     /// The accounts the CLI may dial it as, by name, in the order the
     /// document gives them.
     #[serde(default)]

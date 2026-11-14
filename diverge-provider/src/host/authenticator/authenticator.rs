@@ -5,7 +5,7 @@ use std::net::IpAddr;
 
 use diverge_sdk::identities::Own;
 use diverge_sdk::shared::Identity;
-use diverge_sdk::wire::handshake::{Authenticator, Peer};
+use diverge_sdk::wire::handshake::{Authenticator, Judged, Peer, Presented};
 use futures_util::future::BoxFuture;
 
 use super::Peers;
@@ -55,11 +55,11 @@ pub struct Judging<'a> {
 }
 
 impl Authenticator for Judging<'_> {
-    fn present<'a>(&'a self) -> BoxFuture<'a, Result<String, String>> {
+    fn present<'a>(&'a self) -> BoxFuture<'a, Result<Presented, String>> {
         Box::pin(self.authenticator.own.present())
     }
 
-    fn verify<'a>(&'a self, token: &'a str, _address: IpAddr) -> BoxFuture<'a, Result<Peer, String>> {
+    fn verify<'a>(&'a self, token: &'a str, _address: IpAddr) -> BoxFuture<'a, Result<Judged, String>> {
         Box::pin(async move {
             // Rule 2: whom it claims to be is judged first, and only
             // then is its issuer trusted and its keys fetched.
@@ -70,14 +70,17 @@ impl Authenticator for Judging<'_> {
                 None if !this.incoming.contains(&claimed) => return Err(format!("{claimed} is not an identity that may dial this provider")),
                 _ => {}
             }
-            let peer = this.own.verify_from(token, &claimed.issuer).await?;
-            if peer != claimed {
+            // The identity, and the key its token names: the handshake
+            // holds the other end to the key.
+            let judged = this.own.verify_from(token, &claimed.issuer).await?;
+            let peer = &judged.peer;
+            if *peer != claimed {
                 return Err(format!("{peer} is not {claimed}, whom the token claimed"));
             }
-            if !this.peers.take(&peer).await {
+            if !this.peers.take(peer).await {
                 return Err(format!("{peer} is held by another connection"));
             }
-            Ok(peer)
+            Ok(judged)
         })
     }
 

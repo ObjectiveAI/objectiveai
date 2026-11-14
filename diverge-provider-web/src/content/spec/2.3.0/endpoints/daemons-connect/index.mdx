@@ -65,12 +65,17 @@ nothing about the connector or the acceptor.
 ## The rules that hold throughout
 
 - **No timeout.** The server times nothing out.
-- **The conduit.** The server relays the bytes of every relayed
-  frame verbatim, unread, unaltered, unreordered within one channel,
-  and never twice.
+- **The conduit.** The server relays the bytes of every message of
+  the relayed connection verbatim, unread, unaltered, unreordered
+  within one channel, and never twice.
 - **The handshake is the connection's.** The relayed connection
   begins as [Authorization](/authorization/) states: the connector's
-  first frame is its authorization frame, and the acceptor's first
-  frame is its own. The two tokens need not name the same issuer. The server relays both and
-  reads neither. A party that does not accept the other's token hangs
-  up, and the server ends the scope as step 6 states.
+  offer, the acceptor's answer, and the connector's proof, in that
+  order. The two tokens need not name the same issuer. The server
+  relays the three and reads none. A party that does not accept the
+  other hangs up, and the server ends the scope as step 6 states.
+- **The connection is sealed.** Every message of the relayed
+  connection after the proof is sealed under keys that the connector
+  and the acceptor alone hold, as [Sealing](/sealing/) states. The
+  server holds neither key, and reads no frame of the relayed
+  connection.

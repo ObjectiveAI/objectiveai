@@ -31,6 +31,7 @@ impl Default for Config {
         let local = Daemon {
             address: format!("ws://127.0.0.1:{DEFAULT_PORT}/"),
             default: None,
+            identity: None,
             accounts: IndexMap::new(),
         };
         Config {

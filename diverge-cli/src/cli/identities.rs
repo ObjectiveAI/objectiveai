@@ -36,9 +36,10 @@ use crate::ours;
 ///    or not — and `identities list` shows it; any other ending writes
 ///    nothing, and there is nothing to show.
 /// 4. **List.** Every identity, `{"issuer","subject"}`, one line each.
-/// 5. **Remove.** The identity taken out, printed as `{"removed":…}`.
+/// 5. **Remove.** The identity taken out, and its key with it, printed
+///    as `{"removed":…}`.
 ///
-/// No line holds a token.
+/// No line holds a token or a key.
 pub async fn run(root: &Path, command: Identities) -> Result<(), Error> {
     // Rule 0.
     if let Identities::Login { issuer, subject, client_id, scope, resource } = &command

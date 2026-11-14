@@ -62,6 +62,9 @@ Rules:
 
 - Exactly one direction per provider. An incoming provider is never dialled; an outgoing provider that
   dials in is refused. An IP is never a dial target, and an address is never an IP filter.
+- Every connection is encrypted after its handshake, with keys only its two ends hold. That includes a
+  daemon-to-daemon connection relayed through a provider: the provider carries it and cannot read it. The
+  provider still sees which daemons talk, when, and how much.
 - The mutual handshake establishes the provider's identity; an outgoing dial is refused unless the
   identity that answers is the record's.
 - The other side must agree: the provider's own `provider.yaml` must accept this daemon's identity (and,

@@ -91,12 +91,9 @@ impl Acceptor for DaemonAcceptor {
         });
         // Rule 1.
         Some(Box::pin(stream::unfold(from_session, |mut from_session| async move {
-            loop {
-                let bytes = from_session.recv().await?;
-                if let Ok(owned) = server::Owned::read(&bytes) {
-                    return Some((owned, from_session));
-                }
-            }
+            // Unread: after the handshake each is a sealed frame.
+            let bytes = from_session.recv().await?;
+            Some((server::Owned::of(&bytes), from_session))
         })))
     }
 }

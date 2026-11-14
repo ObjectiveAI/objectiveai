@@ -35,6 +35,12 @@ impl KeySets {
         Ok(KeySets { entries: Arc::new(DashMap::new()), http, lifetime })
     }
 
+    /// An empty cache that fetches with `http`, a client that follows
+    /// no redirect: what a program that holds one already shares.
+    pub(crate) fn with(http: reqwest::Client, lifetime: Duration) -> KeySets {
+        KeySets { entries: Arc::new(DashMap::new()), http, lifetime }
+    }
+
     /// The issuer's entry, made empty where there is none. The map's
     /// guard is let go before this returns, so it is never held across
     /// an await.

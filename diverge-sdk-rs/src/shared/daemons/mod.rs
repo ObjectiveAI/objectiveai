@@ -11,16 +11,16 @@
 //! the connection rides, and the connector's identity and address as
 //! the provider's own word.
 //!
-//! From then on the frames of a daemon connection cross the provider
-//! as bytes it does not read, every type of the wire's own — the
-//! connector's client frames one way, held as [`client::Owned`], the
-//! acceptor's server frames the other, held as [`server::Owned`]. The
-//! relayed connection is a connection like any on a socket, so it
-//! begins with the [`handshake`](crate::wire::handshake): the
-//! connector's first frame is its token, and the acceptor's first
-//! frame is its own. The provider relays both
-//! unread; a connection either end does not accept is one that end
-//! hangs up.
+//! From then on the messages of a daemon connection cross the
+//! provider as bytes it does not read — the connector's one way, held
+//! as [`client::Owned`], the acceptor's the other, held as
+//! [`server::Owned`]. The relayed connection is a connection like any
+//! on a socket, so it begins with the
+//! [`handshake`](crate::wire::handshake): three frames in the clear,
+//! the connector's first. Every message after them is a frame sealed
+//! under keys only the two daemons hold, so the provider relays what
+//! it cannot read; a connection either end does not accept is one that
+//! end hangs up.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in; the two

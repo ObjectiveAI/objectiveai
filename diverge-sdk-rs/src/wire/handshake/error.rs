@@ -9,12 +9,19 @@ use crate::wire::frame::auth::AuthError;
 /// these are for the caller, which drops the connection, and its log.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
-    /// The connection ended before the other end's token arrived.
+    /// The connection ended before the other end's handshake frame
+    /// arrived.
     Ended,
-    /// The other end's first frame was not a type `0` frame.
+    /// The other end's frame was not a type `0` frame.
     NotAuth,
-    /// The other end's token could not be read.
+    /// The other end's handshake frame could not be read.
     Malformed(AuthError),
+    /// The other end's signature is not its token's key's over this
+    /// handshake: it did not prove it holds the key.
+    Signature,
+    /// The key exchange yielded nothing: the other end's one-time key
+    /// was chosen to make the shared secret zero.
+    Exchange,
     /// This end has no token to present: why.
     Present(String),
     /// This end does not accept the other end's token: why.
@@ -26,9 +33,11 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Ended => f.write_str("the connection ended before the other end's token"),
-            Error::NotAuth => f.write_str("the other end's first frame was not its token"),
-            Error::Malformed(error) => write!(f, "the other end's token could not be read: {error}"),
+            Error::Ended => f.write_str("the connection ended before the other end's handshake frame"),
+            Error::NotAuth => f.write_str("the other end's frame was not a handshake frame"),
+            Error::Malformed(error) => write!(f, "the other end's handshake frame could not be read: {error}"),
+            Error::Signature => f.write_str("the other end did not prove it holds the key its token names"),
+            Error::Exchange => f.write_str("the key exchange yielded no shared secret"),
             Error::Present(why) => write!(f, "this end has no token to present: {why}"),
             Error::Refused(why) => write!(f, "the other end's token is not accepted: {why}"),
             Error::Send(why) => write!(f, "the token could not be sent: {why}"),

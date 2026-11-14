@@ -4,7 +4,9 @@ use clap::Subcommand;
 
 /// The host's OpenID Connect identities under the root,
 /// `<root>/identities/`, worked on here: signed in, listed, removed.
-/// No daemon is dialled, and no command prints a token.
+/// No daemon is dialled, and no command prints a token or a key. Each
+/// identity's key on this host is made by itself, at its login or the
+/// first time a token is asked for, and no command makes one.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Identities {
     /// Sign an identity in, by the device authorization grant: a code
@@ -37,7 +39,7 @@ pub enum Identities {
     /// Every identity on the host, as `{"issuer","subject"}`, one JSON
     /// line each.
     List,
-    /// Take an identity out.
+    /// Take an identity out, and its key with it.
     Remove {
         /// The issuer.
         #[arg(long)]
