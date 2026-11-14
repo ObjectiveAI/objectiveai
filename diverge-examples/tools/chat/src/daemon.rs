@@ -7,7 +7,7 @@ use std::sync::Arc;
 use diverge_sdk::container_proxy::inside::Client;
 use diverge_sdk::daemon::endpoints::agents::templates::get as template_get;
 use diverge_sdk::daemon::endpoints::agents::{list, message};
-use diverge_sdk::daemon::endpoints::images::info;
+use diverge_sdk::daemon::endpoints::images::read;
 use diverge_sdk::shared::containers::info::Document;
 use diverge_sdk::shared::containers::request::Image;
 use diverge_sdk::wire::client::handle::Handle;
@@ -128,12 +128,17 @@ impl Daemon {
         if let Some(known) = self.documents.lock().await.get(&image.digest) {
             return known.clone();
         }
-        let request = info::client::request::Frame { image: image.clone(), ignore: Vec::new(), relay: None };
-        let answer = info::client::execute::execute(handle, &request).await.ok()?;
+        // One read scope, held only as long as the one ask on it: the
+        // image's document, then the cancel and the scope's end.
+        let request = read::client::request::Frame { image: image.clone(), ignore: Vec::new(), relay: None };
+        let held = read::client::execute::execute(handle, &request).await.ok()?;
+        let answer = held.info().await;
+        let _ = held.cancel().await;
+        held.wait().await;
         let (document, kept) = match answer {
-            info::server::response::Frame::Info(document) => (Some(document), true),
-            info::server::response::Frame::Missing => (None, true),
-            _ => (None, false),
+            Ok(Some(document)) => (Some(document), true),
+            Ok(None) => (None, true),
+            Err(_) => (None, false),
         };
         if kept {
             self.documents.lock().await.insert(image.digest.clone(), document.clone());
