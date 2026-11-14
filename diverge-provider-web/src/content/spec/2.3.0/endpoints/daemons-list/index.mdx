@@ -1,12 +1,12 @@
 ---
 title: 'daemons::list'
-summary: 'Tag 26: a client asks which connected identities are announced; the server sends every such identity, with its announcement, its IP and its address, as added, says when the listing is whole, keeps sending as identities open and end their announce scopes, and finishes when the client cancels.'
-order: 26
+summary: 'Tag 25: a client asks which connected identities are announced; the server sends every such identity, with its announcement, its IP and its address, as added, says when the listing is whole, keeps sending as identities open and end their announce scopes, and finishes when the client cancels.'
+order: 25
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`26` and nothing more. The server sends every identity connected to
+`25` and nothing more. The server sends every identity connected to
 it that holds a [daemons::announce](/endpoints/daemons-announce/)
 scope open, one response each with the announcement that scope
 carries and the IP and the address of its connection. The server

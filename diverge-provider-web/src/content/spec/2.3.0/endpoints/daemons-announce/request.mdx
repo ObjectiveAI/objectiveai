@@ -1,15 +1,15 @@
 ---
 title: 'Request'
-summary: 'The payload is the tag byte 29 followed by the announcement, one description as UTF-8 running to the end of the payload; a payload whose announcement is not a description is malformed.'
+summary: 'The payload is the tag byte 28 followed by the announcement, one description as UTF-8 running to the end of the payload; a payload whose announcement is not a description is malformed.'
 order: 1
 draft: false
 ---
 
-The payload of the request is the tag byte `29` followed by the
+The payload of the request is the tag byte `28` followed by the
 announcement:
 
 ```text
-[29][announcement …]
+[28][announcement …]
 ```
 
 - **The announcement.** Every byte of the payload after the tag: one

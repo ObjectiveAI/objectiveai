@@ -13,10 +13,10 @@ finish. The server computes the proof over the bytes of the image it
 holds and compares the two values. The check passes if, and only if,
 the two values are equal.
 
-On an [images::oci](/endpoints/images-oci/) scope the parties to the
+On an [images::read](/endpoints/images-read/) scope the parties to the
 ask are exchanged: the client opens the channel carrying the `prove`
 ask, and the server answers it with the proof, as
-[oci-prove](/endpoints/images-oci/client/oci-prove/) states. The
+[oci-prove](/endpoints/images-read/client/oci-prove/) states. The
 server makes no check on that scope.
 
 ## The nonce
@@ -36,7 +36,7 @@ names: on a [containers::agents::run](/endpoints/containers-agents-run/)
 or a [containers::tools::run](/endpoints/containers-tools-run/) scope,
 the image of the run; on an [images::push](/endpoints/images-push/)
 scope, the image of the push; on an
-[images::oci](/endpoints/images-oci/) scope, the image of the scope.
+[images::read](/endpoints/images-read/) scope, the image of the scope.
 The ask names no image.
 
 The image bytes `D` of an image are the concatenation of the
@@ -127,7 +127,7 @@ read as [Notation](/endpoints/#notation) provides:
 ```
 
 - **The answerer.** The client answers the ask on every scope but an
-  [images::oci](/endpoints/images-oci/) scope, on which the server
+  [images::read](/endpoints/images-read/) scope, on which the server
   answers it.
 - **The sequence.** The client answers with exactly one channel
   response, followed by the channel response finish. A channel

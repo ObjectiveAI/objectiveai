@@ -1,0 +1,20 @@
+---
+title: 'Request'
+summary: 'The payload of the channel request the client sends: the tag byte 4 alone.'
+order: 1
+draft: false
+---
+
+```text
+[4]
+```
+
+- **The tag.** The byte `4` and nothing more. The request names no
+  image: the image is the image of the scope.
+- **Bytes after the tag.** The server ignores any bytes that follow
+  the tag.
+
+The channel request is defined by `diverge-sdk-rs/src/provider/endpoints/images/read/client/channel_request/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/read/client/channel_request/frame.rs
+```

@@ -1,12 +1,12 @@
 ---
 title: 'daemons::message'
-summary: 'Tag 28: a client sends one message to one identity; the server queues it in that identity’s mailbox and answers exactly once, when the receiver has taken it, when the receiver is not listening, or at once when the sender is over its rate, and the scope finishes.'
-order: 28
+summary: 'Tag 27: a client sends one message to one identity; the server queues it in that identity’s mailbox and answers exactly once, when the receiver has taken it, when the receiver is not listening, or at once when the sender is over its rate, and the scope finishes.'
+order: 27
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`28`, the identity of the receiver, and the body of the message. The
+`27`, the identity of the receiver, and the body of the message. The
 server queues the message in the receiver's mailbox, which a
 [daemons::listen](/endpoints/daemons-listen/) scope holds open, and
 sends exactly one response when the message's fate is known; the

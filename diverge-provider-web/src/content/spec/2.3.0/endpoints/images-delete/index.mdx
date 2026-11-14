@@ -1,12 +1,12 @@
 ---
 title: 'images::delete'
-summary: 'Tag 20: a client names an image of its Store by digest; the server sends exactly one response stating that the image is no longer in the client’s Store, that a running container runs it and it was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
-order: 20
+summary: 'Tag 19: a client names an image of its Store by digest; the server sends exactly one response stating that the image is no longer in the client’s Store, that a running container runs it and it was not deleted, or an error, and the scope finishes; the deletion is not reversible.'
+order: 19
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`20` followed by the digest of an image. The server sends exactly one
+`19` followed by the digest of an image. The server sends exactly one
 response, which states that the image is deleted, that a running
 container of the client runs the image and it was not deleted, that
 the server keeps no Store, or an error. The response finish follows
@@ -32,7 +32,7 @@ the response, and no frame follows the finish.
   [images::build](/endpoints/images-build/) or an
   [images::push](/endpoints/images-push/) request by the client
   brings an image of that digest into the client's Store again. An
-  [images::oci](/endpoints/images-oci/) request by the client naming the
+  [images::read](/endpoints/images-read/) request by the client naming the
   digest is answered as for any image that is not in the client's
   Store: from the registries its references name, where the server
   has them, and otherwise NotFound. [Response](/endpoints/images-delete/response/) states the

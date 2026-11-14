@@ -1,0 +1,34 @@
+---
+title: 'Info'
+summary: 'Tag 4: the client asks for the /DIVERGE.md of the image of the scope; the server reads the file out of the image without running it and answers with exactly one channel response, the document parsed, the word that the image ships none, or an error, and the channel response finish.'
+order: 4
+draft: false
+---
+
+The client opens this channel to learn what the `arguments` of a
+container of the image of the scope may be: the image's
+[document](/shared/document/), the image the request of
+[images::read](/endpoints/images-read/) names.
+
+- **The request.** The tag byte `4` and nothing more.
+  [Request](/endpoints/images-read/client/info/request/) states its
+  form.
+- **The response.** Exactly one channel response — the document, the
+  word that the image ships none, or an error — and the channel
+  response finish.
+  [Response](/endpoints/images-read/client/info/response/) states the
+  sequence.
+- **Nothing runs.** The server reads the file at `/DIVERGE.md` in the
+  filesystem of the image. The server starts no container of the
+  image, runs no program of it, and injects no proxy into it.
+- **The image.** The server reads the file from the image as the
+  scope holds it: from the source that answered the request, the
+  client's Store or a registry in the server's
+  [`images_registries`](/capabilities/#images_registries) that a
+  reference of the request names.
+- **The only document.** No other scope of the server answers an
+  image's document. A container scope carries no channel that
+  answers it, and the server reads no document of an image that no
+  read scope holds.
+- **Asked any number of times.** A client may open this channel more
+  than once on one scope. The server answers each on its own channel.

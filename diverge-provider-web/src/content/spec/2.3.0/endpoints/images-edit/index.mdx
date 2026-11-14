@@ -1,12 +1,12 @@
 ---
 title: 'images::edit'
-summary: 'Tag 19: a client names an image of its Store by digest and gives a new description, or none; the server sends exactly one response stating that the image has that description from now on, that the client owns no image of the digest, that the server keeps no Store, or an error, and the scope finishes.'
-order: 19
+summary: 'Tag 18: a client names an image of its Store by digest and gives a new description, or none; the server sends exactly one response stating that the image has that description from now on, that the client owns no image of the digest, that the server keeps no Store, or an error, and the scope finishes.'
+order: 18
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`19` followed by the digest of an image and a description, or none.
+`18` followed by the digest of an image and a description, or none.
 The server sends exactly one response, which states that the
 description is kept, that the client's Store holds no image of the
 digest, that the server keeps no Store, or an error. The response

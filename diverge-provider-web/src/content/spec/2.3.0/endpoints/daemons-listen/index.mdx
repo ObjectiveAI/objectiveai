@@ -1,12 +1,12 @@
 ---
 title: 'daemons::listen'
-summary: 'Tag 27: a client asks for every message sent to its identity; the server sends each message, one at a time, as the client takes the one before it, and finishes when the client cancels.'
-order: 27
+summary: 'Tag 26: a client asks for every message sent to its identity; the server sends each message, one at a time, as the client takes the one before it, and finishes when the client cancels.'
+order: 26
 draft: false
 ---
 
 A client opens the scope with a request whose payload is the tag byte
-`27` and nothing more. The server opens a mailbox under the identity
+`26` and nothing more. The server opens a mailbox under the identity
 of the connection, and sends every message that a
 [daemons::message](/endpoints/daemons-message/) names that identity in, one
 response each, for as long as the scope lives. The scope ends at the

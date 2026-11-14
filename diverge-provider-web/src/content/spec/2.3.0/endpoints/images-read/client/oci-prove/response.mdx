@@ -1,0 +1,29 @@
+---
+title: 'Response'
+summary: 'The server answers with exactly one channel response, the 32-byte proof, and the channel response finish; a finish with nothing before it states that the server cannot supply the image’s bytes or that the ask breaks the platform requirement.'
+order: 2
+draft: false
+---
+
+```text
+[proof: 32 bytes]      exactly once: the proof
+```
+
+- **The sequence.** Exactly one channel response, followed by the
+  channel response finish, or a channel response finish that no
+  channel response precedes.
+- **The frame.** Exactly 32 bytes, the proof that
+  [Possession](/shared/possession/#the-proof) defines over the image
+  of the scope, with the platform and the nonce of the ask, with no tag
+  and no header, as [Possession](/shared/possession/#the-answer)
+  defines.
+- **No proof.** A channel response finish that no channel response
+  precedes states that the server cannot supply the bytes of the image
+  of the scope, or that the ask breaks the requirement on `platform`
+  that [Possession](/shared/possession/#the-image-bytes) states. It
+  states no reason.
+
+The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/images/read/server/channel_response/oci_prove/frame.rs`:
+
+```rust include=diverge-sdk-rs/src/provider/endpoints/images/read/server/channel_response/oci_prove/frame.rs
+```

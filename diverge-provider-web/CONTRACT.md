@@ -104,7 +104,7 @@ byte: `0` `containers::agents::run`, `1` `containers::tools::run`, `2`
 `volumes::create`, `11` `volumes::edit_capacity`, `12` `volumes::edit`,
 `13` `volumes::delete`, `14` `images::check`, `15` `images::list`,
 `16` `images::stat`, `17` `images::build`, `18` `images::delete`,
-`19` `images::oci`, `20` `info`, `21` `capacity`, `22`
+`19` `images::read`, `20` `info`, `21` `capacity`, `22`
 `daemons::accept`, `23` `daemons::connect`.
 
 1.10 **"Container Image"** or **"Image"** means an OCI image named in
@@ -490,7 +490,7 @@ shall serve no Channel on the Scope; and shall look up nothing, hold
 nothing, obtain nothing, deploy nothing and change nothing for the
 request. In particular the Provider shall answer: every
 `images::list`, `images::stat`, `images::build`, `images::delete` and
-`images::oci` request, where `images_store` is not held out, by the
+`images::read` request, where `images_store` is not held out, by the
 byte `4`, `1`, `4`, `2` and `0` respectively, alone; every `volumes::create` request
 stating a mode the Provider holds out no mode object for by the byte
 `2` alone, and every `volumes::edit` request naming a Volume in the
@@ -810,7 +810,7 @@ of another Identity.
 Every covenant of this Section but (f) binds a Provider that holds out
 the `images_store` Capability; a Provider that does not shall answer
 every `images::list`, `images::stat`, `images::build`, `images::delete`
-and `images::oci` request as Section 5.5(d) provides, holds no Client
+and `images::read` request as Section 5.5(d) provides, holds no Client
 Image for any Identity, and is bound by nothing else in this Section.
 
 (a) **Listing.** The Provider shall answer every `images::list`
@@ -888,7 +888,7 @@ a Client Image to any other Identity under either Section, unless
 that Identity has itself built an image of the same digest.
 
 (f) **Pull.** The Provider shall, where it holds out the
-`images_store` Capability, serve every `images::oci` request
+`images_store` Capability, serve every `images::read` request
 as a Scope kept open on which it sends no Response, and shall answer
 every Channel the Identity opens on it from what it holds for the
 Identity — the Client Images of the Identity, each byte for byte as
@@ -911,7 +911,7 @@ every Channel still open, when it receives the Identity's
 `disconnect` and when the Identity's Connection ends, and shall send
 the Response Finish with no Response before it, serving no Channel,
 for a pull it will not serve. A Provider that does not hold out the
-`images_store` Capability shall answer every `images::oci` request
+`images_store` Capability shall answer every `images::read` request
 with exactly one Response on the main stream, the byte `0` alone, and
 the Response Finish, and shall answer no Channel on the Scope.
 
