@@ -8,6 +8,7 @@ use crate::file_lock;
 use crate::identities::claims::now;
 use crate::identities::discovery::{at, discover};
 use crate::identities::identities::folder_owned;
+use crate::identities::key;
 use crate::identities::oauth::{Answer, post};
 use crate::identities::{Error, Identities, Name};
 
@@ -68,11 +69,13 @@ impl Identities {
         self.begin(held, name, client_id, scope, resource).await
     }
 
-    /// The login, the identity's lock in hand: the discovery document
-    /// read, the device code asked for, and the [`Pending`] holding the
-    /// lock from here on — a failure here lets it go at once.
+    /// The login, the identity's lock in hand: the identity's key
+    /// read, and made where it has none; the discovery document read;
+    /// the device code asked for; and the [`Pending`] holding the lock
+    /// from here on — a failure here lets it go at once.
     async fn begin(&self, held: file_lock::Held, name: &Name, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Pending, Error> {
         let issuer = name.issuer.as_str();
+        let jwk = key::ensure(&self.paths(name)).await?.jwk();
         let discovery = discover(&self.http, issuer).await?;
         let device = discovery
             .device_authorization_endpoint
@@ -100,6 +103,7 @@ impl Identities {
             token_endpoint: discovery.token_endpoint,
             scope,
             resource: resource.map(str::to_string),
+            jwk,
             device_code: Zeroizing::new(code.device_code),
             interval: code.interval.unwrap_or(INTERVAL),
             expires: now().saturating_add(i64::try_from(code.expires_in).unwrap_or(i64::MAX)),

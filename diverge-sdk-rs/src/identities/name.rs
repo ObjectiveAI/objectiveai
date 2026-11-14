@@ -33,6 +33,11 @@ pub(super) struct Paths {
     /// Where a write is staged before it is renamed over the record:
     /// `.<subject>.json.writing`.
     pub(super) staging: PathBuf,
+    /// The identity's key on this host: `<subject>.key`.
+    pub(super) key: PathBuf,
+    /// Where the key is staged before it is renamed over the key:
+    /// `.<subject>.key.writing`.
+    pub(super) key_staging: PathBuf,
 }
 
 impl Identities {
@@ -44,6 +49,8 @@ impl Identities {
             record: folder.join(format!("{subject}.json")),
             lock: folder.join(format!("{subject}.lock")),
             staging: folder.join(format!(".{subject}.json.writing")),
+            key: folder.join(format!("{subject}.key")),
+            key_staging: folder.join(format!(".{subject}.key.writing")),
             folder,
         }
     }

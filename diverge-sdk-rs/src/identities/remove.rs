@@ -6,10 +6,10 @@ use super::{Error, Identities, Name};
 use crate::file_lock;
 
 impl Identities {
-    /// Remove `name`'s file, under its lock. The answer is whether
-    /// there was one. The lock file stays, as every lock file does,
-    /// and the issuer is not told: its refresh token simply goes
-    /// unused.
+    /// Remove `name`'s file, and its key with it, under its lock. The
+    /// answer is whether there was a file. The lock file stays, as
+    /// every lock file does, and the issuer is not told: its refresh
+    /// token simply goes unused.
     pub async fn remove(&self, name: &Name) -> Result<bool, Error> {
         let paths = self.paths(name);
         match tokio::fs::metadata(&paths.folder).await {
@@ -23,6 +23,11 @@ impl Identities {
             Err(error) if error.kind() == io::ErrorKind::NotFound => false,
             Err(source) => return Err(Error::Io { path: paths.record, source }),
         };
+        match tokio::fs::remove_file(&paths.key).await {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(source) => return Err(Error::Io { path: paths.key, source }),
+        }
         drop(held);
         Ok(removed)
     }

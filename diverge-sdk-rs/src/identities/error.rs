@@ -87,6 +87,20 @@ pub enum Error {
         /// The seconds the new token is good for.
         expires_in: i64,
     },
+    /// An identity's key file is not a key this module wrote.
+    Key {
+        /// The file.
+        path: PathBuf,
+        /// What was wrong.
+        why: String,
+    },
+    /// The identity has a key already, and it was not to be
+    /// overwritten: nothing changed.
+    KeyExists(Name),
+    /// The identity's issuer answered an ID token that does not name
+    /// the identity's key: it writes no `cnf` claim, and no Diverge
+    /// program takes such a token.
+    Unbound(Name),
 }
 
 impl fmt::Display for Error {
@@ -116,6 +130,9 @@ impl fmt::Display for Error {
             Error::TooShort { expires_in } => {
                 write!(f, "the issuer's new token is good for {expires_in} seconds, no longer than was asked")
             }
+            Error::Key { path, why } => write!(f, "`{}` is not an identity's key: {why}", path.display()),
+            Error::KeyExists(name) => write!(f, "the identity {name} has a key already; it is replaced only when told to overwrite it"),
+            Error::Unbound(name) => write!(f, "the issuer of {name} answered an ID token that names no key: it cannot be presented"),
         }
     }
 }

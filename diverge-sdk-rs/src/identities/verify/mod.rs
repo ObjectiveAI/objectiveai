@@ -47,8 +47,13 @@
 //!    passed, give or take a minute, and `aud` must hold the
 //!    `audience` asked, where one is. `exp`, `iss` and `sub` are
 //!    required. Any failure is [`VerifyError::Invalid`].
-//! 8. **The answer** is [`Verified`]: the token's issuer, subject and
-//!    expiry.
+//! 8. **The key.** The token's `cnf` claim, RFC 7800, carries a `jwk`
+//!    that is an Ed25519 public key, RFC 8037: `kty` `OKP`, `crv`
+//!    `Ed25519`, `x` thirty-two bytes. A token without one is
+//!    [`VerifyError::Unbound`]: its signature says who it is for and
+//!    nothing says who may present it.
+//! 9. **The answer** is [`Verified`]: the token's issuer, subject and
+//!    expiry, and the key it names.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
