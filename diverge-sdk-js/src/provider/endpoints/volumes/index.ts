@@ -4,3 +4,4 @@
 
 export * from "./mode.js";
 export * as write from "./write/index.js";
+export * as fuse_serve from "./fuse_serve/index.js";
