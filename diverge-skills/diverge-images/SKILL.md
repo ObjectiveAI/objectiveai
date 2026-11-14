@@ -1,6 +1,6 @@
 ---
 name: diverge-images
-description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its podman cache, a listed registry, the caller), how to build an image on a provider with `diverge run images build` and get its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images info` and `diverge run images oci` commands, and a reference of every image in the repository — the six agent-loop images (python, lone, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
+description: Container images in Diverge — what an image reference is (`{digest, references:[{registry,name}]}`), where a provider gets an image from (its Store, its podman cache, a listed registry, the caller), how to build an image on a provider with `diverge run images build` and get its digest, the image's `/DIVERGE.md` (frontmatter `name`, `schema`, `frontend`), the `diverge run images read` command (the one way to an image's `DIVERGE.md`), and a reference of every image in the repository — the six agent-loop images (python, lone, openrouter, codex, hermes, cc) and the example images (courier, taskboard, memory, alarm, chat, human) with each one's `arguments`, secrets and their modes (fixed/rotating), dependencies and a minimal template body. Load it when you need an image digest for a template, when a deploy fails with the image unavailable or "the provider pulls from no registry the image's references name", when you need to know what `arguments` or `secrets` an image takes, when you build or rebuild an image, or when you read an image's DIVERGE.md.
 ---
 
 # Diverge images
@@ -8,18 +8,18 @@ description: Container images in Diverge — what an image reference is (`{diges
 An image is an OCI container image whose program speaks Diverge's inside-container contract: an agent
 loop (it takes messages and answers them) or a tool (an MCP server). Diverge never names an image by
 tag. A template names it by **manifest digest**, plus a list of **references** that say where the bytes
-may be fetched. The daemon keeps no record of images; it reaches one through a container that runs it
-or a provider that can obtain it.
+may be fetched. The daemon keeps no record of images; it reaches one through a provider or a remote daemon
+that can supply it.
 
 This skill covers: the image reference, where a provider finds an image, building one into the
-provider's store, `/DIVERGE.md`, the two `images` commands, and what each image in the repository
+provider's store, `/DIVERGE.md`, the `images read` command, and what each image in the repository
 takes. Templates, agents and tools themselves are in `diverge-agents` and `diverge-tools`; vault keys
 for secrets are in `diverge-storage`.
 
 ## The image reference
 
 Every place that names an image (an agent template, a tool template, a dependency entry,
-`images info`, `images oci`) uses the same object:
+`images read`, `images build`) uses the same object:
 
 ```json
 {
@@ -55,9 +55,11 @@ under its `info`'s `capabilities`). A provider passes when
   remote daemon holds the image. An image built with `diverge run images build` is in the Store and is
   found this way.
 
-So even for an image that exists only in the provider's local cache, put a reference naming a listed
-registry in the body, for example `{"registry":"docker.io","name":"diverge-local/python"}`. Nothing is
-pulled from that registry: the provider finds the digest locally first (next section).
+So an image is named one of two ways: by its digest alone, when it was built into the Store with
+`diverge run images build`; or by its digest plus a reference naming a listed registry that really
+serves it. An image that exists only in a provider's local cache, built or loaded behind the provider's
+back, is not an image the daemon can read: `images read` does not hold it, so it has no readable
+`DIVERGE.md`, and an agent or tool cannot be created from it.
 
 ## Where a provider gets an image
 
@@ -229,99 +231,52 @@ What each member means:
 The images in this repository generate their schema from their Rust argument types; running the
 image's program with `--schema` prints the same schema as the frontmatter carries.
 
-## `diverge run images info`: read an image's DIVERGE.md
+## `diverge run images read`: can the daemon supply an image, and one ask of it
 
-When: you have a digest and need the argument schema or the secrets an image declares.
-
-```bash
-diverge run images info '{"image":{"digest":"sha256:…","references":[{"registry":"docker.io","name":"diverge-local/python"}]}}'
-
-# just the argument schema, or just the prose
-diverge run images info --jq '.info.schema' '{"image":{…}}'
-diverge run images info --jq '.info.body'   '{"image":{…}}'
-```
-
-Body: `image` (required, the reference above) and the optional `relay`. Run
-`diverge run images info request-schema` for the exact shape.
-
-One answer:
-
-| answer | meaning |
-|---|---|
-| `{"info":{"name":…,"schema":{…},"frontend":true,"chat":{…},"body":"…"}}` | the document, parsed (`frontend`, `chat` and `structured_decisions` each absent when false) |
-| `"missing"` | the image ships no `/DIVERGE.md` |
-| `"no_source"` | no container of the image runs, and no connected provider or remote daemon holds it |
-| `"forbidden"` | the account holds no `{"images":["info"]}` grant |
-| `{"error":…}` | a failure, in the provider's words where it said any; nothing is retried |
-
-How the daemon finds it, in order:
-
-1. Its own record of the digest. Once a document has been found for a digest it is recorded and
-   answered from the record from then on (a digest never changes what it ships). Only a document is
-   recorded: a `missing`, a `no_source` and an `error` are asked again.
-2. A running container of that digest (an agent's or a tool's the daemon runs itself): one is chosen
-   and asked on its run's info channel. References are not compared, and the asker's grants over
-   agents or tools do not narrow this.
-3. Otherwise every connected provider and every remote daemon is asked **at once** whether it holds
-   the image (the cheap question `images oci` asks; nothing is pulled). The first that does is asked
-   for the document: a provider reads the file out of the image **without running it**; a remote
-   daemon answers `images info` itself, by these same rules. One that fails is passed over for the
-   next holder.
-4. With no holder, every connected provider is asked for the document outright, all at once. This
-   finds an image that is only in a provider's local podman cache, which the "holds" question does
-   not look in.
-5. Nothing found is `no_source`, or the last failure heard.
-
-Notes:
-
-- A remote daemon is asked as the account this daemon holds there, which needs `{"images":["info"]}`
-  on that daemon (and the `oci` grant for the "holds" question). Without it that daemon is passed over.
-- The request's optional `ignore` (identities of daemons not to ask) is the loop guard daemons use
-  among themselves; leave it out.
-- **`agents create` and `standalone-tools create` run this search** for the template's image and
-  refuse an image with no document, so the first create of a new image can take as long as a
-  provider needs to pull it. Asking `images info` beforehand records the document, and the create
-  then answers from the record.
-
-Grant: `{"images":["info"]}` (a bare array; there is no `within`, since images are not records).
-
-## `diverge run images oci`: can the daemon supply an image, and one ask of it
-
-When: you need to know whether any source the daemon reaches (a provider's Store or registries, or a
-remote daemon) can supply an image by digest, or you want one of its manifests, one of its blobs, or
-a possession proof. Rarely needed for ordinary use; it is the daemon-facing form of the OCI exchange
-providers use to move images between each other.
+When: you have a digest and need the image's `DIVERGE.md` (its argument schema, the secrets it declares),
+or you need to know whether any source the daemon reaches can supply the image at all. It is the one way
+to an image's document. Its manifests, blobs and possession proof are on the same command and are rarely
+needed by hand: they are how providers move images between each other.
 
 ```bash
-# only the question
-diverge run images oci '{"image":{"digest":"sha256:…","references":[{"registry":"docker.io","name":"library/alpine"}]}}'
+# the document: the argument schema, or the prose
+diverge run images read --info '{"image":{"digest":"sha256:…"}}'
+diverge run images read --info --jq '.info? // empty | .schema' '{"image":{…}}'
+diverge run images read --info --jq '.info? // empty | .body'   '{"image":{…}}'
 
-# the question, then one ask on the held scope
-diverge run images oci --manifest sha256:… '{"image":{…}}'
-diverge run images oci --blob sha256:… --out layer.bin '{"image":{…}}'
-diverge run images oci --prove-nonce <64 hex chars> [--platform sha256:…] '{"image":{…}}'
+# only the question: can it be supplied?
+diverge run images read '{"image":{"digest":"sha256:…","references":[{"registry":"docker.io","name":"library/alpine"}]}}'
+
+# the image's parts
+diverge run images read --manifest sha256:… '{"image":{…}}'
+diverge run images read --blob sha256:… --out layer.bin '{"image":{…}}'
+diverge run images read --prove-nonce <64 hex chars> [--platform sha256:…] '{"image":{…}}'
 ```
 
 Body: `image` (required), `ignore` (optional list of `{issuer, subject}` identities of remote daemons
-not to ask), `relay` (optional). The body is required here; there is no `{}` default that makes
-sense. Flags, at most one ask per invocation:
+not to ask), `relay` (optional). The body is required here; there is no `{}` default that makes sense.
+Run `diverge run images read request-schema` for the exact shape. Flags, at most one ask per invocation:
 
 | flag | does |
 |---|---|
+| `--info` | prints the image's `DIVERGE.md`, parsed |
 | `--manifest <DIGEST>` | prints the manifest under that digest the image reaches, with its media type |
 | `--blob <DIGEST>` with `--out <PATH>` | writes that blob to the file (truncated first); `--blob` and `--out` require each other |
 | `--prove-nonce <HEX>` | prints the proof over the image under that 64-hex-character nonce |
 | `--platform <DIGEST>` | only with `--prove-nonce`: which manifest of an image index is meant |
 
-Lines printed: first the daemon's answer, then (only after `"held"` and only when an ask was given)
-the ask's answer.
+Lines printed: first the daemon's answer, then (only after `"held"` and only when an ask was given) the
+ask's answer. So `--info` prints two lines, `"held"` and the document; the `--jq` filters above skip the
+first.
 
 | line | meaning |
 |---|---|
 | `"held"` | a source can supply the image; the scope is served through that one source |
-| `"not_found"` | no source the daemon asked can |
-| `"forbidden"` | the account holds `oci` over no provider and no remote daemon record |
-| `{"error":…}` | a failure |
+| `"not_found"` | no source the daemon asked holds the image |
+| `"forbidden"` | the account holds `read` over no provider and no remote daemon record |
+| `{"error":…}` | a failure; after `"held"`, the source could not read the document, or it is not one |
+| `{"info":{"name":…,"schema":{…},"frontend":true,"chat":{…},"body":"…"}}` | the document, parsed (`frontend`, `chat` and `structured_decisions` each absent when false) |
+| `"missing"` | the image ships no `/DIVERGE.md` |
 | `{"media_type":"…","body":"…"}` | the manifest asked for |
 | `{"path":"…","bytes":N}` | the blob asked for, written |
 | `{"proof":"<64 hex>"}` | the proof asked for |
@@ -329,13 +284,30 @@ the ask's answer.
 
 Rules:
 
-- The daemon holds nothing itself. It opens the question on every connected provider that keeps a
+- **The daemon holds no image itself.** It opens the question on every connected provider that keeps a
   Store or lists a registry, and on every remote daemon it records, all at once; the first to answer
   held is the source and the rest are cancelled.
-- Only sources the caller's grants reach are asked: a provider where a `providers` grant holds `oci`
-  over it, a remote daemon where a `daemons` grant holds `oci` over its record. See `diverge-access`.
-- A remote daemon in `ignore`, or the daemon itself, is never asked, so rings of daemons end.
+- **A provider holds an image by the rules it deploys one by**: the image is in the asking daemon's
+  Store there, or a registry the provider lists serves it under one of the image's references. An image
+  that is only in a provider's cache is not held, and has no readable document.
+- **Only sources the caller's grants reach are asked**: a provider where a `providers` grant holds `read`
+  over it, a remote daemon where a `daemons` grant holds `read` over its record. See `diverge-access`.
+  A remote daemon is asked as the account this daemon holds there, which needs `read` on that daemon too.
+- **The document is recorded.** Once the daemon has read a document for a digest it keeps it (a digest
+  never changes what it ships) and answers `--info` from its record, asking the source nothing. Only a
+  document is recorded: a `"missing"` and an `{"error":…}` are asked again. The image must still be
+  held somewhere for the scope to open.
+- **No container is asked.** A document is read out of the image, never from a running container of it.
+- **`agents create`, `standalone-tools create` and a dependency's deployment read the document
+  themselves**, from the record or from any source the daemon reaches, whatever the caller's grants,
+  and refuse an image with none. The first create of a new image can take as long as a provider needs
+  to pull it.
+- A remote daemon in `ignore`, or the daemon itself, is never asked, so rings of daemons end. Leave
+  `ignore` out.
 - The CLI cancels the scope after the one ask; each invocation is a fresh question.
+
+Grant: `read` over providers and over daemons, for example
+`{"providers":{"actions":["read"],"within":"any"}}`. There is no grant over images for it.
 
 ## The images in this repository
 
@@ -400,13 +372,13 @@ template declares. Details and lifecycle are in `diverge-tools`; the entry shape
 | Start error saying the image is unavailable | The digest is not in the daemon's Store on that provider and no listed registry serves it. Build it with `diverge run images build` on that provider and use the digest it prints. |
 | The image deploys but its program misbehaves against the proxy | The image predates the current inside-container contract. Rebuild it from current source. |
 | Start error naming a secret the template does not declare | The program's arguments select a secret (see the per-image reference) that the template's `secrets` omits. Add the name to the template (a new template id) and bind it on the create. |
-| `images info` answers `no_source` for a local image | No connected provider has the image in its cache, its Store or a listed registry, and no remote daemon holds it. Build it on a connected provider with `diverge run images build`. |
+| `images read` answers `"not_found"` for a local image | No connected provider has the image in the daemon's Store or serves it from a listed registry, and no remote daemon holds it. An image only in a provider's cache does not count. Build it on a connected provider with `diverge run images build`. |
 | A rebuilt image has the same tag but templates still run the old one | Templates name digests. A rebuild is a new digest: make a new template with it. |
 
 ## Not verified
 
 - The provider protocol also has `images::push`, `edit`, `stat`, `list` and `delete` over the caller's
-  Store, but the CLI exposes only `build`, `info` and `oci` under `diverge run images`. Listing or
+  Store, but the CLI exposes only `build` and `read` under `diverge run images`. Listing or
   deleting what the Store holds from the CLI is therefore not covered.
 - Running a container from a Store image whose template names no `references` is from the daemon's
   code (it asks who holds the digest when no registry matches), not run live.

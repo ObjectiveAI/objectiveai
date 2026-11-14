@@ -121,7 +121,7 @@ member decodes).
 | Over | `edit` | `providers edit` |
 | Over | `enable`, `disable` | `providers enable` / `disable` |
 | Over | `delete` | `providers delete` |
-| Over | `oci` | `images oci`: the daemon asks only the providers the grant reaches |
+| Over | `read` | `images read` (whether an image can be supplied, and its manifests, blobs, proof and DIVERGE.md): the daemon asks only the providers the grant reaches |
 | Tagging | `tag`, `untag` | `providers tag` / `untag` |
 
 ## providers_daemons
@@ -147,7 +147,7 @@ Remote daemons' records.
 | Over | `get`, `list`, `edit`, `delete` | the request of the same name |
 | Over | `connect` | naming the record as `daemon` in `connected-standalone-tools create` |
 | Over | `relay` | any request whose `relay` starts with the record's ID |
-| Over | `oci` | `images oci`: the daemon asks only the remote daemons the grant reaches |
+| Over | `read` | `images read`: the daemon asks only the remote daemons the grant reaches |
 | Tagging | `tag`, `untag` | `daemons tag` / `untag` |
 
 `within`: `ids`, `issuers`, `creators`, `connected`, `all_tags`, `any_tags`, `created_from`, `created_to`.
@@ -215,9 +215,9 @@ A grant reaches a volume or a container whole; it cannot narrow by path.
 |---|---|---|
 | `postgres` | `get`, `list` | `postgres get` (which database, no password), `postgres list` (container connections) |
 | `events` | `list` | `events list` |
-| `images` | `info` | `images info` (an image's DIVERGE.md). `images oci` is judged by `oci` over providers and over daemons instead |
+| `images` | `build` | `images build` (with `mount` over the context volume). `images read`, an image's DIVERGE.md included, is judged by `read` over providers and over daemons instead |
 
-Examples: `{"postgres":["get","list"]}`, `{"events":["list"]}`, `{"images":["info"]}`.
+Examples: `{"postgres":["get","list"]}`, `{"events":["list"]}`, `{"images":["build"]}`.
 
 ## identities
 
@@ -242,16 +242,15 @@ The identities signed in on the daemon's host.
  {"standalone_tools_templates":{"actions":["get","list"],"within":"any"}},
  {"connected_standalone_tools":{"actions":["get","list","logs"],"within":"any"}},
  {"dependency_tools":{"actions":["get","list","logs"],"within":"any"}},
- {"providers":{"actions":["get","list"],"within":"any"}},
+ {"providers":{"actions":["get","list","read"],"within":"any"}},
  {"providers_daemons":{"actions":["list"],"within":"any"}},
- {"daemons":{"actions":["get","list"],"within":"any"}},
+ {"daemons":{"actions":["get","list","read"],"within":"any"}},
  {"accounts":{"actions":["get","list"],"within":"any"}},
  {"roles":{"actions":["get","list"],"within":"any"}},
  {"volumes":{"actions":["get","list","stat"],"within":"any"}},
  {"vault":{"actions":["list"],"within":"any"}},
  {"postgres":["get","list"]},
  {"events":["list"]},
- {"images":["info"]},
  {"identities":{"actions":["list"],"within":"any"}}]}
 ```
 

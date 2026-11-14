@@ -310,7 +310,7 @@ The one difference that matters:
 
 ## The example tools
 
-Each is an image under `diverge-examples/` with a `DIVERGE.md` (read it with `diverge run images info`). All take
+Each is an image under `diverge-examples/` with a `DIVERGE.md` (read it with `diverge run images read --info`). All take
 `arguments: {}` and no secrets. Details and the exact MCP tools of each are in
 [references/example-tools.md](references/example-tools.md).
 

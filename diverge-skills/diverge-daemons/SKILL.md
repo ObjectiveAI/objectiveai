@@ -299,7 +299,7 @@ Rules:
   given. One passing route is chosen at random; if none passes, the remote is not reached, with no fallback.
 - `delete` answers `in_use` while a connected tool names the record; delete those tools first. Deleting
   drops a held connection.
-- Grants: `{"daemons":["add"]}`; `get`, `list`, `edit`, `delete`, `connect`, `relay`, `oci` over daemons
+- Grants: `{"daemons":["add"]}`; `get`, `list`, `edit`, `delete`, `connect`, `relay`, `read` over daemons
   (`within` filter members `ids`, `issuers`, `creators`, `connected`, tags, created range); tagging shape.
 - There is no `daemons accept` or `daemons connections` request. Whether a daemon accepts other daemons
   through a provider is `accept_daemons` on its record of that provider (default `true`).
@@ -444,7 +444,7 @@ diverge run --daemon b roles create '{"name":"peer","description":"daemon A on t
   {"standalone_tools_templates":["create"]},
   {"standalone_tools_templates":{"actions":["get","list"],"within":"any"}},
   {"events":["list"]},
-  {"images":["info"]}]}'
+  {"providers":{"actions":["read"],"within":"any"}}]}'
 diverge run --daemon b accounts create '{"identity":{"issuer":"'$ISS'","subject":"github.12345.daemon-a"},"roles":["peer"]}'
 
 # --- On A: is B visible through a shared provider?

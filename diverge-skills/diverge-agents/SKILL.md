@@ -67,7 +67,7 @@ diverge run agents templates create '{
 | `image` | `{"digest":"<algorithm>:<hex>","references":[{"registry":…,"name":…}]}`. The digest is the image. References only say where the bytes may be fetched and are not in the hash. The daemon refuses to start a run unless a reference names a registry the provider lists, so include one even for a locally built image. |
 | `memory` | Bytes. A hard ceiling: a process over it is killed. |
 | `disk` | Bytes the container may write over its image. Mounted volumes are not counted. |
-| `arguments` | Any JSON value, handed to the image's program verbatim. Its shape is the image's own: read the image's `DIVERGE.md` (`diverge run images info`, see `diverge-images`). |
+| `arguments` | Any JSON value, handed to the image's program verbatim. Its shape is the image's own: read the image's `DIVERGE.md` (`diverge run images read --info`, see `diverge-images`). |
 | `secrets` | Names only, e.g. `["OPENROUTER_API_KEY"]`. Each agent binds every name to a vault key at create. Optional. |
 | `description` | Free text for whoever creates agents from it (which mounts it needs, and so on). In the hash. Optional. |
 

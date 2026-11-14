@@ -81,7 +81,7 @@ container at a time; see `diverge-storage`.
 | `zai` | `base_url` (optional) | `GLM_API_KEY` (fixed) |
 
 The provider ids are the kebab-case spellings above; confirm the exact member names for a provider
-with the image's schema (`diverge run images info --jq '.info.schema'`), whose descriptions carry a
+with the image's schema (`diverge run images read --info --jq '.info? // empty | .schema'`), whose descriptions carry a
 `SECRET:` paragraph per structure.
 
 ## Toolsets
