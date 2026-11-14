@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use diverge_sdk::provider::endpoints::images::list::server::response::{Frame, Image};
 use tokio::sync::{Mutex, watch};
 
-use crate::volumes::{Whole, describe};
+use crate::volumes::{Fail, Whole, describe};
 
 /// One connected provider's Store of the daemon's, as its
 /// `images::list` stream tells it: images added, changed and removed
@@ -62,6 +62,22 @@ impl Mirror {
     /// Whether the listing is whole now.
     pub fn whole(&self) -> Whole {
         self.whole.borrow().clone()
+    }
+
+    /// Wait for the listing to be whole; the provider's failure is
+    /// the error.
+    pub async fn listed(&self) -> Result<(), Fail> {
+        let mut whole = self.whole.subscribe();
+        let state = whole
+            .wait_for(|whole| *whole != Whole::Listing)
+            .await
+            .map(|whole| whole.clone())
+            .unwrap_or_else(|_| Whole::Failed("the provider's listing ended".to_string()));
+        match state {
+            Whole::Listed => Ok(()),
+            Whole::Failed(why) => Err(Fail::Error(why)),
+            Whole::Listing => Err(Fail::Error("the provider's listing ended".to_string())),
+        }
     }
 
     /// The images now, by digest.

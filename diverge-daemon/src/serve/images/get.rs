@@ -11,7 +11,6 @@ use crate::daemon::Daemon;
 use crate::judge::{self, Standing, Who};
 use crate::serve::reply;
 use crate::store;
-use crate::volumes::Whole;
 
 /// Answer the get and finish the scope.
 pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
@@ -30,9 +29,11 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 ///    `Forbidden` for one no `get` grant reaches, by its identity or
 ///    its tags.
 /// 3. **Read from what the daemon holds**, as a list is: the mirror of
-///    its Store on the provider. `Error` where there is none — the
-///    provider is not connected now, or has no Store — or its listing
-///    is not whole. The provider is not asked.
+///    its Store on the provider, once its listing is whole, which is
+///    waited for as a volumes get waits. `Error` where there is no
+///    mirror — the provider is not connected now, or keeps no Store —
+///    or the listing failed, in its words. The provider is not
+///    asked.
 /// 4. `NotFound` where the listing holds no image of the digest; else
 ///    the image as a list reports it.
 async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
@@ -57,10 +58,10 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
     }
     // Rule 3.
     let Some(mirror) = daemon.live.store(&record.identity).await else {
-        return Ok(Frame::Error(reply::failure(&"the provider is not connected now, or has no Store")));
+        return Ok(Frame::Error(reply::failure(&"the provider is not connected now, or keeps no Store")));
     };
-    if mirror.whole() != Whole::Listed {
-        return Ok(Frame::Error(reply::failure(&"the listing of the Store on the provider is not whole")));
+    if let Err(fail) = mirror.listed().await {
+        return Ok(Frame::Error(fail.error()));
     }
     // Rule 4.
     let Some(image) = mirror.images().await.into_iter().find(|image| image.digest == frame.digest) else {
