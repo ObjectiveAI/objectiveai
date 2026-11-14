@@ -24,26 +24,25 @@ pub const VALID_FOR: Duration = Duration::from_secs(60);
 /// are the parts of its judgment every program shares, between which
 /// each asks whom it admits. The rules:
 ///
-/// 1. **Presenting.** The token presented is the OpenID Connect ID
-///    token of the identity `own` — the one token OpenID Connect makes
-///    a signed JWT naming its issuer and its subject, which an access
-///    token need not be — good for longer than [`VALID_FOR`] —
-///    refreshed first where it is not — and with it the identity's key
-///    on this host, which the token names and the handshake signs
-///    with. A program with no identity presents nothing, and so
-///    completes no handshake it answers.
+/// 1. **Presenting.** The token presented is the access token of the
+///    identity `own`, bound to the identity's key on this host as RFC
+///    9449 binds one, good for longer than [`VALID_FOR`] — refreshed
+///    first where it is not — and with it that key, whose public half
+///    is sent and whose private half the handshake signs with. A
+///    program with no identity presents nothing, and so completes no
+///    handshake it answers.
 /// 2. **Trusting.** There is no list of issuers. A program reads whom
 ///    a token claims to be — [`claimed`](Self::claimed), unsigned —
 ///    and decides whether it could admit that identity at all; only
 ///    then is the token's issuer trusted, for that token alone, and
 ///    its key set fetched. A token claiming an identity the program
 ///    would not admit makes it fetch nothing.
-/// 3. **Verifying.** Another end's ID token is verified by the
-///    [`KeySets`], trusting the one issuer rule 2 arrived at — an
-///    access token refused — with no audience asked for; its
-///    `(issuer, subject)` is the [`Peer`] answered, with the key the
-///    token names, which the handshake holds the other end to. A token
-///    that names no key is refused.
+/// 3. **Verifying.** Another end's access token is verified by the
+///    [`KeySets`], trusting the one issuer rule 2 arrived at, with no
+///    audience asked for; its `(issuer, subject)` is the [`Peer`]
+///    answered, with the thumbprint of the key the token is bound to,
+///    which the handshake holds the other end's key to. A token bound
+///    to no key is refused.
 #[derive(Debug, Clone)]
 pub struct Own {
     identities: Identities,
@@ -77,14 +76,15 @@ impl Own {
         self.present_as(&name).await
     }
 
-    /// The ID token of the identity `name`, one of the host's, good for
-    /// longer than [`VALID_FOR`], and that identity's key: what is
+    /// The access token of the identity `name`, one of the host's,
+    /// good for longer than [`VALID_FOR`], and that identity's key:
+    /// what is
     /// presented to a remote daemon as the account of ours a record of
     /// it names, whatever `own` is. The answer's error is a reason for
     /// a log.
     pub async fn present_as(&self, name: &Name) -> Result<Presented, String> {
         let (token, key) = self.identities.presentation(name, VALID_FOR).await.map_err(|error| error.to_string())?;
-        Ok(Presented { token: token.expose().to_string(), signer: Arc::new(key) })
+        Ok(Presented { token: token.expose().to_string(), key: key.public(), signer: Arc::new(key) })
     }
 
     /// Whom another end's `token` claims to be, its signature unread —
@@ -108,6 +108,6 @@ impl Own {
             .verify(token, |trusted| trusted == issuer, None)
             .await
             .map_err(|error| error.to_string())?;
-        Ok(Judged { peer: Peer { issuer: verified.issuer, subject: verified.subject }, key: verified.key })
+        Ok(Judged { peer: Peer { issuer: verified.issuer, subject: verified.subject }, thumbprint: verified.thumbprint })
     }
 }

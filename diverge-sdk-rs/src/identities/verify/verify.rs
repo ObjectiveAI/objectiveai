@@ -33,14 +33,12 @@ struct Checked {
 }
 
 impl KeySets {
-    /// `token`, an OpenID Connect ID token, judged — see the
-    /// [rules](super): never an access token — a header `typ` of
-    /// `at+jwt`, which RFC 9068 requires of a JWT access token, is
-    /// [`VerifyError::AccessToken`] — its issuer accepted by
-    /// `trusted`, its signature that issuer's, it unexpired, and its
-    /// `aud` holding `audience` where one is given, and its `cnf`
-    /// naming an Ed25519 key, else [`VerifyError::Unbound`]. The
-    /// answer is who it names, and that key.
+    /// `token`, an access token bound to a key, judged — see the
+    /// [rules](super): its issuer accepted by `trusted`, its signature
+    /// that issuer's, it unexpired, its `aud` holding `audience` where
+    /// one is given, and its `cnf` naming a key's thumbprint, else
+    /// [`VerifyError::Unbound`]. The answer is who it names, and that
+    /// thumbprint.
     pub async fn verify(
         &self,
         token: &str,
@@ -52,9 +50,6 @@ impl KeySets {
             return Err(VerifyError::Untrusted(issuer));
         }
         let header = jsonwebtoken::decode_header(token).map_err(|_| VerifyError::Malformed)?;
-        if header.typ.as_deref().is_some_and(|typ| typ.eq_ignore_ascii_case("at+jwt") || typ.eq_ignore_ascii_case("application/at+jwt")) {
-            return Err(VerifyError::AccessToken);
-        }
         if !ASYMMETRIC.contains(&header.alg) {
             return Err(VerifyError::Algorithm(format!("{:?}", header.alg)));
         }
@@ -71,7 +66,7 @@ impl KeySets {
             None => validation.validate_aud = false,
         }
         let checked = jsonwebtoken::decode::<Checked>(token, &key, &validation).map_err(VerifyError::Invalid)?.claims;
-        let key = checked.cnf.as_ref().and_then(Confirmation::key).ok_or(VerifyError::Unbound)?;
-        Ok(Verified { issuer: checked.iss, subject: checked.sub, expires: checked.exp, key })
+        let thumbprint = checked.cnf.as_ref().and_then(Confirmation::thumbprint).ok_or(VerifyError::Unbound)?;
+        Ok(Verified { issuer: checked.iss, subject: checked.sub, expires: checked.exp, thumbprint })
     }
 }

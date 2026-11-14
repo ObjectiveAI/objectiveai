@@ -22,11 +22,8 @@ pub enum VerifyError {
     Fetch(String),
     /// The signature or a claim did not check.
     Invalid(jsonwebtoken::errors::Error),
-    /// The token is an access token, by its `typ`, where an ID token is
-    /// asked for.
-    AccessToken,
-    /// The token names no key: it has no `cnf` claim whose `jwk` is an
-    /// Ed25519 public key, so nobody can prove it is theirs.
+    /// The token is bound to no key: it has no `cnf` claim whose
+    /// `jkt` is a thumbprint, so nobody can prove it is theirs.
     Unbound,
 }
 
@@ -39,8 +36,7 @@ impl fmt::Display for VerifyError {
             VerifyError::UnknownKey { issuer, kid } => write!(f, "`{issuer}` has no key `{kid}`"),
             VerifyError::Fetch(why) => write!(f, "the issuer's keys could not be fetched: {why}"),
             VerifyError::Invalid(error) => write!(f, "the token does not check: {error}"),
-            VerifyError::AccessToken => f.write_str("the token is an access token, not an ID token"),
-            VerifyError::Unbound => f.write_str("the token names no key its presenter could prove"),
+            VerifyError::Unbound => f.write_str("the token is bound to no key its presenter could prove"),
         }
     }
 }

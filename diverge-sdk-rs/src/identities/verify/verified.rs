@@ -9,7 +9,7 @@ pub struct Verified {
     pub subject: String,
     /// Its `exp`, in seconds since the Unix epoch.
     pub expires: i64,
-    /// The Ed25519 public key its `cnf` names: what its presenter
-    /// proves it holds.
-    pub key: [u8; crate::wire::frame::auth::KEY_LEN],
+    /// The thumbprint of the key it is bound to, its `cnf.jkt`: what
+    /// its presenter's key is held to.
+    pub thumbprint: [u8; crate::wire::frame::auth::THUMBPRINT_LEN],
 }

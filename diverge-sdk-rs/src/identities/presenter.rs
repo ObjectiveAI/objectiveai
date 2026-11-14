@@ -16,13 +16,13 @@ const KEYS_FOR: Duration = Duration::from_secs(60 * 60);
 /// admits nobody — a command line, an app — see the [rules](super),
 /// rule 11:
 ///
-/// 1. **Presenting.** The identity's ID token, good for at least
+/// 1. **Presenting.** The identity's access token, good for at least
 ///    [`VALID_FOR`], refreshed as rule 4 says, and the identity's key
-///    on this host, which the token names.
+///    on this host, which the token is bound to.
 /// 2. **Verifying.** The other end's token is verified against its
-///    issuer's keys, and must name a key; the handshake then holds
-///    the other end to that key. So the other end is whoever its token
-///    says, and not merely whoever holds a copy of the token.
+///    issuer's keys, and must be bound to a key; the handshake then
+///    holds the other end to that key. So the other end is whoever its
+///    token says, and not merely whoever holds a copy of the token.
 /// 3. **Expecting.** Where the program was told which identity to
 ///    expect — see [`expecting`](Self::expecting) — the token must be
 ///    that identity's: its issuer is the only one trusted, and nothing
@@ -60,7 +60,7 @@ impl Authenticator for Presenter {
     fn present<'a>(&'a self) -> BoxFuture<'a, Result<Presented, String>> {
         Box::pin(async move {
             let (token, key) = self.identities.presentation(&self.name, VALID_FOR).await.map_err(|error| error.to_string())?;
-            Ok(Presented { token: token.expose().to_string(), signer: Arc::new(key) })
+            Ok(Presented { token: token.expose().to_string(), key: key.public(), signer: Arc::new(key) })
         })
     }
 
@@ -72,7 +72,7 @@ impl Authenticator for Presenter {
             if self.expected.as_ref().is_some_and(|expected| *expected != peer) {
                 return Err("the other end is not the identity expected there".to_string());
             }
-            Ok(Judged { peer, key: verified.key })
+            Ok(Judged { peer, thumbprint: verified.thumbprint })
         })
     }
 }

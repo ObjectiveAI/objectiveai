@@ -117,6 +117,7 @@ mod oauth;
 mod own;
 mod path_name;
 mod presenter;
+mod proof;
 mod record;
 mod refresh;
 mod remove;

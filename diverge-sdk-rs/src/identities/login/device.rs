@@ -10,6 +10,7 @@ use crate::identities::discovery::{at, discover};
 use crate::identities::identities::folder_owned;
 use crate::identities::key;
 use crate::identities::oauth::{Answer, post};
+use crate::identities::proof::ALG;
 use crate::identities::{Error, Identities, Name};
 
 /// The interval RFC 8628 §3.2 has a client poll at when the issuer
@@ -70,13 +71,24 @@ impl Identities {
     }
 
     /// The login, the identity's lock in hand: the identity's key
-    /// read, and made where it has none; the discovery document read;
-    /// the device code asked for; and the [`Pending`] holding the lock
-    /// from here on — a failure here lets it go at once.
+    /// read, and made where it has none; the discovery document read,
+    /// which must name `ES256` among the algorithms the issuer takes a
+    /// proof signed with; the device code asked for; and the
+    /// [`Pending`] holding the lock from here on — a failure here lets
+    /// it go at once.
     async fn begin(&self, held: file_lock::Held, name: &Name, client_id: &str, scope: &str, resource: Option<&str>) -> Result<Pending, Error> {
         let issuer = name.issuer.as_str();
-        let jwk = key::ensure(&self.paths(name)).await?.jwk();
+        let key = key::ensure(&self.paths(name)).await?;
         let discovery = discover(&self.http, issuer).await?;
+        // An issuer that takes no proof signed as this host signs one
+        // binds no token to the identity's key, and is not signed in
+        // at: nothing it answered could be presented.
+        if !discovery.dpop_signing_alg_values_supported.iter().any(|alg| alg == ALG) {
+            return Err(Error::Discovery(format!(
+                "the document at `{}` names no `{ALG}` among its `dpop_signing_alg_values_supported`: the issuer binds no token to a key as RFC 9449 does",
+                at(issuer)
+            )));
+        }
         let device = discovery
             .device_authorization_endpoint
             .clone()
@@ -86,7 +98,7 @@ impl Identities {
         if let Some(resource) = resource {
             form.push(("resource", resource));
         }
-        let code = match post::<DeviceCode>(&self.http, &device, &form).await? {
+        let code = match post::<DeviceCode>(&self.http, &device, &form, None).await? {
             Answer::Answered(code) => code,
             Answer::Refused(refusal) => return Err(Error::Refused { code: refusal.error, description: refusal.error_description }),
         };
@@ -103,7 +115,7 @@ impl Identities {
             token_endpoint: discovery.token_endpoint,
             scope,
             resource: resource.map(str::to_string),
-            jwk,
+            key,
             device_code: Zeroizing::new(code.device_code),
             interval: code.interval.unwrap_or(INTERVAL),
             expires: now().saturating_add(i64::try_from(code.expires_in).unwrap_or(i64::MAX)),
