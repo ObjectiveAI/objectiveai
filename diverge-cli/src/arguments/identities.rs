@@ -3,9 +3,10 @@
 use clap::Subcommand;
 
 /// The host's OpenID Connect identities under the root,
-/// `<root>/identities/`, worked on here: signed in, listed, removed,
-/// and given keys. No daemon is dialled, and no command prints a token
-/// or a private key.
+/// `<root>/identities/`, worked on here: signed in, listed, removed.
+/// No daemon is dialled, and no command prints a token or a key. Each
+/// identity's key on this host is made by itself, at its login or the
+/// first time a token is asked for, and no command makes one.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum Identities {
     /// Sign an identity in, by the device authorization grant: a code
@@ -46,32 +47,5 @@ pub enum Identities {
         /// The subject.
         #[arg(long)]
         subject: String,
-    },
-    /// An identity's key on this host: the key its tokens name, which
-    /// every connection made as the identity is signed with.
-    #[command(subcommand)]
-    Key(Key),
-}
-
-/// What `diverge identities key` takes.
-#[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
-pub enum Key {
-    /// Make a key for an identity and print its public half, as a
-    /// JSON Web Key. An identity that has a key already keeps it, and
-    /// the command fails, unless `--overwrite` is given: the old key
-    /// is then gone, every token that named it with it, and the
-    /// identity's next token names the new one. A login makes a key by
-    /// itself where the identity has none, so this is for replacing
-    /// one, or for making one before the login.
-    Generate {
-        /// The issuer.
-        #[arg(long)]
-        issuer: String,
-        /// The subject.
-        #[arg(long)]
-        subject: String,
-        /// Replace the key the identity already has.
-        #[arg(long)]
-        overwrite: bool,
     },
 }

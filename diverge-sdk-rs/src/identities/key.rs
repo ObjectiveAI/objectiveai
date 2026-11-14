@@ -10,10 +10,8 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt as _;
 use zeroize::{Zeroize as _, Zeroizing};
 
-use super::identities::folder_owned;
+use super::Error;
 use super::name::Paths;
-use super::{Error, Identities, Name};
-use crate::file_lock;
 use crate::wire::frame::auth::{KEY_LEN, SIGNATURE_LEN};
 use crate::wire::handshake::Signer;
 
@@ -26,15 +24,14 @@ use crate::wire::handshake::Signer;
 ///    identity's file, as `<subject>.key`, and never leaves the host.
 ///    The same identity signed in on another host has another key
 ///    there: a token names the key of the host that asked for it.
-/// 2. **Made when first needed.** A login makes the key where the
-///    identity has none, and so does the first refresh of an identity
-///    that was signed in before it had one.
-///    [`key_generate`](Identities::key_generate) makes one on demand.
-/// 3. **Never replaced by accident.** A key that exists is replaced
-///    only by [`key_generate`](Identities::key_generate) told to
-///    overwrite it. The old key is then gone, and so is every token
-///    that named it: the next token asked for is refreshed, naming the
-///    new key.
+/// 2. **Made by itself, when first needed.** A login makes the key
+///    where the identity has none, and so does the first token asked
+///    for of an identity that was signed in before it had one. Nothing
+///    else makes a key, and nobody is asked to.
+/// 3. **Never replaced.** A key that exists is the identity's for as
+///    long as the identity is on the host. An identity whose key file
+///    was taken away gets a new one the next time a token is asked
+///    for, and every token that named the old key is refreshed.
 /// 4. **Sent only as its public half.** Every token request carries
 ///    the public key, as [`jwk`](Self::jwk), and the issuer writes it
 ///    into the ID token it answers. The private half is read by this
@@ -167,23 +164,3 @@ pub(super) async fn ensure(paths: &Paths) -> Result<Key, Error> {
     Ok(key)
 }
 
-impl Identities {
-    /// Make a key for `name`, under its lock, and answer its public
-    /// half as a JSON Web Key — see [`Key`], rules 2 and 3. Where the
-    /// identity has a key already: replaced when `overwrite` is set,
-    /// else [`Error::KeyExists`], and nothing changed. The identity
-    /// need not be signed in: a key made first is the one its login
-    /// uses.
-    pub async fn key_generate(&self, name: &Name, overwrite: bool) -> Result<String, Error> {
-        let paths = self.paths(name);
-        folder_owned(&paths.folder).await?;
-        let held = file_lock::wait_exclusive(&paths.lock).await.map_err(Error::Lock)?;
-        if !overwrite && read(&paths).await?.is_some() {
-            return Err(Error::KeyExists(name.clone()));
-        }
-        let key = Key::generate();
-        write(&paths, &key).await?;
-        drop(held);
-        Ok(key.jwk())
-    }
-}

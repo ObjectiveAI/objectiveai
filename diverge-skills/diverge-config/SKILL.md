@@ -198,8 +198,10 @@ on a root share `<root>/identities/`. No command prints a token or a private key
 
 **Every identity has a key on its host.** `<subject>.key` is an Ed25519 private key that never leaves the
 host. Each ID token the issuer mints names its public half, and every connection made as the identity is
-signed with it, so a token copied off the wire or out of a log cannot be used by anyone else. A login makes
-the key when the identity has none; the same identity signed in on another host has a different key there.
+signed with it, so a token copied off the wire or out of a log cannot be used by anyone else. The key is made
+by itself, at the login or the first time a token is needed, and there is no command for it. The same identity
+signed in on another host has a different key there. To replace a key you believe was copied, `remove` the
+identity and log in again.
 
 ### login
 
@@ -267,21 +269,6 @@ At every issuer:
   no key".
 - An identity signed in before keys existed gets one at its next token refresh, with no new login.
 
-### key generate
-
-```bash
-diverge identities key generate --issuer https://identity.diverge.network --subject github.12345.admin
-# {"generated":{"issuer":"…","subject":"github.12345.admin","jwk":{"kty":"OKP","crv":"Ed25519","x":"…"}}}
-diverge identities key generate --issuer … --subject … --overwrite      # replace the key it has
-```
-
-- Prints the **public** key only. The private key is written to `<subject>.key` and never printed.
-- An identity that already has a key keeps it, and the command fails saying so, unless `--overwrite` is given.
-- After `--overwrite` the old key is gone: tokens that named it are discarded and the next connection gets a
-  fresh token naming the new key. Running programs pick the new key up at their next connection; connections
-  already open stay open.
-- You rarely need this: a login makes the key. Use it to replace a key you believe was copied, or to make the
-  key before the login.
 
 ### list, remove
 

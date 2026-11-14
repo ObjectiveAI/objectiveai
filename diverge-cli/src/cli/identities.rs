@@ -7,7 +7,7 @@ use serde_json::json;
 
 use super::Error;
 use super::print::print;
-use crate::arguments::{Identities, Key};
+use crate::arguments::Identities;
 use crate::detach;
 use crate::ours;
 
@@ -38,12 +38,8 @@ use crate::ours;
 /// 4. **List.** Every identity, `{"issuer","subject"}`, one line each.
 /// 5. **Remove.** The identity taken out, and its key with it, printed
 ///    as `{"removed":…}`.
-/// 6. **Key generate.** A key made for the identity, printed as
-///    `{"generated":{"issuer","subject","jwk"}}`, the `jwk` its public
-///    half. An identity that has one keeps it, and the command fails
-///    saying so, unless `--overwrite` is given.
 ///
-/// No line holds a token or a private key.
+/// No line holds a token or a key.
 pub async fn run(root: &Path, command: Identities) -> Result<(), Error> {
     // Rule 0.
     if let Identities::Login { issuer, subject, client_id, scope, resource } = &command
@@ -99,13 +95,6 @@ pub async fn run(root: &Path, command: Identities) -> Result<(), Error> {
             let name = Name { issuer, subject };
             store.remove(&name).await?;
             print(&[json!({ "removed": { "issuer": name.issuer, "subject": name.subject } })]).await
-        }
-        // Rule 6.
-        Identities::Key(Key::Generate { issuer, subject, overwrite }) => {
-            let name = Name { issuer, subject };
-            let jwk = store.key_generate(&name, overwrite).await?;
-            let jwk: serde_json::Value = serde_json::from_str(&jwk).unwrap_or(serde_json::Value::Null);
-            print(&[json!({ "generated": { "issuer": name.issuer, "subject": name.subject, "jwk": jwk } })]).await
         }
     }
 }
