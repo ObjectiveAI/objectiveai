@@ -17,10 +17,8 @@
 //! [`write_path`] one file in — its content on a channel the provider
 //! opens, [`write_bytes`] — [`transfer`] one file into another
 //! container it is running, [`fuse_mount`] one more file or directory
-//! served into it while it runs, [`filetree`] for its filesystem, a
-//! feed of its [`secrets`] at every activation, and [`info`] for the
-//! image's own word on what its arguments may be — its `/DIVERGE.md`,
-//! read by the proxy; [`exec`] one command run in it, its output
+//! served into it while it runs, [`filetree`] for its filesystem, and
+//! a feed of its [`secrets`] at every activation; [`exec`] one command run in it, its output
 //! streamed; and a [`terminal`], an interactive shell on a pseudo-terminal.
 //!
 //! The CONTAINER asks the caller, through the provider: [`postgres`]

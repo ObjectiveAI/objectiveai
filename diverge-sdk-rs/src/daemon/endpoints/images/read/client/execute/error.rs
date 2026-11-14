@@ -32,7 +32,7 @@ pub enum ExecuteError {
     /// No source the daemon asked can supply the image, and it said so;
     /// its finish follows, and no ask is answered.
     NotFound,
-    /// The account the request is served for holds `oci` over neither
+    /// The account the request is served for holds `read` over neither
     /// providers nor daemons; nothing was asked.
     Forbidden,
     /// The daemon could not answer, and said so.

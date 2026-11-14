@@ -23,7 +23,7 @@ use crate::wire::encode::{Encode, Writer};
 /// |-----------|-------|
 /// | [`Held`](Self::Held), and stays open | a source the daemon asked can supply the image, and the daemon answers every ask the caller opens on its channel through it |
 /// | [`NotFound`](Self::NotFound), then a finish | no source it asked can; no ask is answered |
-/// | [`Forbidden`](Self::Forbidden), then a finish | the account holds `oci` over neither providers nor daemons; nothing was asked |
+/// | [`Forbidden`](Self::Forbidden), then a finish | the account holds `read` over neither providers nor daemons; nothing was asked |
 /// | an [`Error`](Self::Error), then a finish | it could not look; no ask is answered |
 ///
 /// # As JSON

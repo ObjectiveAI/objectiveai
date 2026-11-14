@@ -9,7 +9,7 @@ use crate::wire::encode::{Encode, Writer};
 /// The platform and the nonce: everything the proof is computed over
 /// that the caller does not already hold. The image is not among
 /// them: it is the one the scope carrying the ask names — a run's
-/// image, a push's image, an oci scope's image — and an ask names no
+/// image, a push's image, a read scope's image — and an ask names no
 /// other.
 ///
 /// # On the wire

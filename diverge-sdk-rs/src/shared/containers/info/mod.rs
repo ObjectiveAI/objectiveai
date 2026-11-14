@@ -1,5 +1,5 @@
 //! The image's own word on what its arguments may be: `/DIVERGE.md`,
-//! read by the proxy and answered to whoever asks.
+//! read of the image and answered on the image's own scope.
 //!
 //! Every container image ships one file at the root of its
 //! filesystem, `/DIVERGE.md`: a frontmatter between two `---` lines
@@ -15,15 +15,16 @@
 //! the rules; [`Document::render`] writes one back, so that one shape
 //! is written and read.
 //!
-//! The exchange that makes an image usable without knowing it: the
-//! caller opens a channel that carries nothing — a direction with
-//! nothing to say has no request here, as everywhere in this crate —
-//! and the provider answers with one [`response::Frame`]: the
-//! document, parsed; that the image ships none; or an error. Then the
-//! finish. Every container scope carries it, on the same tag,
-//! whichever kind of container it is. The proxy inside the container
-//! reads the file from the root at every ask and answers from what it
-//! read; the program is never asked — the file is the image's, not the
+//! The exchange that makes an image usable without knowing it: on an
+//! [`images::read`](crate::provider::endpoints::images::read) scope
+//! that holds the image, the caller opens a channel that carries
+//! nothing — a direction with nothing to say has no request here, as
+//! everywhere in this crate — and the provider answers with one
+//! [`response::Frame`]: the document, parsed; that the image ships
+//! none; or an error. Then the finish. It is asked of the image and of
+//! nothing else: no container scope carries it, and no container is
+//! run for it — the provider reads the file out of the image. The
+//! program is never asked — the file is the image's, not the
 //! program's — and an image that ships none is answered as missing,
 //! which is a fact about the image and not a failure of anything.
 //!

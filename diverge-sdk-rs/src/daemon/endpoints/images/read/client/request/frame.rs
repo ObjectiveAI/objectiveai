@@ -10,8 +10,9 @@ use crate::wire::encode::{Encode, Writer};
 
 /// Open a read scope on the daemon: the question whether it can supply
 /// the ONE image this request names, and, where it can, a scope to ask
-/// on channels for that image's manifests, blobs and proof. See
-/// [`oci`](super::super::super) for whom the daemon asks.
+/// on channels for that image's manifests, blobs, proof and
+/// DIVERGE.md. See [`read`](super::super::super) for whom the daemon
+/// asks.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct Frame {

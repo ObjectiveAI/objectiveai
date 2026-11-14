@@ -1,7 +1,7 @@
 //! Images — what a provider can supply, and what a caller keeps on
 //! it.
 //!
-//! An image is the ARTIFACT, not a running container. [`oci`] asks
+//! An image is the ARTIFACT, not a running container. [`read`] asks
 //! whether a provider could supply one without the caller's help —
 //! from the caller's Store, or from a registry it is configured with
 //! — which settles nothing about execution; it settles whether
@@ -45,7 +45,7 @@
 //!
 //! # An image owned is an image held, for its owner
 //!
-//! An [`oci`] scope opened by the identity that owns an image, naming
+//! A [`read`] scope opened by the identity that owns an image, naming
 //! its digest, is held; a run by that identity naming it runs it from
 //! the Store, with nothing pulled, nobody asked, and no nonce check —
 //! its answer's source is

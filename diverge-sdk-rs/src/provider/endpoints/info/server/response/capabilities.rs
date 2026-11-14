@@ -68,7 +68,7 @@ pub struct Capabilities {
     /// [`delete`](crate::provider::endpoints::images::delete), and
     /// [`images::read`](crate::provider::endpoints::images::read) looks
     /// in it first. Absent — `false` — each of the six answers
-    /// `Unsupported`, and `oci` answers `Unsupported` when
+    /// `Unsupported`, and `read` answers `Unsupported` when
     /// [`images_registries`](Self::images_registries) is empty as
     /// well.
     #[serde(default)]
@@ -82,7 +82,7 @@ pub struct Capabilities {
     /// naming any other is ignored; a run's image whose references
     /// name none of these, and that neither the caller's Store nor the
     /// caller holds, cannot be supplied. Absent — empty — the provider
-    /// pulls from no registry, and `oci` answers `Unsupported` when
+    /// pulls from no registry, and `read` answers `Unsupported` when
     /// [`images_store`](Self::images_store) is `false` as well.
     #[serde(default)]
     pub images_registries: Vec<String>,

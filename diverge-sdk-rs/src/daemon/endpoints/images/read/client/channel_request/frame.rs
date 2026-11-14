@@ -2,7 +2,8 @@
 //! scope.
 
 /// The provider's oci channel requests, the same tags and the same
-/// bodies: `0` a manifest, `1` a blob, `2` the proof, `3` the cancel.
+/// bodies: `0` a manifest, `1` a blob, `2` the proof, `3` the cancel,
+/// `4` the image's DIVERGE.md.
 /// See [`images::read::client::channel_request::Frame`](crate::provider::endpoints::images::read::client::channel_request::Frame).
 ///
 /// An alias rather than a re-export because this module is real: the

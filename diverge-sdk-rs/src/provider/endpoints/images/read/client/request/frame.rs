@@ -18,7 +18,7 @@ use crate::wire::encode::{Encode, Writer};
 /// mismatch. The references are where the client knows the bytes to
 /// be, and a client that knows of none sends none; a provider asks a
 /// referenced registry only where it is configured with it. Where it
-/// looks, and in what order, is stated on [`oci`](super::super::super).
+/// looks, and in what order, is stated on [`read`](super::super::super).
 ///
 /// # On the wire
 ///

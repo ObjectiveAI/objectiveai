@@ -35,7 +35,7 @@ const TAG: u8 = 0;
 /// rather than the postcard [`volumes`](crate::provider::endpoints::volumes)
 /// uses. One of these is sent per container rather than per
 /// filesystem event, so there is no throughput to optimize for — and
-/// it names an image the same way an oci scope does, which is reason
+/// it names an image the same way a read scope does, which is reason
 /// enough for the two to look alike on the wire. The arguments being
 /// a [`Value`](serde_json::Value) settles it besides: a value cannot
 /// come back out of postcard at all.
