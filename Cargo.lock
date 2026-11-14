@@ -1691,13 +1691,13 @@ dependencies = [
  "bytes",
  "chrono",
  "dashmap",
- "ed25519-dalek",
  "futures-util",
  "hkdf",
  "indexmap 2.14.2",
  "ipnet",
  "jsonwebtoken",
  "libc",
+ "p256",
  "percent-encoding",
  "postcard",
  "rand 0.9.2",
@@ -1713,7 +1713,6 @@ dependencies = [
  "tokio-tungstenite",
  "uuid",
  "windows-sys 0.61.2",
- "x25519-dalek",
  "zeroize",
 ]
 
@@ -8733,17 +8732,6 @@ dependencies = [
  "libc",
  "once_cell",
  "pkg-config",
-]
-
-[[package]]
-name = "x25519-dalek"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
-dependencies = [
- "curve25519-dalek",
- "rand_core 0.6.4",
- "zeroize",
 ]
 
 [[package]]
