@@ -12,11 +12,11 @@
 //! schema in `/DIVERGE.md`, the list itself as the registration's
 //! answer.
 //!
-//! No upstream model and no credential. The agent IS the bundle:
-//! every turn runs `lone harness` over the whole conversation, and
-//! the chunks it writes are the turn. Reworked from the LoNE agent,
-//! keeping what this image honors and dropping what nothing here
-//! reads:
+//! No upstream model and no credential. The agent is its one source —
+//! a bundle or an endpoint — and every turn runs `lone harness` over
+//! the whole conversation, and the chunks it writes are the turn.
+//! Reworked from the LoNE agent, keeping what this image honors and
+//! dropping what nothing here reads:
 //! - `upstream`: the image is the discriminator; a value that reaches
 //!   this container is a LoNE agent by arrival.
 //! - `memory` and `disk`: ceilings are the container request's

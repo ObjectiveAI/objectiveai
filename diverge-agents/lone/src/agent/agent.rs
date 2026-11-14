@@ -5,28 +5,32 @@ use diverge_sdk::shared::containers::secrets::Declaration;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// An agent that runs a local LoNE bundle instead of calling an
-/// upstream model.
+/// An agent that runs a LoNE model instead of calling an upstream
+/// model: a converted bundle mounted into the container, or a
+/// `lone serve` endpoint on the network.
 ///
-/// The bundle is the model: a converted Core ML directory produced by
-/// `lone convert`, mounted into the container at `bundle`. Every turn
-/// runs `lone harness` against the conversation; nothing leaves the
-/// container. A LoNE bundle carries its own tokenizer and chat
-/// template, so the system prompt, the sampling fields and whether
-/// the model thinks are the whole of what this agent can be told.
+/// Exactly one source. A bundle is the model on disk: a converted
+/// Core ML directory produced by `lone convert`, mounted at `bundle`,
+/// and every turn runs `lone harness` inside the container. An
+/// `endpoint` is that same harness driven as a thin client against a
+/// LoNE `serve` on the network: nothing is loaded in the container,
+/// so there is no Core ML and no macOS. A LoNE bundle carries its own
+/// tokenizer and chat template, so the system prompt, the sampling
+/// fields and whether the model thinks are the whole of what this
+/// agent can be told.
 ///
 /// # Secrets
 ///
-/// None: the model is on disk, so there is no credential. The
-/// template this agent is made from need declare no name, and a name
-/// it does declare is one the program never asks for.
+/// None: the model is on disk or on the network, so there is no
+/// credential. The template this agent is made from need declare no
+/// name, and a name it does declare is one the program never asks for.
 ///
 /// # The host
 ///
-/// `lone` targets Core ML and the Apple Neural Engine, and runs on
-/// macOS only. The image therefore needs a host that provides them;
-/// on a Linux provider the harness exits saying so. See the image's
-/// `/HARNESS.md`.
+/// A bundle turn needs Core ML and the Apple Neural Engine, so macOS.
+/// An endpoint turn does not: the image installs the harness without
+/// Core ML, so it builds and registers anywhere, and a Linux provider
+/// reaches a LoNE host on the network. See the image's `/HARNESS.md`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
 pub struct Agent {
     /// The converted bundle's directory inside the container.
@@ -34,8 +38,19 @@ pub struct Agent {
     /// Must hold the `manifest.json` `lone convert` writes. The
     /// registration checks that before the agent counts as
     /// registered; a missing bundle is refused where the caller can
-    /// see why.
-    pub bundle: String,
+    /// see why. Exactly one of `bundle` and `endpoint` is required.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle: Option<String>,
+    /// A LoNE `serve` base URL to run turns against, instead of a
+    /// bundle.
+    ///
+    /// `lone harness --endpoint` posts the conversation and the tool
+    /// definitions to `/v1/chat/completions` there; nothing is loaded
+    /// in this container, so the turn needs neither Core ML nor macOS,
+    /// and the server must reach a LoNE host on the network. Exactly
+    /// one of `bundle` and `endpoint` is required.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
     /// The system prompt, sent as the conversation's leading message.
     ///
     /// Absent sends none, and the bundle's own template is the whole
@@ -44,7 +59,7 @@ pub struct Agent {
     pub system_prompt: Option<String>,
     /// Cap on generated tokens for one turn, reasoning included.
     ///
-    /// Absent is the harness's 512; the bundle's context clamps it
+    /// Absent is the harness's 512; the model's context clamps it
     /// further when the conversation leaves less room.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_new_tokens: Option<u64>,
@@ -72,6 +87,27 @@ pub struct Agent {
     pub dependencies: Vec<Template>,
 }
 
+/// The one place this agent's turns come from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Source<'a> {
+    /// A converted bundle mounted in the container; macOS and Core ML.
+    Bundle(&'a str),
+    /// A `lone serve` endpoint on the network; no Core ML in this
+    /// container.
+    Endpoint(&'a str),
+}
+
+/// An agent that does not name exactly one source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum SourceError {
+    /// Both are set, so which one runs the turn is anyone's guess.
+    #[error("give exactly one of `bundle` and `endpoint`; both are set")]
+    Both,
+    /// Neither is set, so there is nothing to run a turn against.
+    #[error("give exactly one of `bundle` and `endpoint`; neither is set")]
+    Neither,
+}
+
 impl Agent {
     /// The secrets this agent takes, as the registration answers
     /// them: none, whatever the arguments.
@@ -79,14 +115,33 @@ impl Agent {
         Declaration::new()
     }
 
+    /// The configured source, or why there is not exactly one.
+    pub fn source(&self) -> Result<Source<'_>, SourceError> {
+        match (self.bundle.as_deref(), self.endpoint.as_deref()) {
+            (Some(bundle), None) => Ok(Source::Bundle(bundle)),
+            (None, Some(endpoint)) => Ok(Source::Endpoint(endpoint)),
+            (Some(_), Some(_)) => Err(SourceError::Both),
+            (None, None) => Err(SourceError::Neither),
+        }
+    }
+
     /// The `lone harness` invocation this agent's turns run: the
-    /// subcommand, the bundle, and only the flags the caller set.
+    /// subcommand, the one source, and only the flags the caller set.
     pub fn arguments(&self) -> Vec<String> {
-        let mut arguments = vec![
-            "harness".to_owned(),
-            "--bundle".to_owned(),
-            self.bundle.clone(),
-        ];
+        let mut arguments = vec!["harness".to_owned()];
+        match self
+            .source()
+            .expect("registration refuses an agent that names no one source")
+        {
+            Source::Bundle(bundle) => {
+                arguments.push("--bundle".to_owned());
+                arguments.push(bundle.to_owned());
+            }
+            Source::Endpoint(endpoint) => {
+                arguments.push("--endpoint".to_owned());
+                arguments.push(endpoint.to_owned());
+            }
+        }
         if let Some(system) = &self.system_prompt {
             arguments.push("--system".to_owned());
             arguments.push(system.clone());
@@ -130,6 +185,16 @@ mod tests {
     }
 
     #[test]
+    fn an_endpoint_runs_the_harness_without_a_bundle() {
+        let agent: Agent =
+            serde_json::from_str(r#"{"endpoint": "http://lone-host:8082"}"#).unwrap();
+        assert_eq!(
+            agent.arguments(),
+            vec!["harness", "--endpoint", "http://lone-host:8082"]
+        );
+    }
+
+    #[test]
     fn only_the_sampling_members_the_caller_set_become_flags() {
         let agent: Agent = serde_json::from_str(
             r#"{"bundle": "/m", "system_prompt": "be terse", "max_new_tokens": 128,
@@ -158,7 +223,11 @@ mod tests {
     }
 
     #[test]
-    fn a_bundle_is_required() {
-        assert!(serde_json::from_str::<Agent>(r#"{"temperature": 0.2}"#).is_err());
+    fn exactly_one_source_is_required() {
+        let both: Agent =
+            serde_json::from_str(r#"{"bundle": "/m", "endpoint": "http://h:8082"}"#).unwrap();
+        assert_eq!(both.source(), Err(SourceError::Both));
+        let neither: Agent = serde_json::from_str(r#"{"temperature": 0.2}"#).unwrap();
+        assert_eq!(neither.source(), Err(SourceError::Neither));
     }
 }
