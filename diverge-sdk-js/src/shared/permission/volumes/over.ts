@@ -4,7 +4,7 @@ import { z } from "zod";
 
 /**
  * The actions over volumes that exist, which a grant reaches as far as its `within` says.
- * Snake case on the wire: `"get"`, `"list"`, `"delete"`, `"edit"`, `"stat"`, `"download"`, `"upload"`, `"transfer"`, `"mount"`, `"filetree"`.
+ * Snake case on the wire: `"get"`, `"list"`, `"delete"`, `"edit"`, `"stat"`, `"download"`, `"upload"`, `"transfer"`, `"mount"`, `"filetree"`, `"fuse_serve"`.
  *
  * - `get`: Get one, as `volumes.get` does.
  * - `list`: List them, as `volumes.list` does; the list sends what the grant reaches.
@@ -16,6 +16,7 @@ import { z } from "zod";
  * - `transfer`: Copy files out of one, as `volumes.transfer` does; where they land is judged by its own grant.
  * - `mount`: Name one in a container's mounts — a volume mount of the provider it is pinned to, or a FUSE mount of a file or a directory in it — at the container's create or edit, beside the grant over the container.
  * - `filetree`: See one's tree, as `volumes.filetree` does.
+ * - `fuse_serve`: Have one served over FUSE to the caller, as `volumes.fuse_serve` does: what another daemon's account holds here so that its own containers may mount from the volume. Its own action, implied by no other: `mount` names a volume in a container of THIS daemon's, and does not serve it to anyone.
  */
-export const Over = z.enum(["get", "list", "delete", "edit", "stat", "download", "upload", "transfer", "mount", "filetree"]);
+export const Over = z.enum(["get", "list", "delete", "edit", "stat", "download", "upload", "transfer", "mount", "filetree", "fuse_serve"]);
 export type Over = z.infer<typeof Over>;

@@ -17,7 +17,7 @@ export const Frame = z.union([
   z.literal("held"),
   /** No source the daemon asked can. Tag `1`. */
   z.literal("not_found"),
-  /** The account the request is served for holds `read` over neither providers nor daemons; nothing was asked. Tag `2`. */
+  /** The account the request is served for holds neither `read` over providers nor `relay` over daemons; nothing was asked. Tag `2`. */
   z.literal("forbidden"),
   /** A failure. See `shared.error.Error` for why it says so little. Tag `3`. */
   z.strictObject({ error: Error }),

@@ -10,7 +10,7 @@ import { DaemonId } from "../../../../daemons/id.js";
  * Ask the daemon to hold another daemon's standalone tool as one of
  * the caller's connected tools: the remote daemon, by the ID of this
  * daemon's record of it — the caller holding the daemons grant's
- * `connect` — and the tool as that daemon names it, under a name if
+ * `relay` — and the tool as that daemon names it, under a name if
  * one is given. Nothing is connected now: when an attached agent uses
  * the tool, the daemon opens the far daemon's `standalone_tools`
  * `connect` and lets it go when idle. A daemon that cannot be
