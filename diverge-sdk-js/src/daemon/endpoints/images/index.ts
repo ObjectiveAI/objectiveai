@@ -4,9 +4,11 @@
 // proof, and its DIVERGE.md. `build` makes one on a provider, from a
 // Containerfile, into the daemon's Store there; `push` puts one there
 // that is built already, from a registry the provider uses or from
-// the client; `list` is what the daemon owns in its Stores.
+// the client; `list` is what the daemon owns in its Stores, and `get`
+// one image of them.
 
 export * as build from "./build/index.js";
+export * as get from "./get/index.js";
 export * as list from "./list/index.js";
 export * as push from "./push/index.js";
 export * as read from "./read/index.js";
