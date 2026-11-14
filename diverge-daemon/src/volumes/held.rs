@@ -16,10 +16,11 @@ pub async fn held(daemon: &Daemon, volume: &reference::Volume) -> bool {
 }
 
 /// Whether the volume is in use: some agent or tool names it in its
-/// mounts, running or not, or an operation is on it. What a delete
-/// answers `InUse` for.
+/// mounts, running or not, an operation is on it, or a FUSE serve of
+/// the daemon's serves it to someone — another daemon's container
+/// mounting from it. What a delete answers `InUse` for.
 pub async fn in_use(conn: &mut PgConnection, daemon: &Daemon, volume: &reference::Volume) -> Result<bool, store::Error> {
-    if daemon.live.volume_operating(volume).await {
+    if daemon.live.volume_operating(volume).await || daemon.live.volume_fuse_served(volume).await {
         return Ok(true);
     }
     let (agents, tools) = mounters(conn, volume).await?;

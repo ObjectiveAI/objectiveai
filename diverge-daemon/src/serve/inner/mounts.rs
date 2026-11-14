@@ -3,6 +3,8 @@
 
 use diverge_sdk::daemon::endpoints::agents::create::client::request::{FuseMount, Provider};
 use diverge_sdk::daemon::agent_log::Identity;
+use diverge_sdk::daemon::endpoints::daemons::DaemonId;
+use diverge_sdk::daemon::grant::daemons::Over as DaemonsOver;
 use diverge_sdk::daemon::grant::volumes::Over;
 use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::endpoints::volumes::list::server::response::Volume;
@@ -25,6 +27,15 @@ use crate::volumes::{self, Listed};
 /// grant of the standing, else `Forbidden`: naming a volume in a
 /// container's mounts takes `mount` over it, beside the grant over
 /// the container.
+///
+/// A mount of a volume on ANOTHER daemon is none of that. It is
+/// judged first, and by one thing: the record its `daemon` names must
+/// exist, else `Error`, and the standing must hold `relay` over it —
+/// the one permission to use a remote daemon — else `Forbidden`. A
+/// `route` with no `daemon` is `Error`. Nothing of the other daemon's
+/// is looked at: not its providers, not its volumes, not what its
+/// providers serve. Whether it serves the volume to this daemon's
+/// account is its own to judge, at the run's start.
 pub async fn mounts(
     conn: &mut PgConnection,
     standing: &Standing,
@@ -33,6 +44,31 @@ pub async fn mounts(
     file_mounts: &[FuseMount],
     directory_mounts: &[FuseMount],
 ) -> Result<Mounted, store::Error> {
+    // The mounts of volumes on other daemons, judged by `relay` over
+    // each record named, once each.
+    let mut records: Vec<DaemonId> = Vec::new();
+    for mount in file_mounts.iter().chain(directory_mounts) {
+        let Some(id) = mount.daemon else {
+            if !mount.route.is_empty() {
+                return Ok(Mounted::Error(format!("the mount of the volume {} states a route and no daemon", mount.volume_name)));
+            }
+            continue;
+        };
+        if records.contains(&id) {
+            continue;
+        }
+        records.push(id);
+        let Some(record) = store::daemons::by_id(conn, id, false).await? else {
+            return Ok(Mounted::Error(format!("no remote daemon's record has the ID `{id}`")));
+        };
+        let reported = record.report(daemon.live.is_daemon_connected(record.id).await);
+        if !judge::daemons::over(standing, DaemonsOver::Relay, &reported) {
+            return Ok(Mounted::Forbidden);
+        }
+    }
+    // From here, this daemon's own volumes.
+    let file_mounts: Vec<&FuseMount> = file_mounts.iter().filter(|mount| mount.daemon.is_none()).collect();
+    let directory_mounts: Vec<&FuseMount> = directory_mounts.iter().filter(|mount| mount.daemon.is_none()).collect();
     let mut named: Vec<reference::Volume> = Vec::new();
     if let Some(provider) = pinned {
         for mount in &provider.volume_mounts {
@@ -42,7 +78,7 @@ pub async fn mounts(
             });
         }
     }
-    for mount in file_mounts.iter().chain(directory_mounts) {
+    for mount in file_mounts.iter().chain(&directory_mounts) {
         named.push(reference::Volume {
             provider: mount.provider.clone(),
             name: mount.volume_name.clone(),
@@ -65,7 +101,7 @@ pub async fn mounts(
             return Ok(Mounted::Unsupported(what));
         }
     }
-    for mount in file_mounts.iter().chain(directory_mounts) {
+    for mount in file_mounts.iter().chain(&directory_mounts) {
         let lacked = daemon.live.capabilities(&mount.provider).await.and_then(|info| capable::fuse_serve(&info, mount.volume_mode).err());
         if let Some(what) = lacked {
             return Ok(Mounted::Unsupported(format!("the volume {} cannot be served: {what}", mount.volume_name)));

@@ -20,7 +20,7 @@ use super::capable::Needs;
 use super::fuse::Mounts;
 use super::lifecycle::{self, End};
 use super::mcp::Served;
-use super::{AgentRun, Gate, Inflight, activity, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_connected, sender_of_tool, serve_name, serve_name_connected, services, stop};
+use super::{AgentRun, Gate, Inflight, activity, Key, StartError, ToolHandle, ToolKey, ToolRun, build, idle, lost, provider, pump, pump_tool, secrets, sender_of_agent, sender_of_connected, sender_of_tool, serve_name, serve_name_connected, services, stop};
 use crate::daemon::{Daemon, Kind};
 use crate::daemons;
 use crate::containers::permissions;
@@ -287,7 +287,9 @@ async fn start_agent(daemon: &Arc<Daemon>, agent: &Agent) -> Result<Arc<AgentRun
                 let pumping = tokio::spawn(pump::pump(Arc::clone(daemon), Arc::clone(&run), stream));
                 let clock = tokio::spawn(idle::idle(Arc::clone(daemon), Arc::clone(&run)));
                 let watching = tokio::spawn(activity::activity(Arc::clone(daemon), Arc::clone(&run)));
-                tasks.extend([pumping.abort_handle(), clock.abort_handle(), watching.abort_handle()]);
+                // A mount's serve lost is the run's end: see `lost_agent`.
+                let losing = tokio::spawn(lost::lost_agent(Arc::clone(&run)));
+                tasks.extend([pumping.abort_handle(), clock.abort_handle(), watching.abort_handle(), losing.abort_handle()]);
             }
         }
         return Ok(run);
@@ -453,6 +455,8 @@ async fn start_tool(daemon: &Arc<Daemon>, tool: &Tool) -> Result<Arc<ToolRun>, S
         let mut tasks = run.tasks.lock().await;
         if daemon.live.is_tool_run(&run).await {
             tasks.push(tokio::spawn(pump_tool::pump_tool(Arc::clone(daemon), Arc::clone(&run), stream)).abort_handle());
+            // A mount's serve lost is the run's end: see `lost_tool`.
+            tasks.push(tokio::spawn(lost::lost_tool(Arc::clone(&run))).abort_handle());
             if !run.service {
                 tasks.push(tokio::spawn(idle::idle_tool(Arc::clone(daemon), Arc::clone(&run))).abort_handle());
             }

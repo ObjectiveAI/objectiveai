@@ -15,6 +15,7 @@ pub mod delete;
 pub mod download;
 pub mod edit;
 pub mod filetree;
+pub mod fuse_serve;
 pub mod get;
 pub mod list;
 pub mod stat;

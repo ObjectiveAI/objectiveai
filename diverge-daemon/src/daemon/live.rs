@@ -137,6 +137,10 @@ pub struct Live {
     /// The volumes a download, an upload or a transfer of the daemon's
     /// is on now, each held by one operation at a time.
     operations: Arc<Mutex<HashSet<reference::Volume>>>,
+    /// The volumes a `volumes fuse_serve` of the daemon's serves now,
+    /// each with how many serves of it are open: a volume may be
+    /// served to several callers at once, where its provider allows.
+    fuse_serving: Mutex<HashMap<reference::Volume, usize>>,
     /// The word that a kind changed, for the lists kept open.
     changes: Changes,
     /// Each connected provider's volumes, as its listing streams them.
@@ -995,10 +999,35 @@ impl Live {
         self.operations.lock().await.contains(volume)
     }
 
-    /// Whether the volume is held: a running container has it, or an
-    /// operation is on it.
+    /// Whether a `volumes fuse_serve` of the daemon's serves the volume
+    /// now, to anyone.
+    pub async fn volume_fuse_served(&self, volume: &reference::Volume) -> bool {
+        self.fuse_serving.lock().await.contains_key(volume)
+    }
+
+    /// One more serve of the volume is open: entered at the serve's
+    /// `Serving`, and left, by [`fuse_serve_leave`](Self::fuse_serve_leave),
+    /// at its scope's end — every enter matched by exactly one leave.
+    pub async fn fuse_serve_enter(&self, volume: &reference::Volume) {
+        *self.fuse_serving.lock().await.entry(volume.clone()).or_insert(0) += 1;
+    }
+
+    /// One serve of the volume is over: the volume is served no more
+    /// once the last has left.
+    pub async fn fuse_serve_leave(&self, volume: &reference::Volume) {
+        let mut serving = self.fuse_serving.lock().await;
+        if let Some(count) = serving.get_mut(volume) {
+            *count -= 1;
+            if *count == 0 {
+                serving.remove(volume);
+            }
+        }
+    }
+
+    /// Whether the volume is held: a running container has it, an
+    /// operation is on it, or a FUSE serve of the daemon's serves it.
     pub async fn volume_held(&self, volume: &reference::Volume) -> bool {
-        self.volume_operating(volume).await || self.volume_in_run(volume).await
+        self.volume_operating(volume).await || self.volume_in_run(volume).await || self.volume_fuse_served(volume).await
     }
 
     /// Take the volume for one operation: `None` when it is held, and
@@ -1006,7 +1035,7 @@ impl Live {
     /// when it is dropped, on every path — a return, an error, a
     /// panic, the operation's task aborted.
     pub async fn take_volume(&self, volume: &reference::Volume) -> Option<VolumeHold> {
-        if self.volume_in_run(volume).await {
+        if self.volume_in_run(volume).await || self.volume_fuse_served(volume).await {
             return None;
         }
         if !self.operations.lock().await.insert(volume.clone()) {

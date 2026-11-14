@@ -20,12 +20,15 @@ use crate::store;
 ///    commit, and then finds their pins and answers `in_use`; a create
 ///    or an edit that comes after a delete finds no record.
 /// 3. **Each once.** A provider named twice is read once.
+/// 4. **Only this daemon's.** A mount of a volume on another daemon
+///    names a provider of that daemon's, which is no record here and
+///    is not looked for.
 pub async fn providers(conn: &mut PgConnection, pinned: Option<&Provider>, file_mounts: &[FuseMount], directory_mounts: &[FuseMount]) -> Result<Checked<()>, store::Error> {
     let named = pinned
         .map(|provider| &provider.identity)
         .into_iter()
-        .chain(file_mounts.iter().map(|mount| &mount.provider))
-        .chain(directory_mounts.iter().map(|mount| &mount.provider));
+        .chain(file_mounts.iter().filter(|mount| mount.daemon.is_none()).map(|mount| &mount.provider))
+        .chain(directory_mounts.iter().filter(|mount| mount.daemon.is_none()).map(|mount| &mount.provider));
     let mut seen: Vec<&Identity> = Vec::new();
     for identity in named {
         if seen.contains(&identity) {

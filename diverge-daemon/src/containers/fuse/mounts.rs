@@ -7,6 +7,9 @@ use bytes::Bytes;
 use diverge_sdk::container_proxy::outside::endpoints::fuse::mount::server::channel_request::Frame as Ask;
 use diverge_sdk::daemon::endpoints::agents::create::client::request::FuseMount as VolumeFuseMount;
 use diverge_sdk::daemon::agent_log::Identity;
+use diverge_sdk::daemon::endpoints::volumes::fuse_serve::client::execute as daemon_serve;
+use diverge_sdk::daemon::endpoints::volumes::fuse_serve::client::request::Frame as DaemonServeRequest;
+use diverge_sdk::daemon::reference;
 use diverge_sdk::provider::client::Listed;
 use diverge_sdk::provider::endpoints::containers::fuse_serve::client::execute::{self as container_serve, ExecuteHandle as ContainerServe};
 use diverge_sdk::provider::endpoints::containers::fuse_serve::client::request::Frame as ContainerServeRequest;
@@ -18,21 +21,27 @@ use diverge_sdk::shared::containers::fuse::ack::Refused;
 use diverge_sdk::shared::containers::fuse::stat::Stat;
 use diverge_sdk::shared::containers::request::FuseMount;
 use diverge_sdk::shared::filetree::response::Frame;
+use diverge_sdk::shared::relay::Relay;
 use diverge_sdk::wire::client::channel::Channel;
-use tokio::sync::{Mutex, RwLock, broadcast};
+use tokio::sync::{Mutex, RwLock, broadcast, watch as signal};
 use tokio::task::AbortHandle;
 
 use super::{bridge, watch};
 use crate::containers::capable;
 use crate::daemon::{Capacity, Daemon};
+use crate::daemons;
 
 /// The scope a mount's bytes come from: a volume served by its
-/// provider, or a subtree of a running container served by the
-/// provider it runs on. The two answer the same nine asks in the same
-/// frames, so a mount is asked without knowing which.
+/// provider, a volume served by another daemon, or a subtree of a
+/// running container served by the provider it runs on. All answer
+/// the same nine asks in the same frames, so a mount is asked without
+/// knowing which.
 pub enum Serve {
-    /// A `volumes::fuse_serve`.
-    Volume(VolumeServe),
+    /// A volume, served: a provider's `volumes::fuse_serve`, or
+    /// another daemon's `volumes fuse_serve` — one handle for both,
+    /// since the two scopes share their channels byte for byte. Shared
+    /// with the task that waits for its end: see [`Mounts::lost`].
+    Volume(Arc<VolumeServe>),
     /// A `containers::fuse_serve`: an agent's path, into its dependency.
     Container(ContainerServe),
 }
@@ -118,6 +127,9 @@ impl Served {
 /// mount can be added while the run lives, see [`add`](Self::add).
 pub struct Mounts {
     table: RwLock<Table>,
+    /// Whether a volume mount's serve ended before the run let it go:
+    /// see [`lost`](Self::lost).
+    lost: signal::Sender<bool>,
     /// Every change made under a mount, as a frame from the
     /// container's root, for whoever watches the container.
     pub(super) changes: broadcast::Sender<Frame>,
@@ -182,9 +194,53 @@ impl Mounts {
                 next: 0,
                 stopped: false,
             }),
+            lost: signal::channel(false).0,
             changes: broadcast::channel(256).0,
             watchers: Mutex::new(Vec::new()),
         }
+    }
+
+    /// The word that a mount of the run's lost its serve: `true` once
+    /// the serve of any volume mount ended while the run still held
+    /// it. A mount is a promise that the container can read and write
+    /// what it mounted, and a serve that ends — the volume's provider
+    /// gone, or the connection to the volume's daemon gone, at any hop
+    /// — breaks it for good: nothing reopens a serve under a running
+    /// container. Whoever runs the container ends the run on this
+    /// word. The rules:
+    ///
+    /// 1. **Every volume mount is waited on**, a volume of this
+    ///    daemon's and of another's alike, from the moment it is kept.
+    ///    A dependency's mount, served from its agent's container, is
+    ///    not: that container's end is the dependency's own end.
+    /// 2. **Let go is not lost.** A serve the run stopped itself — at
+    ///    its end, or for a mount the provider did not make — ends by
+    ///    the run's own cancel, and says nothing here: the serve is
+    ///    taken out of its slot before it is cancelled, and a serve
+    ///    whose slot is empty when it ends was let go.
+    pub fn lost(&self) -> signal::Receiver<bool> {
+        self.lost.subscribe()
+    }
+
+    /// Rule 1 of [`lost`](Self::lost) for the mount under `id`: its
+    /// serve waited on, in a task ended with the mounts.
+    async fn await_loss(&self, id: &str) {
+        let Some(served) = self.table.read().await.sources.get(id).cloned() else {
+            return;
+        };
+        let serve = match &*served.serve.lock().await {
+            Some(Serve::Volume(serve)) => Arc::clone(serve),
+            _ => return,
+        };
+        let lost = self.lost.clone();
+        let waiting = tokio::spawn(async move {
+            serve.wait().await;
+            // Rule 2.
+            if served.serve.lock().await.is_some() {
+                lost.send_replace(true);
+            }
+        });
+        self.watchers.lock().await.push(waiting.abort_handle());
     }
 
     /// Every mount, the files first, as the provider is told them.
@@ -211,7 +267,7 @@ impl Mounts {
     /// such provider nudged to say its capacity again, the serve
     /// having taken its `overlay_disk`. The first that cannot be is
     /// the failure, and what was opened is let go.
-    pub async fn build(daemon: &Daemon, volume_files: &[VolumeFuseMount], volume_directories: &[VolumeFuseMount]) -> Result<Mounts, MountsError> {
+    pub async fn build(daemon: &Arc<Daemon>, volume_files: &[VolumeFuseMount], volume_directories: &[VolumeFuseMount]) -> Result<Mounts, MountsError> {
         let mounts = Mounts::empty();
         for (mount, directory) in volume_files
             .iter()
@@ -225,9 +281,13 @@ impl Mounts {
                     return Err(error);
                 }
             };
-            let mut table = mounts.table.write().await;
-            let id = table.mint();
-            table.insert(id, served, mount.container_path.clone(), directory);
+            let id = {
+                let mut table = mounts.table.write().await;
+                let id = table.mint();
+                table.insert(id.clone(), served, mount.container_path.clone(), directory);
+                id
+            };
+            mounts.await_loss(&id).await;
         }
         Ok(mounts)
     }
@@ -240,16 +300,20 @@ impl Mounts {
     /// [`announce`](Self::announce)s it or
     /// [`drop_mount`](Self::drop_mount)s it. A run that is over takes
     /// no mount, and the serve opened for one is let go.
-    pub async fn add(&self, daemon: &Daemon, mount: &VolumeFuseMount, directory: bool) -> Result<FuseMount, MountsError> {
+    pub async fn add(&self, daemon: &Arc<Daemon>, mount: &VolumeFuseMount, directory: bool) -> Result<FuseMount, MountsError> {
         let served = serve_volume(daemon, mount).await?;
-        let mut table = self.table.write().await;
-        if table.stopped {
-            drop(table);
-            served.stop().await;
-            return Err(MountsError::Failed("the run is over".to_string()));
-        }
-        let id = table.mint();
-        Ok(table.insert(id, served, mount.container_path.clone(), directory))
+        let fuse = {
+            let mut table = self.table.write().await;
+            if table.stopped {
+                drop(table);
+                served.stop().await;
+                return Err(MountsError::Failed("the run is over".to_string()));
+            }
+            let id = table.mint();
+            table.insert(id, served, mount.container_path.clone(), directory)
+        };
+        self.await_loss(&fuse.id).await;
+        Ok(fuse)
     }
 
     /// The mount under `id` let go: the provider did not mount it.
@@ -443,12 +507,19 @@ async fn streams(served: &Served) -> bool {
     matches!(&*served.serve.lock().await, Some(Serve::Container(_)))
 }
 
-/// One volume mount's serve, opened on the volume's provider — a
-/// provider whose capabilities FUSE serve a volume of the mount's
-/// mode, else the mount is unsupported and the provider is not asked
-/// — and the provider nudged to say its capacity again, the serve
-/// having taken its `overlay_disk`.
-async fn serve_volume(daemon: &Daemon, mount: &VolumeFuseMount) -> Result<Served, MountsError> {
+/// One volume mount's serve, opened where the volume is. The rules:
+///
+/// 1. **A volume of this daemon's** is served by its provider — a
+///    provider whose capabilities FUSE serve a volume of the mount's
+///    mode, else the mount is unsupported and the provider is not
+///    asked — and the provider nudged to say its capacity again, the
+///    serve having taken its `overlay_disk`.
+/// 2. **A volume on another daemon** is served by that daemon: see
+///    [`serve_remote`].
+async fn serve_volume(daemon: &Arc<Daemon>, mount: &VolumeFuseMount) -> Result<Served, MountsError> {
+    if let Some(id) = mount.daemon {
+        return serve_remote(daemon, mount, id).await;
+    }
     let Some(handle) = daemon.live.provider(&mount.provider).await else {
         return Err(MountsError::Failed(format!("the provider of the volume {} is not connected now", mount.volume_name)));
     };
@@ -474,8 +545,58 @@ async fn serve_volume(daemon: &Daemon, mount: &VolumeFuseMount) -> Result<Served
         cell.nudge();
     }
     Ok(Served {
-        serve: Mutex::new(Some(Serve::Volume(serve))),
+        serve: Mutex::new(Some(Serve::Volume(Arc::new(serve)))),
         prefix: mount.volume_relative_path.clone(),
         capacity,
+    })
+}
+
+/// One volume mount's serve, opened on the daemon the volume is on:
+/// that daemon's `volumes fuse_serve`, as a connected tool's connect
+/// is opened. The rules:
+///
+/// 1. **The record, and its one connection.** The record `id` names
+///    is read; one that is gone is the failure. The daemon it reaches
+///    is connected to as the account the record names, over the one
+///    connection every use of that record shares.
+/// 2. **Relayed along the route.** The serve is asked of that daemon
+///    with the mount's `route` as the request's `relay`, so each
+///    daemon along it serves the next hop as an account and judges
+///    its `relay` there, and the last serves the volume itself,
+///    judging that account's `fuse_serve` over it.
+/// 3. **Nothing of that daemon's is checked here.** Not its
+///    providers, not their capabilities, not the volume: a serve it
+///    refuses is the failure, in its own answer's words.
+/// 4. **No capacity is this daemon's.** The serve's layer is on the
+///    volume's provider, which is no provider of this daemon's, so
+///    there is none to nudge.
+async fn serve_remote(daemon: &Arc<Daemon>, mount: &VolumeFuseMount, id: diverge_sdk::daemon::endpoints::daemons::DaemonId) -> Result<Served, MountsError> {
+    let failed = |why: String| MountsError::Failed(format!("the volume {} on the daemon `{id}` could not be served: {why}", mount.volume_name));
+    // Rule 1.
+    let record = {
+        let mut conn = daemon.store.acquire().await.map_err(|error| failed(error.to_string()))?;
+        crate::store::daemons::by_id(&mut conn, id, false).await.map_err(|error| failed(error.to_string()))?
+    };
+    let Some(record) = record else {
+        return Err(failed("no remote daemon's record has that ID".to_string()));
+    };
+    let peer = daemons::connect(daemon, &record).await.map_err(|error| failed(format!("{error:?}")))?;
+    // Rule 2.
+    let request = DaemonServeRequest {
+        volume: reference::Volume {
+            provider: mount.provider.clone(),
+            name: mount.volume_name.clone(),
+        },
+        mode: mount.volume_mode,
+        overlay_disk: mount.overlay_disk,
+        relay: (!mount.route.is_empty()).then(|| Relay(mount.route.clone())),
+    };
+    // Rule 3.
+    let serve = daemon_serve::execute(&peer.connected.handle, &request).await.map_err(|error| failed(error.to_string()))?;
+    Ok(Served {
+        serve: Mutex::new(Some(Serve::Volume(Arc::new(serve)))),
+        prefix: mount.volume_relative_path.clone(),
+        // Rule 4.
+        capacity: None,
     })
 }

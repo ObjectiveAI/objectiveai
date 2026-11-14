@@ -52,7 +52,7 @@ pub enum Outcome {
 ///    made: its serve is let go, and the answer is `Refused`. A
 ///    channel that ended unanswered, or an ask that could not be
 ///    sent, is the mount not made and `Failed`.
-pub async fn runtime_mount(daemon: &Daemon, mounts: &Arc<Mounts>, which: Which<'_>, added: &FuseMount, directory: bool) -> Outcome {
+pub async fn runtime_mount(daemon: &Arc<Daemon>, mounts: &Arc<Mounts>, which: Which<'_>, added: &FuseMount, directory: bool) -> Outcome {
     let fuse = match mounts.add(daemon, added, directory).await {
         Ok(fuse) => fuse,
         Err(error) => return Outcome::Failed(error.to_string()),

@@ -3,13 +3,14 @@
 //!
 //! A template is in use while a container made from it exists; a
 //! remote daemon while a connected
-//! tool names it; a vault key while an agent or a tool binds it in its
+//! tool names it, or a mount of a volume on it; a vault key while an agent or a tool binds it in its
 //! `secrets`. All are facts of the records, not of
 //! what runs, so they survive a restart as the records do.
 
 use std::collections::HashSet;
 
 use diverge_sdk::daemon::endpoints::daemons::DaemonId;
+use sqlx::types::Json;
 use sqlx::{PgConnection, Row as _};
 
 use crate::store::{Error, daemons};
@@ -24,15 +25,22 @@ pub async fn tools_templates(conn: &mut PgConnection) -> Result<HashSet<String>,
     ids(conn, "SELECT DISTINCT template AS id FROM diverge.tools").await
 }
 
-/// Whether some connected tool names the remote daemon's record of the
-/// ID as the daemon it is on: what refuses the record's delete. A
-/// record named only further along a connected tool's route is not
-/// held by it — that record is the other daemon's to keep.
+/// Whether something names the remote daemon's record of the ID as the
+/// daemon it is on: a connected tool, or a FUSE mount of an agent's or
+/// a tool's whose volume is on that daemon. What refuses the record's
+/// delete. A record named only further along a route is not held by
+/// it — that record is the other daemon's to keep.
 pub async fn daemon(conn: &mut PgConnection, id: DaemonId) -> Result<bool, Error> {
-    let row = sqlx::query("SELECT EXISTS (SELECT 1 FROM diverge.connected_standalone_tools WHERE daemon = $1) AS held")
-        .bind(daemons::to_column(id))
-        .fetch_one(&mut *conn)
-        .await?;
+    let mounts = serde_json::json!([{ "daemon": id }]);
+    let row = sqlx::query(
+        "SELECT EXISTS (SELECT 1 FROM diverge.connected_standalone_tools WHERE daemon = $1) \
+         OR EXISTS (SELECT 1 FROM diverge.agents WHERE fuse_file_mounts @> $2 OR fuse_directory_mounts @> $2) \
+         OR EXISTS (SELECT 1 FROM diverge.tools WHERE fuse_file_mounts @> $2 OR fuse_directory_mounts @> $2) AS held",
+    )
+    .bind(daemons::to_column(id))
+    .bind(Json(&mounts))
+    .fetch_one(&mut *conn)
+    .await?;
     Ok(row.try_get("held")?)
 }
 

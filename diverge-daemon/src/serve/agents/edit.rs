@@ -1,6 +1,8 @@
 //! Editing an agent: a patch to its name and its mounts — while its
 //! container runs, to its FUSE mounts alone, and only by addition.
 
+use std::sync::Arc;
+
 use diverge_sdk::daemon::endpoints::agents::edit::client::request::{self, Editable};
 use diverge_sdk::daemon::endpoints::agents::edit::server::response::Frame;
 use diverge_sdk::daemon::grant::agents::Over;
@@ -14,7 +16,7 @@ use crate::serve::reply;
 use crate::store::{self, agents, agents_templates};
 
 /// Answer the edit and finish the scope.
-pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Daemon) {
+pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc<Daemon>) {
     let answer = match serve(frame, who, daemon).await {
         Ok(answer) => answer,
         Err(error) => Frame::Error(reply::failure(&error)),
@@ -57,7 +59,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 ///    own. The first addition refused or failed ends the edit with
 ///    the `mount` error, or the daemon's own, after what was made
 ///    before it is persisted; every addition made is `Edited`.
-async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame, store::Error> {
+async fn serve(frame: request::Frame, who: Who, daemon: &Arc<Daemon>) -> Result<Frame, store::Error> {
     let mut tx = daemon.store.begin().await?;
     let Some(standing) = Standing::of(&mut tx, who).await? else {
         return Ok(Frame::Forbidden);

@@ -8,8 +8,11 @@ use crate::store::agents::Agent;
 use crate::store::tools::Tool;
 use crate::store::{self, agents, tools};
 
-/// Every volume the agent's record names: the pinned provider's
-/// volume mounts, and the volume of each FUSE mount.
+/// Every volume of this daemon's the agent's record names: the pinned
+/// provider's volume mounts, and the volume of each FUSE mount. A FUSE
+/// mount of a volume on another daemon names none: that volume is the
+/// other daemon's, and a provider and a name there are no volume
+/// here, whatever they spell.
 pub fn of_agent(agent: &Agent) -> Vec<reference::Volume> {
     let mut named = Vec::new();
     if let Some(provider) = &agent.provider {
@@ -20,7 +23,7 @@ pub fn of_agent(agent: &Agent) -> Vec<reference::Volume> {
             });
         }
     }
-    for mount in agent.fuse_file_mounts.iter().chain(&agent.fuse_directory_mounts) {
+    for mount in agent.fuse_file_mounts.iter().chain(&agent.fuse_directory_mounts).filter(|mount| mount.daemon.is_none()) {
         named.push(reference::Volume {
             provider: mount.provider.clone(),
             name: mount.volume_name.clone(),
@@ -43,7 +46,7 @@ pub fn of_tool(tool: &Tool) -> Vec<reference::Volume> {
             });
         }
     }
-    for mount in tool.fuse_file_mounts.iter().chain(&tool.fuse_directory_mounts) {
+    for mount in tool.fuse_file_mounts.iter().chain(&tool.fuse_directory_mounts).filter(|mount| mount.daemon.is_none()) {
         named.push(reference::Volume {
             provider: mount.provider.clone(),
             name: mount.volume_name.clone(),
