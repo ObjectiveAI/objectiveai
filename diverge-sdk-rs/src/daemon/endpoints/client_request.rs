@@ -284,6 +284,10 @@ pub enum ClientRequest<'a> {
     ImagesList(images::list::client::request::Frame),
     /// Tag `160`. Push an image into the daemon's Store on a provider.
     ImagesPush(images::push::client::request::Frame),
+    /// Tag `161`. Get one of the host's identities, with its tags.
+    IdentitiesGet(identities::get::client::request::Frame),
+    /// Tag `162`. Get one image in a Store of the daemon's.
+    ImagesGet(images::get::client::request::Frame),
     /// Tag `146`. Hold another daemon's standalone tool under a name.
     ConnectedStandaloneToolsCreate(connected_standalone_tools::create::client::request::Frame),
     /// Tag `147`. Get one connected tool.
@@ -448,6 +452,8 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesFuseServe(frame) => frame.encode(out),
             ClientRequest::ImagesList(frame) => frame.encode(out),
             ClientRequest::ImagesPush(frame) => frame.encode(out),
+            ClientRequest::IdentitiesGet(frame) => frame.encode(out),
+            ClientRequest::ImagesGet(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsCreate(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsGet(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsList(frame) => frame.encode(out),
@@ -856,6 +862,12 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             160 => images::push::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesPush)
                 .ok(),
+            161 => identities::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::IdentitiesGet)
+                .ok(),
+            162 => images::get::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesGet)
+                .ok(),
             146 => connected_standalone_tools::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ConnectedStandaloneToolsCreate)
                 .ok(),
@@ -1025,6 +1037,8 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::VolumesFuseServe(_) => f.write_str("volumes fuse serve"),
             ClientRequest::ImagesList(_) => f.write_str("images list"),
             ClientRequest::ImagesPush(_) => f.write_str("images push"),
+            ClientRequest::IdentitiesGet(_) => f.write_str("identities get"),
+            ClientRequest::ImagesGet(_) => f.write_str("images get"),
             ClientRequest::ConnectedStandaloneToolsCreate(_) => f.write_str("connected standalone tools create"),
             ClientRequest::ConnectedStandaloneToolsGet(_) => f.write_str("connected standalone tools get"),
             ClientRequest::ConnectedStandaloneToolsList(_) => f.write_str("connected standalone tools list"),
@@ -1171,6 +1185,10 @@ pub fn tag(path: &str) -> Option<u8> {
         "images/read" => Some(145),
         "images/build" => Some(157),
         "volumes/fuse_serve" => Some(158),
+        "images/list" => Some(159),
+        "images/push" => Some(160),
+        "identities/get" => Some(161),
+        "images/get" => Some(162),
         "connected_standalone_tools/create" => Some(146),
         "connected_standalone_tools/get" => Some(147),
         "connected_standalone_tools/list" => Some(148),
@@ -1316,6 +1334,8 @@ impl ClientRequest<'_> {
             ClientRequest::VolumesFuseServe(_) => "volumes/fuse_serve",
             ClientRequest::ImagesList(_) => "images/list",
             ClientRequest::ImagesPush(_) => "images/push",
+            ClientRequest::IdentitiesGet(_) => "identities/get",
+            ClientRequest::ImagesGet(_) => "images/get",
             ClientRequest::ConnectedStandaloneToolsCreate(_) => "connected_standalone_tools/create",
             ClientRequest::ConnectedStandaloneToolsGet(_) => "connected_standalone_tools/get",
             ClientRequest::ConnectedStandaloneToolsList(_) => "connected_standalone_tools/list",

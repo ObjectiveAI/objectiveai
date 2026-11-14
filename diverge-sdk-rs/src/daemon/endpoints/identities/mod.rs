@@ -1,7 +1,8 @@
 //! The host's identities: the credentials signed in under the root's
 //! `identities/`, each one subject at one issuer, listed.
 //!
-//! [`list`] lists them, each with its tags; [`tag`] and [`untag`]
+//! [`list`] lists them, each with its tags; [`get`] answers one of
+//! them, as the list would; [`tag`] and [`untag`]
 //! change an identity's tags, which the daemon keeps, since an identity
 //! is a file and no record; [`login`] signs one in. The rules:
 //!
@@ -11,13 +12,14 @@
 //!    not it is signed out.
 //! 2. **No token.** Nothing of an identity is read but its name, and no
 //!    token is ever answered.
-//! 3. **A snapshot.** Each listing is one answer and the finish: the
-//!    files are not watched, so nothing is kept open.
+//! 3. **A snapshot.** Each listing, and each get, is one answer and the
+//!    finish: the files are not watched, so nothing is kept open.
 //!
 //! Split by who SENDS, as everywhere else. A client asks — so the
 //! question is in each endpoint's `client` — and the daemon answers, so
 //! the answer is in its `server`.
 
+pub mod get;
 pub mod list;
 pub mod login;
 pub mod tag;

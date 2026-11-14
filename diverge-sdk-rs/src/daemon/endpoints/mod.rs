@@ -18,7 +18,7 @@
 //! | [`volumes`] | create a volume on a provider; get one; list them across providers, narrowed; delete one; change its size or mode; walk one for its use and its hash; download files out of one, upload files into one, transfer files out of one; see one's tree |
 //! | [`postgres`] | see which database containers are served, the daemon's own or a remote one, as the daemon is configured; list the container connections open through it |
 //! | [`events`] | list the events — who sent what to whom through the daemon, a message, an MCP call or an MCP read, and how often — narrowed, the latest so many, and keep the list |
-//! | [`images`] | ask whether an image can be supplied, and read it: its manifests, its blobs, its proof and its DIVERGE.md; build one on a provider |
+//! | [`images`] | ask whether an image can be supplied, and read it: its manifests, its blobs, its proof and its DIVERGE.md; build one on a provider, push one there, list the daemon's Stores and get one image of them |
 //! | [`info`] | say what the daemon is: its version |
 //! | [`logs`] | read an agent's or a tool's log, narrowed, and watch it |
 //!
@@ -191,8 +191,10 @@
 //! | `158` | [`volumes::fuse_serve`] |
 //! | `159` | [`images::list`] |
 //! | `160` | [`images::push`] |
+//! | `161` | [`identities::get`] |
+//! | `162` | [`images::get`] |
 //!
-//! One hundred and fifty-eight, so far, the value `110` standing empty
+//! One hundred and sixty-two, so far, the value `110` standing empty
 //! where an image's document was once its own request. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds
