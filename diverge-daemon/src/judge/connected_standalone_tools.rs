@@ -2,7 +2,7 @@
 //!
 //! The shape of [`standalone_tools`](super::standalone_tools): the
 //! making action — the create — is held or it is not, and the create
-//! also needs `connect` over the remote daemon's record it names, which
+//! also needs `relay` over the remote daemon's record it names, which
 //! is [`daemons`](super::daemons)' to judge; an action over a connected
 //! tool is allowed by a grant that holds it and whose `within` reaches
 //! the tool — `any`, or the connected tools list filter as

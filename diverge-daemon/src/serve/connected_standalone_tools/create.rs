@@ -26,7 +26,7 @@ pub async fn handle(scope: ScopeHandle, frame: request::Frame, who: Who, daemon:
 /// 1. No standing, or no `create` grant over connected tools, is
 ///    `Forbidden`.
 /// 2. A `daemon` no record of this daemon's has is the error.
-/// 3. A record the grants' `connect` over daemons does not reach is
+/// 3. A record the grants' `relay` over daemons does not reach is
 ///    `Forbidden`.
 /// 4. A name a standalone or a connected tool has is `InUse`, as
 ///    [`tool_names`](crate::store::tool_names) states.
@@ -46,7 +46,7 @@ async fn serve(frame: request::Frame, who: Who, daemon: &Daemon) -> Result<Frame
         return Ok(Frame::Error(reply::failure(&format!("no remote daemon's record has the ID `{}`", frame.daemon))));
     };
     let reported = record.report(daemon.live.is_daemon_connected(record.id).await);
-    if !judge::daemons::over(&standing, DaemonsOver::Connect, &reported) {
+    if !judge::daemons::over(&standing, DaemonsOver::Relay, &reported) {
         return Ok(Frame::Forbidden);
     }
     let new = connected_standalone_tools::New {

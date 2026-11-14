@@ -26,11 +26,12 @@ use crate::store;
 ///
 /// The rules:
 ///
-/// 1. **Forbidden.** An account that holds `read` over neither providers
-///    nor remote daemons is answered `Forbidden`, and nothing is asked.
+/// 1. **Forbidden.** An account that holds neither `read` over a
+///    provider nor `relay` over a remote daemon is answered `Forbidden`,
+///    and nothing is asked.
 /// 2. **The reach.** The providers asked are those a `providers` grant
 ///    reaches with `read`; the remote daemons, the records a `daemons`
-///    grant reaches with `read`, as a list reports them.
+///    grant reaches with `relay`, as a list reports them.
 /// 3. **The first held.** The sources are asked as
 ///    [`images::locate`] asks them, `ignore` passed on: the first held
 ///    is `Held`, every other cancelled; none is `NotFound`. A store
@@ -131,7 +132,7 @@ async fn open(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc
         return Ok(Err(Frame::Forbidden));
     };
     let over_providers = judge::providers::holds(&standing, permission::providers::Over::Read);
-    let over_daemons = judge::daemons::holds(&standing, permission::daemons::Over::Read);
+    let over_daemons = judge::daemons::holds(&standing, permission::daemons::Over::Relay);
     if !over_providers && !over_daemons {
         return Ok(Err(Frame::Forbidden));
     }
@@ -140,7 +141,7 @@ async fn open(scope: &ScopeHandle, frame: request::Frame, who: Who, daemon: &Arc
     let providers = judge::providers::reached(&standing, permission::providers::Over::Read, &daemon.providers.all());
     let daemons = if over_daemons {
         let records = store::daemons::all(&mut conn).await?;
-        judge::daemons::reached(&standing, permission::daemons::Over::Read, records, &daemon.live.connected_daemons().await)
+        judge::daemons::reached(&standing, permission::daemons::Over::Relay, records, &daemon.live.connected_daemons().await)
     } else {
         Vec::new()
     };

@@ -2,8 +2,8 @@
 //!
 //! The shape of [`volumes`](super::volumes): a making action — adding a
 //! record — is held or it is not, judged by nothing else; an action over
-//! a record — reading, changing, deleting, holding a connected tool on
-//! it, relaying to it — is allowed by a grant that holds it and whose
+//! a record — reading, changing, deleting, and using the daemon it
+//! reaches, which is `relay` whatever the use — is allowed by a grant that holds it and whose
 //! `within` reaches the record — `any`, or the daemons list filter as
 //! [`filter::daemons::test`] reads it, over the record as a list reports
 //! it, its tags and its connection included; a tagging action by a grant
