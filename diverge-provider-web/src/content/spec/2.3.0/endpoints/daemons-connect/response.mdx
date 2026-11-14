@@ -1,19 +1,19 @@
 ---
 title: 'Response'
-summary: 'The server sends the byte 0 once when the acceptor takes the connection, then one response per server frame the acceptor sends, the byte 2 before each; or exactly one error, the byte 1, and the finish.'
+summary: 'The server sends the byte 0 once when the acceptor takes the connection, then one response per message the acceptor sends, the byte 2 before each; or exactly one error, the byte 1, and the finish.'
 order: 2
 draft: false
 ---
 
 The server sends the byte `0` once, when the acceptor takes the
-connection, and from then on one response per frame the acceptor
+connection, and from then on one response per message the acceptor
 sends; or exactly one error and the response finish. No frame bearing
 the scope follows the finish.
 
 ```text
 [0]                  once, when the acceptor took the connection
 [1][error JSON …]    once, when it did not, and the finish follows
-[2][frame …]         per server frame of the acceptor's, after the byte 0
+[2][message …]       per message of the acceptor's, after the byte 0
 ```
 
 - **The sequence.** The first response is the byte `0` or an error.
@@ -31,15 +31,14 @@ the scope follows the finish.
   scope is open under and `{"kind":"denied"}` for an acceptor that
   declined the connection or whose accept scope ended before it took
   the connection.
-- **The frame.** A payload whose first byte is `2` carries, after
-  that byte, exactly one server frame of the daemon protocol, laid
-  out as [Frames](/frames/) lays out a server frame, verbatim as the
-  acceptor sent it: the type byte `0`, the acceptor's authorization
-  frame; `2`, a response; `3`, a response finish; `4`, a channel
-  request the acceptor opened; `5`, a channel response; or `6`, a
-  channel response finish. The first is the acceptor's authorization
-  frame, as [Authorization](/authorization/) states. The scope and
-  the channel in it are the connector's own, as it minted them.
+- **The message.** A payload whose first byte is `2` carries, after
+  that byte, exactly one message of the relayed connection, verbatim
+  as the acceptor sent it. The first such message is the acceptor's
+  authorization frame, the answer, as
+  [Authorization](/authorization/) states. Every later one is one
+  frame of the acceptor's, sealed under the relayed connection's
+  keys, as [Sealing](/sealing/) states. The server reads no message,
+  and requires no form of one.
 - **Malformed.** A payload with no byte, a payload whose first byte
   is none of `0`, `1` and `2`, and a payload whose bytes after the
   byte `1` do not parse as one JSON value are malformed.

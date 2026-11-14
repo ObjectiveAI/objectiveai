@@ -1,6 +1,6 @@
 ---
 title: 'Authorization'
-summary: 'The first frame each party sends is its token, and the two tokens need not name the same issuer; a token either party does not accept closes the connection, and no frame says why.'
+summary: 'Three authorization frames precede every other frame of a connection: each party presents a token that names a key, and proves by a signature over the exchange that it holds that key; a party that does not accept the other closes the connection, and no frame says why.'
 order: 3
 draft: false
 ---
@@ -8,10 +8,17 @@ draft: false
 The party that initiated the WebSocket connection is the
 **connector**; the party that accepted it is the **connectee**. Either
 protocol role may occupy either position: a client may connect to a
-server, and a server may connect to a client. Each party sends exactly
-one authorization frame, whose payload is its token and nothing
-else. The two tokens need not name the same issuer. A token that either party does not accept closes the
-connection.
+server, and a server may connect to a client. The **handshake** is
+exactly three authorization frames: the connector sends the
+**offer**, the connectee sends the **answer**, and the connector sends
+the **proof**. Each party presents exactly one token. Each token names
+a public key, and each party proves, by a signature over the
+handshake, that it holds the private key of the key its token names.
+The two tokens need not name the same issuer. A party that does not
+accept the other party's token, or whose check of the other party's
+signature fails, closes the connection. The handshake yields the keys
+under which every later message of the connection is sealed, as
+[Sealing](/sealing/) states.
 
 ## The requirement
 
@@ -20,88 +27,207 @@ connection.
   layer of this specification declares to be no connection of the
   Protocol is not governed by this layer, and carries no authorization
   frame.
-- **Each party's first frame.** The first frame each party sends is
-  an authorization frame (type `0`), whose payload is that party's
-  token. No frame of that party precedes it.
-- **Both parties send.** The connector sends an authorization frame,
-  and the connectee sends an authorization frame.
-- **Nothing else without acceptance.** A party that has not accepted
-  the other party's token sends no frame other than its authorization
-  frame, and serves no frame of the other party's.
+- **Three frames, in order.** The handshake is exactly three frames of
+  type `0`. The offer precedes the answer, and the answer precedes the
+  proof. The scope and channel fields of each are ignored.
+- **The offer is first.** The connector's first frame is the offer.
+  No frame of either party precedes it.
+- **The answer follows acceptance.** The connectee sends the answer
+  after it has accepted the connector's token, and not before. The
+  answer is the connectee's first frame.
+- **The proof follows verification.** The connector sends the proof
+  after it has accepted the connectee's token and has verified the
+  connectee's signature, and not before.
+- **Completion.** The handshake is complete at the connector when it
+  has sent the proof. The handshake is complete at the connectee when
+  it has verified the connector's signature.
+- **Nothing else before completion.** A party at which the handshake
+  is not complete sends no frame other than its authorization frames,
+  and serves no frame of the other party's.
 - **No shared issuer.** The connectee's token and the connector's
   token need not name the same issuer. Each party presents the token
   of the identity it presents itself as, whatever issuer the other
   party's token names. A party does not close a connection because
   the other party's token names an issuer other than that of its own
   token.
-- **Exactly one each.** Each party sends exactly one authorization
-  frame. A second authorization frame from a party, in either
-  direction, is a protocol violation; the party receiving it closes
-  the connection.
-- **Each party judges.** Each party alone determines whether the
-  other party's token is acceptable, and which token it presents. The criteria of acceptability —
-  the issuers a party trusts, the signature, the expiry, the
-  audience, and the subjects a party admits — are not part of this
-  protocol.
+- **Exactly these.** The connector sends exactly two authorization
+  frames, and the connectee sends exactly one. An authorization frame
+  that a party receives after the handshake is complete at that party
+  is a protocol violation; the party receiving it closes the
+  connection.
+- **Each party judges the token.** Each party alone determines whether
+  the other party's token is acceptable, and which token it presents.
+  The criteria of acceptability — the issuers a party trusts, the
+  token's signature, the expiry, the audience, and the subjects a
+  party admits — are not part of this protocol, with one exception:
+  a token that does not name a key, as [The token](#the-token) states,
+  is not acceptable to any party.
+- **The protocol judges the key.** A party completes no handshake in
+  which the other party's signature does not verify against the key
+  the other party's token names.
 
-## The payload
+## The token
 
-The authorization frame's payload is the token, and nothing else.
-The scope and channel fields of the frame are ignored.
-
-```text
-[token …]
-```
-
-- **The token.** Every byte of the payload: a JSON Web Token, as
-  RFC 7519 defines one, encoded as UTF-8. No byte precedes the token
-  and no byte follows it. No length field precedes it, because
-  WebSocket already delimits messages.
+- **The form.** A token is a JSON Web Token, as RFC 7519 defines one,
+  encoded as UTF-8.
 - **The issuer.** The token's `iss` claim names the issuer of the
   token. A party does not determine the issuer of its own token from
   the other party's token.
-- **Nothing else.** The payload states nothing but the token. It
-  carries no flag, no description, and no statement of what the
-  sender asks of the connection. Whether the server lists the
-  client's identity is the matter of
-  [daemons::announce](/endpoints/daemons-announce/), and of no frame
-  of this layer.
-- **Malformed.** A payload that is empty and a payload that is not
-  valid UTF-8 are malformed. A party that receives a malformed
-  payload closes the connection.
+- **The key.** The token carries the `cnf` claim, as RFC 7800 defines
+  it, whose value is a JSON object with the member `jwk`. The value
+  of `jwk` is a JSON Web Key, as RFC 7517 defines one, that is an
+  Ed25519 public key, as RFC 8037 defines one: the member `kty` is
+  the string `OKP`, the member `crv` is the string `Ed25519`, and the
+  member `x` is the 32 bytes of the public key, encoded as base64url
+  without padding. The key so named is the **token's key**.
+- **No key.** A token that carries no `cnf` claim, a `cnf` claim with
+  no `jwk` member, and a `jwk` member that is not an Ed25519 public
+  key each name no key.
 
-The payload is defined by `diverge-sdk-rs/src/wire/frame/auth.rs`:
+**Remark.** The token's issuer signs the `cnf` claim with every other
+claim of the token. The token therefore states, on the issuer's word,
+both whom it names and which key that party holds. A party that holds
+a copy of another party's token and does not hold the private key of
+the token's key cannot complete a handshake with it.
+
+## The offer
+
+The offer's payload is the connector's one-time public key, followed
+by the connector's token.
+
+```text
+[one-time key: 32 bytes][token …]
+```
+
+- **The one-time key.** The first 32 bytes: an X25519 public key, as
+  RFC 7748 defines one. The connector generates the key pair for this
+  connection, and uses it for no other.
+- **The token.** Every byte after the one-time key: the connector's
+  token. No length field precedes it, because WebSocket already
+  delimits messages.
+- **Malformed.** A payload of fewer than 33 bytes and a payload whose
+  bytes after the first 32 are not valid UTF-8 are malformed.
+
+## The answer
+
+The answer's payload is the connectee's one-time public key, followed
+by the connectee's signature, followed by the connectee's token.
+
+```text
+[one-time key: 32 bytes][signature: 64 bytes][token …]
+```
+
+- **The one-time key.** The first 32 bytes: an X25519 public key. The
+  connectee generates the key pair for this connection, and uses it
+  for no other.
+- **The signature.** The next 64 bytes: an Ed25519 signature, as
+  RFC 8032 defines one, made with the private key of the connectee's
+  token's key, over the [transcript](#the-transcript) followed by the
+  byte `1`.
+- **The token.** Every byte after the signature: the connectee's
+  token.
+- **Malformed.** A payload of fewer than 97 bytes and a payload whose
+  bytes after the first 96 are not valid UTF-8 are malformed.
+
+## The proof
+
+The proof's payload is the connector's signature, and nothing else.
+
+```text
+[signature: 64 bytes]
+```
+
+- **The signature.** Exactly 64 bytes: an Ed25519 signature made with
+  the private key of the connector's token's key, over the
+  [transcript](#the-transcript) followed by the byte `0`.
+- **Malformed.** A payload of any length other than 64 bytes is
+  malformed.
+
+A party that receives a malformed payload closes the connection. The
+three payloads are defined by `diverge-sdk-rs/src/wire/frame/auth.rs`:
 
 ```rust include=diverge-sdk-rs/src/wire/frame/auth.rs
 ```
+
+## The transcript
+
+The transcript is the following bytes, in order.
+
+```text
+"diverge handshake"              17 bytes, ASCII
+[connector one-time key]         32 bytes
+[connectee one-time key]         32 bytes
+[connector token length]         u32, big-endian
+[connector token …]
+[connectee token length]         u32, big-endian
+[connectee token …]
+```
+
+- **The label.** The 17 bytes of the ASCII string
+  `diverge handshake`, with no terminator.
+- **The one-time keys.** The 32 bytes of the offer's one-time key,
+  followed by the 32 bytes of the answer's one-time key.
+- **The tokens.** The connector's token, preceded by its length in
+  bytes as a `u32`, big-endian, followed by the connectee's token,
+  preceded by its length in bytes as a `u32`, big-endian. Each token
+  is the bytes its frame carried.
+- **What a party signs.** The connectee signs the transcript followed
+  by the byte `1`. The connector signs the transcript followed by the
+  byte `0`. No signature of one party is a signature of the other.
+- **Verification.** A party verifies the other party's signature
+  against the other party's token's key, over the transcript followed
+  by the other party's byte. A signature that does not verify, and a
+  token's key that is not a valid Ed25519 public key, each fail the
+  check.
+
+**Remark.** The transcript includes both one-time keys, and each
+party generates its one-time key for one connection. A signature made
+for one connection therefore verifies on no other.
+
+## The shared secret
+
+- **The exchange.** Each party computes the X25519 function, as
+  RFC 7748 defines it, of its own one-time private key and the other
+  party's one-time public key. The 32 bytes of the result are the
+  **shared secret**. Both parties compute the same value.
+- **All zero.** A party whose computed shared secret is 32 zero bytes
+  closes the connection.
+- **The one-time private key.** A party uses its one-time private key
+  for this one computation, and retains it for no other use.
+
+The keys that the shared secret and the transcript yield are stated
+in [Sealing](/sealing/).
 
 ## Refusal is a close
 
 No frame states a refusal.
 
-- A token a party **accepts** is followed by the connection
-  proceeding.
+- A token a party **accepts**, from a party whose signature verifies,
+  is followed by the connection proceeding.
 - A token a party **does not accept** is followed by closure of the
   connection, and by nothing else. The party sends no frame that
   states the refusal.
+- A signature that **does not verify** is followed by closure of the
+  connection, and by nothing else.
 - A party that holds no token to present closes the connection, and
   sends nothing.
-- A connection that ends before a party's authorization frame has
-  arrived carries no service.
+- A connection that ends before the handshake is complete carries no
+  service.
 
-**Remark.** An invalid, an expired and an untrusted token are
-indistinguishable from the sender's side: each is observed as a
+**Remark.** An invalid, an expired and an untrusted token, a token
+that names no key, and a signature that does not verify are
+indistinguishable from the other party's side: each is observed as a
 connection that closed.
 
 ## What acceptance establishes
 
-Acceptance establishes, at each party, the other party's
-**identity**: the pair of the `iss` and `sub` claims of the token the
-other party presented. Each party holds the other's identity for the
-life of the connection. Where the client is the connector, the server
-serves every scope on the connection under the client's identity. The
-identity is the receiving party's own value: the server does not
-transmit it on the wire, does not derive a value it sends from it, and
-does not serve a scope under any identity other than that of the
-connection the scope was opened on. The layers at which the identity
-bears on an exchange name it where it applies.
+Completion of the handshake establishes, at each party, the other
+party's **identity**: the pair of the `iss` and `sub` claims of the
+token the other party presented. Each party holds the other's
+identity for the life of the connection. Where the client is the
+connector, the server serves every scope on the connection under the
+client's identity. The identity is the receiving party's own value:
+the server does not transmit it on the wire, does not derive a value
+it sends from it, and does not serve a scope under any identity other
+than that of the connection the scope was opened on. The layers at
+which the identity bears on an exchange name it where it applies.

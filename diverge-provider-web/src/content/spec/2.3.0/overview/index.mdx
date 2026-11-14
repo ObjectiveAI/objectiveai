@@ -44,7 +44,8 @@ other sense.
 
 The protocol is carried over one WebSocket connection, framed and
 multiplexed as the layers below define, with each party's token
-presented before anything else. This document is divided into layers, lowest
+presented, and its key proven, before anything else, and with every
+frame after that sealed. This document is divided into layers, lowest
 first; each defines what the layer beneath it leaves open, and no
 more.
 
@@ -52,7 +53,8 @@ more.
 |-------|---------|
 | [WebSocket](/websocket/) | the transport: version 13, binary frames, the handshake |
 | [Frames](/frames/) | the frame, the scope, the channel, and what ends each |
-| [Authorization](/authorization/) | the two tokens, one from each party, that precede every connection of the Protocol |
+| [Authorization](/authorization/) | the three frames that precede every connection of the Protocol: a token from each party, and each party's proof of the key its token names |
+| [Sealing](/sealing/) | the encryption of every message after those three frames, under keys the handshake yields |
 | [Capabilities](/capabilities/) | the parts of the Endpoints layer a server holds out, and what it answers past them |
 | [Container Proxy](/container-proxy/) | the one connection between the provider's server and the proxy inside a container |
 | [Container Proxy Endpoints](/container-proxy-endpoints/) | the ten scopes on that connection |

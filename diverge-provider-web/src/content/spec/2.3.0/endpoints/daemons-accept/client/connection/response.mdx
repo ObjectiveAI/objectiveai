@@ -6,11 +6,10 @@ draft: false
 ---
 
 ```text
-[type: u8][scope: u32][channel: u32][payload …]    zero or more, one client frame each
+[message …]    zero or more, one message of the relayed connection each
 ```
 
-- **The sequence.** Zero or more channel responses, each one client
-  frame of the daemon protocol with no tag in front, in the order the
+- **The sequence.** Zero or more channel responses, each one message of the relayed connection with no tag in front, in the order the
   connector sent them on its
   [frames](/endpoints/daemons-connect/server/frames/) channel. The
   channel response finish is the connector hanging up: it follows
@@ -19,19 +18,19 @@ draft: false
   response finish that no channel response precedes states that the
   id names no connection whose half may be opened, or that the
   connector hung up before sending a frame.
-- **The frame.** Each channel response is exactly one client frame of
-  the daemon protocol, laid out as [Frames](/frames/) lays out a
-  client frame: the type byte, the scope as a `u32` big-endian, the
-  channel as a `u32` big-endian, and the payload, running to the end.
-  The type is `0`, the connector's authorization frame; `1`, a
-  request opening a scope; `4`, a channel request on a scope; `5`, a
-  channel response on a channel the acceptor opened; or `6`, the
-  finish of such a channel. The first channel response is the
-  connector's authorization frame, as
-  [Authorization](/authorization/) states.
-- **The numbers are the connector's.** The scope and the channel in
-  a frame are minted by the connector as a client of the acceptor
-  mints them, and mean nothing on this wire: nothing between the
+- **The message.** Each channel response is exactly one message of
+  the relayed connection, verbatim as the connector sent it, with no
+  tag in front. The first is the connector's authorization frame, the
+  offer, and the second is the connector's authorization frame, the
+  proof, as [Authorization](/authorization/) states. Every later one
+  is one frame of the connector's, sealed under the relayed
+  connection's keys, as [Sealing](/sealing/) states. The server reads
+  no message, and requires no form of one: no channel response is
+  malformed.
+- **The frames are the two parties'.** The scope and the channel
+  numbers of the relayed connection's frames are minted by the
+  connector and the acceptor as the parties of that connection mint
+  them. They are inside the sealed messages, and nothing between the
   connector and the acceptor reads them.
 
 The channel response is defined by `diverge-sdk-rs/src/provider/endpoints/daemons/accept/server/channel_response/frame.rs`:

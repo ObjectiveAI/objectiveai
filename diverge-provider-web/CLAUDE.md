@@ -188,18 +188,35 @@ are not described at this layer.
 ### Layer 3 — Authorization (`/authorization/`)
 
 The handshake in front of everything. It states that both parties
-authenticate: the first frame each party sends is its token, a JWT
-whose `iss` names its issuer, and no frame of that party precedes
-it; the two tokens need not be from the same issuer; a party sends
-nothing else, and serves nothing, while it has not accepted the
-other party's token. It states that there is one kind of token
-and no mode byte, that a token a party does not accept is answered by
-the connection's close with no frame, in either direction, that an
-authorization frame after a party's first is a protocol violation the
+authenticate, in three authorization frames: the connector's offer,
+its one-time key and its token; the connectee's answer, its one-time
+key, its signature and its token; and the connector's proof, its
+signature. It states that a token is a JWT whose `iss` names its
+issuer and whose `cnf` claim names an Ed25519 key, that each
+signature is by its party's token's key over the transcript of the
+exchange, that the two tokens need not be from the same issuer, and
+that a party sends nothing else, and serves nothing, before the
+handshake is complete. It states that a token a party does not
+accept, and a signature that does not verify, are answered by the
+connection's close with no frame, in either direction, that an
+authorization frame after the handshake is a protocol violation the
 receiving party answers by ending the connection, and that the
 identity each party holds of the other is the `(iss, sub)` of the
 token it accepted, the identity every scope on the connection is
 served under.
+
+### Layer 3, continued — Sealing (`/sealing/`)
+
+What the handshake makes of every frame after it. It states the two
+session keys, one for each direction, drawn by HKDF-SHA-256 from the
+handshake's shared secret and transcript; that every message after
+the handshake is exactly one frame under AES-256-GCM, its nonce the
+count of the messages its sender sealed before it; that the three
+authorization frames are in the clear; and that a message that does
+not open closes the connection. It is numbered with Authorization
+because it has no meaning without it, and is its own page because a
+party that only relays a connection reads this page to learn what it
+cannot read.
 
 ### Layer 4 — Container proxy (`/container-proxy/`)
 

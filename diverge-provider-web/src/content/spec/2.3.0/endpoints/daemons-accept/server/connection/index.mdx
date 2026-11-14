@@ -1,6 +1,6 @@
 ---
 title: 'Connection'
-summary: 'No tag: the server announces a daemon connection a connector opened, under a connection id it minted, with the connector’s identity and address; the acceptor answers with everything it says on the connection, one server frame per channel response, and its channel response finish hangs up.'
+summary: 'No tag: the server announces a daemon connection a connector opened, under a connection id it minted, with the connector’s identity and address; the acceptor answers with everything it says on the connection, one message per channel response, and its channel response finish hangs up.'
 order: 0
 draft: false
 ---
@@ -17,18 +17,19 @@ acceptor opens, quoting the same id.
   [Request](/endpoints/daemons-accept/server/connection/request/)
   states its form.
 - **The response.** What the acceptor says on the connection, as
-  channel responses, each one server frame, and the channel response
-  finish, which hangs up.
+  channel responses, each one message of the relayed connection, and
+  the channel response finish, which hangs up.
   [Response](/endpoints/daemons-accept/server/connection/response/)
   states the sequence.
 - **The id.** The server chooses the id and keeps it unique among the
   connections it has announced on the scope and the acceptor has not
   finished. It may reuse an id after both halves of its connection
   have finished.
-- **The handshake.** The first frame each way on the connection is
-  that party's authorization frame, as
-  [Authorization](/authorization/) states. The server relays both and
-  reads neither.
+- **The handshake.** The connection begins with the connector's
+  offer, the acceptor's answer, and the connector's proof, as
+  [Authorization](/authorization/) states. The server relays the
+  three and reads none. Every message after the proof is sealed, as
+  [Sealing](/sealing/) states, and the server holds no key of it.
 - **Before the other half.** The server sends nothing on the connect
   scope until the acceptor has opened its half. A channel response
   the acceptor sends before then is held, and relayed onto the

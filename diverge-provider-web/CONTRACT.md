@@ -83,9 +83,9 @@ Provider and a Client, from the completion of the WebSocket opening
 handshake to its close.
 
 1.7 **"Identity"** means the pair of the `iss` and `sub` claims of the
-token a Client presents in its authorization frame on a Connection,
-once the Provider has accepted the token, as the Specification's
-Authorization layer provides. Every scope on a Connection is served
+token a Client presents in the handshake on a Connection, once the
+Provider has accepted the token and the handshake is complete at the
+Provider, as the Specification's Authorization layer provides. Every scope on a Connection is served
 under the Identity of that Connection.
 
 1.8 **"Scope"**, **"Channel"**, **"Request"**, **"Response"**,
@@ -360,9 +360,11 @@ sub-section of this Article is a separate covenant.
 defines it, version 13, adding nothing to the opening handshake,
 negotiating no subprotocol, and requiring no extension.
 
-(b) The Provider shall carry every frame of the Protocol as exactly
-one WebSocket binary data frame, and shall carry no frame of the
-Protocol in a text data frame or a control frame.
+(b) The Provider shall carry every frame of the Protocol in exactly
+one WebSocket binary data frame — each authorization frame as it is,
+and every other frame sealed, as Section 5.3A provides — and shall
+carry no frame of the Protocol in a text data frame or a control
+frame.
 
 (c) The Provider may offer the Protocol over TLS. The use of TLS is
 outside the Specification and is not an Obligation.
@@ -409,35 +411,74 @@ Specification requires a Response.
 
 ### 5.3 Authorization
 
-(a) On every Connection, whichever party dialed it, the Provider
-shall treat the Client's first frame as the Client's authorization
-frame, whose payload is the Client's token, and shall accept no other
-frame of the Client's before it.
+(a) On every Connection the Provider shall make the handshake the
+Specification's Authorization layer states: exactly three
+authorization frames, the offer, the answer and the proof, in that
+order, the party that dialed the Connection sending the offer and the
+proof and the party that accepted it sending the answer. The Provider
+shall send the frames of its own position and no other, and shall
+send no other frame, and serve no frame of the Client's, before the
+handshake is complete at the Provider.
 
-(b) On every Connection, whichever party dialed it, the Provider
-shall send, as its own first frame, an authorization frame whose
-token is the Provider's own, whatever issuer the Client's token
-names.
+(b) The Provider shall present, in the offer or the answer it sends,
+a token of its own, whatever issuer the Client's token names, that
+carries a `cnf` claim whose `jwk` member is an Ed25519 public key;
+shall generate a one-time X25519 key pair for each Connection and use
+it for no other; and shall sign the transcript, followed by the byte
+of its own position, with the private key of its token's key.
 
-(c) The Provider shall judge the Client's token by its own means,
-shall send no frame other than its authorization frame and serve no
-frame of the Client's while it has not accepted the Client's token,
-shall close the Connection when the Client's token is not accepted,
-and shall serve every Scope on the Connection under the Identity the
-Client's token establishes. The Provider shall not close the
-Connection because the Client's token names an issuer other than
-that of the Provider's token.
+(c) The Provider shall judge the Client's token by its own means;
+shall accept no token that names no key; shall verify the Client's
+signature against the Client's token's key, over the transcript
+followed by the byte of the Client's position; shall send the answer,
+where it accepted the Connection, only after accepting the Client's
+token, and the proof, where it dialed, only after accepting the
+Client's token and verifying the Client's signature; and shall serve
+every Scope on the Connection under the Identity the Client's token
+establishes. The Provider shall not close the Connection because the
+Client's token names an issuer other than that of the Provider's
+token.
 
-(d) The Provider shall answer a token it does not accept, and any
-Client's token while the Provider holds no token to present,
-by closing the Connection with no frame, and shall answer an
-authorization frame received after the handshake by ending the
-Connection.
+(d) The Provider shall answer a token it does not accept, a signature
+that does not verify, a malformed authorization payload, a shared
+secret of thirty-two zero bytes, and any Client's offer while the
+Provider holds no token to present, by closing the Connection with no
+frame, and shall answer an authorization frame received after the
+handshake is complete by ending the Connection.
 
 (e) The Provider shall treat the Identity as its own value: it shall
 not transmit it on the wire, and it shall not derive a volume name, a
 container id, or any other Protocol value from it in a manner that
 discloses it.
+
+(f) The Provider shall disclose the private key of its token's key,
+and the one-time private key of any Connection, to no one, and shall
+use the one-time private key of a Connection for the one computation
+of that Connection's shared secret.
+
+### 5.3A Sealing
+
+(a) On every Connection, from the completion of the handshake at the
+Provider, the Provider shall send every frame sealed as the
+Specification's Sealing layer states: exactly one frame in each
+WebSocket binary message, encrypted under AES-256-GCM with the
+session key of the Provider's position, a nonce of four zero bytes
+followed by the count of the messages the Provider sealed before it
+as a `u64` big-endian, and no additional authenticated data, the
+sixteen-byte tag following the ciphertext.
+
+(b) The Provider shall derive the two session keys as the
+Specification states, by HKDF with SHA-256, from the shared secret
+and the transcript of that Connection's handshake, and shall use them
+on that Connection and on no other.
+
+(c) The Provider shall open every message it receives after the
+handshake is complete under the session key of the Client's position
+and the count of the messages it received before it, and shall close
+the Connection, sending nothing, on a message that does not open.
+
+(d) The Provider shall send no nonce and no count on the wire, and
+shall seal no more than 2^64 messages under one session key.
 
 ### 5.4 Endpoints in general
 
@@ -1265,24 +1306,26 @@ Channel Response of the `frames` Channel onto the Acceptor's half as
 exactly one Channel Response each, in order, and relay every Channel
 Response the Acceptor sends on the Provider's half onto the connect
 Scope as exactly one Response each, the byte `2` followed by the
-frame verbatim, in order; shall hold a Channel Response the Acceptor
+message verbatim, in order; shall hold a Channel Response the Acceptor
 sends before it has opened its half and relay it after the byte `0`,
-in order; shall read, alter, reorder and repeat no frame; and shall
-relay the `mode` without reading it.
+in order; shall read, alter, reorder and repeat no message; shall
+require no form of a relayed message, each being an authorization
+frame of the relayed connection or a message sealed under keys the
+Provider does not hold; and shall relay the `mode` without reading
+it.
 
 (d) The Provider shall end a connection — finishing the Acceptor's
 half, finishing the `frames` Channel, and sending the Response Finish
 of the connect Scope with no error — when the Acceptor finishes the
 Provider's half, when the Daemon Connector finishes the `frames`
-Channel or answers on it a Channel Response that is not one client
-frame of the daemon protocol, when the accept Scope ends, and when the
-Daemon Connector's Connection ends. The Provider shall finish the
+Channel, when the accept Scope ends, and when the Daemon Connector's
+Connection ends. The Provider shall finish the
 other half of a connection whose one half has finished.
 
 (e) The Provider shall hold at most one accept Scope under one
 Identity at a time, shall time nothing out, and shall send nothing on
-the main stream of a connect Scope after the byte `0` but the frames
-of the Acceptor's and the Response Finish.
+the main stream of a connect Scope after the byte `0` but the
+messages of the Acceptor's and the Response Finish.
 
 ### 5.14 Prohibitions
 

@@ -1,0 +1,107 @@
+---
+title: 'Sealing'
+summary: 'Every message after the handshake is exactly one frame encrypted under AES-256-GCM, under one key for each direction drawn from the handshake; a message that does not open closes the connection.'
+order: 4
+draft: false
+---
+
+The handshake of [Authorization](/authorization/) yields a shared
+secret and a transcript. From them each party derives two **session
+keys**, one for each direction of the connection. After the handshake
+is complete at a party, every WebSocket binary message that party
+sends carries exactly one frame, **sealed** under the session key of
+its direction, and every message it receives is **opened** under the
+session key of the other direction. A message that does not open
+closes the connection.
+
+## The requirement
+
+- **Every connection of the Protocol.** This layer governs every
+  connection that [Authorization](/authorization/) governs. A
+  connection that carries no authorization frame is not sealed.
+- **In the clear.** The three authorization frames are not sealed.
+  Each is carried as [Frames](/frames/) states: one frame in one
+  binary message.
+- **Sealed.** Every message a party sends after the handshake is
+  complete at that party is sealed. The first sealed message of the
+  connector follows the proof. The first sealed message of the
+  connectee follows the answer.
+- **One frame each.** A sealed message carries exactly one frame, laid
+  out as [Frames](/frames/) lays out a frame: the nine-byte header
+  and the payload. A frame never spans sealed messages.
+- **A message that does not open.** A party that receives, after the
+  handshake is complete at it, a message that does not open closes
+  the connection, and sends nothing.
+
+## The session keys
+
+- **The derivation.** The session keys are derived by HKDF, as
+  RFC 5869 defines it, with the hash function SHA-256. The salt is
+  the SHA-256 hash of the transcript, as
+  [Authorization](/authorization/#the-transcript) defines the
+  transcript, with no byte following it. The input keying material is
+  the 32 bytes of the shared secret. The output of each derivation is
+  32 bytes.
+- **The connector's key.** The session key derived with the info
+  being the 17 bytes of the ASCII string `diverge connector` is the
+  key under which the connector seals every message it sends.
+- **The connectee's key.** The session key derived with the info
+  being the 17 bytes of the ASCII string `diverge connectee` is the
+  key under which the connectee seals every message it sends.
+- **Each party holds both.** A party seals under the key of its own
+  position, and opens under the key of the other position.
+- **One connection.** A party uses the session keys of a connection
+  on that connection, and on no other.
+
+## The message
+
+A sealed message is the ciphertext of one frame, followed by the
+authentication tag.
+
+```text
+[ciphertext …][tag: 16 bytes]
+```
+
+- **The cipher.** AES-256-GCM, as NIST Special Publication 800-38D
+  defines it, with the session key as the key, a nonce of 12 bytes,
+  a tag of 16 bytes, and no additional authenticated data.
+- **The plaintext.** Exactly one frame: its nine-byte header, followed
+  by its payload.
+- **The ciphertext.** As many bytes as the plaintext, followed by the
+  16 bytes of the tag. No length field precedes the ciphertext,
+  because WebSocket already delimits messages.
+- **The nonce.** Twelve bytes: four bytes of zero, followed by the
+  **count** as a `u64`, big-endian. The count of a message is the
+  number of messages its sender sealed on the connection before it.
+  The count of the first sealed message of each party is `0`.
+- **The nonce is not sent.** No message carries a nonce or a count.
+  Each party counts the messages it has sealed, and the messages it
+  has opened.
+
+## Order
+
+- **Sealing.** A party seals its messages in the order it sends them,
+  each under the count of the messages it sealed before.
+- **Opening.** A party opens each message it receives under the count
+  of the messages it received, after the handshake was complete at
+  it, before that message. A message that was sealed under another
+  count, under another key, or that was altered, does not open.
+- **The limit.** A party seals no more than 2<sup>64</sup> messages
+  under one session key.
+
+**Remark.** A message removed, repeated or reordered in transit
+causes a later message, or itself, not to open, and the connection
+closes. Nothing in this layer recovers from it.
+
+## What sealing leaves in the clear
+
+- **The handshake.** The three authorization frames, and so both
+  tokens, both one-time public keys and both signatures.
+- **The message boundaries.** The length of each sealed message, and
+  the time at which it is sent.
+
+**Remark.** A party that relays a connection between two others,
+as [daemons::connect](/endpoints/daemons-connect/) has the server do,
+holds neither session key of the relayed connection. It relays the
+three authorization frames and every sealed message as bytes, and
+reads no frame of the relayed connection.
