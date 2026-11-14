@@ -7,6 +7,6 @@ pub mod build;
 pub mod delete;
 pub mod edit;
 pub mod list;
-pub mod oci;
+pub mod read;
 pub mod push;
 pub mod stat;

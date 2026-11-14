@@ -246,7 +246,7 @@ pub trait ContainerDeployer: Send + Sync {
     /// nonce check passes; a check that fails is
     /// [`Refused::ProofFailed`]. An image it can get from none of them
     /// is an [`Error`](Self::Error) like any other. The image is the one
-    /// an [`images::oci`](diverge_sdk::provider::endpoints::images::oci)
+    /// an [`images::read`](diverge_sdk::provider::endpoints::images::read)
     /// scope opens on, so a scope that answered held names an image
     /// this can be handed with nothing to translate.
     ///

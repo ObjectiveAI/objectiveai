@@ -1,5 +1,6 @@
-//! Answering whether an image is held, and a pull of it, from a scope
-//! and the store.
+//! Answering whether an image is held, and everything read of it —
+//! a pull, and its document — from a scope, the store and the
+//! deployer.
 
 use diverge_sdk::shared::Identity;
 use std::sync::Arc;
@@ -8,15 +9,19 @@ use futures_util::StreamExt as _;
 use tokio::task::JoinSet;
 
 use diverge_sdk::CHUNK_SIZE;
-use diverge_sdk::provider::endpoints::images::oci::client::{channel_request, request};
+use diverge_sdk::provider::endpoints::images::read::client::{channel_request, request};
+use diverge_sdk::shared::containers::info::{self, Document};
 use diverge_sdk::shared::containers::oci;
+use diverge_sdk::shared::containers::request::Image;
 use diverge_sdk::wire::decode::Decode as _;
 use diverge_sdk::wire::encode::{Encode, Writer};
 use diverge_sdk::wire::frame::client::ClientFrame;
 use diverge_sdk::wire::server::scope_handle::ScopeHandle;
+use crate::protocol::container_deployer::ContainerDeployer;
+use crate::protocol::image_info::ImageInfo;
 use crate::protocol::oci_store::{OciStore, ServedImage};
 use diverge_sdk::provider::endpoints::info::server::response::Capabilities;
-use diverge_sdk::provider::endpoints::images::oci::server::response;
+use diverge_sdk::provider::endpoints::images::read::server::response;
 use diverge_sdk::shared::error::Error;
 
 /// Say whether the one image the request names is held, and serve it,
@@ -51,7 +56,8 @@ use diverge_sdk::shared::error::Error;
 ///    [`CHUNK_SIZE`], then the finish; a proof with one frame of its
 ///    32 bytes then the finish — the empty finish being a digest the
 ///    image does not reach, one the store could not supply, or a proof
-///    the image could not give. A channel request that will not decode
+///    the image could not give; the document with exactly one frame
+///    then the finish, as [`document`] states it. A channel request that will not decode
 ///    is finished with nothing. An answer done is reaped as it ends,
 ///    so the set holds only the answers in flight however long the
 ///    scope is held.
@@ -67,15 +73,18 @@ use diverge_sdk::shared::error::Error;
 ///
 /// Because what the store serves one caller is not what it serves
 /// another, and the connection is what knows whose scope this is.
-pub async fn handle<O>(
+pub async fn handle<O, D>(
     scope: ScopeHandle,
     request: request::Frame,
     client_identity: &Identity,
     store: &O,
+    deployer: Arc<D>,
     capabilities: &Capabilities,
 ) where
     O: OciStore,
     O::Error: Into<Error>,
+    D: ContainerDeployer + Send + Sync + 'static,
+    D::Error: Into<Error>,
 {
     if !capabilities.images_store && capabilities.images_registries.is_empty() {
         refuse(scope, &response::Frame::Unsupported).await;
@@ -117,6 +126,9 @@ pub async fn handle<O>(
             }
             Ok(channel_request::Frame::OciProve(request)) => {
                 tasks.spawn(prove(Arc::clone(&scope), Arc::clone(&served), channel, request));
+            }
+            Ok(channel_request::Frame::Info) => {
+                tasks.spawn(document(Arc::clone(&scope), Arc::clone(&deployer), client_identity.clone(), request.0.image.clone(), channel));
             }
             Ok(channel_request::Frame::Cancel) => break,
             Err(_) => scope.send_channel_response_finish(channel).await,
@@ -187,6 +199,49 @@ async fn prove<I: ServedImage>(scope: Arc<ScopeHandle>, served: Arc<I>, channel:
         respond(&scope, channel, &oci::prove::response::Frame { proof }).await;
     }
     scope.send_channel_response_finish(channel).await;
+}
+
+/// Exactly one frame — the image's `/DIVERGE.md` — then the finish.
+/// The deployer reads the file out of the image without running it,
+/// obtaining the image as the scope found it: from the caller's Store
+/// or a registry it uses. The rules:
+///
+/// 1. No file, or not a regular one, is `Missing`: a fact about the
+///    image and not a failure.
+/// 2. A file whose bytes are not UTF-8, or whose text breaks a rule of
+///    [`Document::parse`], is `Error` of kind `info`, naming the rule.
+/// 3. Otherwise `Info`, the document.
+/// 4. An image the deployer could not obtain after all — held when
+///    the scope opened, and gone since — is `Error` of kind `info`.
+/// 5. A deployer that failed is `Error`, its own failure rendered.
+async fn document<D>(scope: Arc<ScopeHandle>, deployer: Arc<D>, client_identity: Identity, image: Image, channel: u32)
+where
+    D: ContainerDeployer + Send + Sync + 'static,
+    D::Error: Into<Error>,
+{
+    let frame = match deployer.read_info(&client_identity, &image).await {
+        Ok(ImageInfo::Missing) => info::response::Frame::Missing,
+        Ok(ImageInfo::Found(bytes)) => match String::from_utf8(bytes) {
+            Err(reason) => info::response::Frame::Error(info_error(reason)),
+            Ok(text) => match Document::parse(&text) {
+                Ok(document) => info::response::Frame::Info(document),
+                Err(reason) => info::response::Frame::Error(info_error(reason)),
+            },
+        },
+        Ok(ImageInfo::Unavailable) => info::response::Frame::Error(info_error("the image could not be obtained to be read")),
+        Err(error) => info::response::Frame::Error(error.into()),
+    };
+    respond(&scope, channel, &frame).await;
+    scope.send_channel_response_finish(channel).await;
+}
+
+/// A failure of the document's own, in the wire's one error shape:
+/// kind `info`.
+fn info_error(reason: impl std::fmt::Display) -> Error {
+    Error(serde_json::json!({
+        "kind": "info",
+        "error": reason.to_string(),
+    }))
 }
 
 /// One channel response, when it encoded; one that will not is not

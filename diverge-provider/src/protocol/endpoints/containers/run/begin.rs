@@ -4,10 +4,9 @@ use diverge_sdk::wire::client::handle::SendError;
 use diverge_sdk::container_proxy::outside::endpoints::agents::begin::client::execute::{Chunks, ExecuteHandle as AgentsBegin};
 use diverge_sdk::container_proxy::outside::client::{Ask, Asks};
 use diverge_sdk::container_proxy::outside::endpoints::tools::begin::client::execute::{Events, ExecuteHandle as ToolsBegin};
-use diverge_sdk::provider::endpoints::containers::client::answered::{Daemon, Info, Postgres, Secrets};
+use diverge_sdk::provider::endpoints::containers::client::answered::{Daemon, Postgres, Secrets};
 use diverge_sdk::provider::endpoints::containers::client::{ChannelStream, OpenError, UnaryError};
 use diverge_sdk::shared::containers::dependencies::Template;
-use diverge_sdk::shared::containers::info::Document;
 use diverge_sdk::shared::containers::secrets::{Declaration, Values};
 use diverge_sdk::shared::permission::Grant;
 
@@ -68,18 +67,6 @@ impl Begin {
         }
     }
 
-    /// What the arguments may be, as the image states it: the info
-    /// channel on either family's begin, answered with the image's
-    /// `/DIVERGE.md` parsed — `None` for an image that ships none —
-    /// or the proxy's refusal, which is the file unreadable or not a
-    /// document. The proxy reads the file from the container's root;
-    /// the program is never asked.
-    pub(crate) async fn info(&self) -> Result<Option<Document>, UnaryError<Info>> {
-        match self {
-            Begin::Agents(begin) => begin.info().await,
-            Begin::Tools(begin) => begin.info().await,
-        }
-    }
 
     /// The secrets' values, fed to the container: the secrets channel
     /// on either family's begin, answered once the program has

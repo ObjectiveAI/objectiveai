@@ -116,7 +116,7 @@
 //! An image an identity owns is one the provider holds for that
 //! identity and for nobody else, which the OCI store and the deployer a provider supplies beside this are bound to.
 //!
-//! [`oci_store`] is the fifth: the one image an `images::oci` scope
+//! [`oci_store`] is the fifth: the one image an `images::read` scope
 //! names, opened for the caller — from its Store, or from a registry
 //! the provider uses that one of the image's references names — its
 //! opening the answer to whether the image is held, and then served
@@ -142,7 +142,7 @@
 //! [`volume_manager`] and [`volume`] by the eleven
 //! [`volumes`](diverge_sdk::provider::endpoints::volumes) endpoints' handlers,
 //! [`oci_store`] by
-//! [`images::oci`](diverge_sdk::provider::endpoints::images::oci)'s,
+//! [`images::read`](diverge_sdk::provider::endpoints::images::read)'s,
 //! [`image_manager`] by the store endpoints' — the build's
 //! taking the [`volume_manager`] too, for the volume it reads — and
 //! [`container_deployer`] and
