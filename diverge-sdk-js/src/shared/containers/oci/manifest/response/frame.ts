@@ -22,6 +22,20 @@ export interface Frame {
 /** The bytes the media type's length occupies. */
 const MEDIA_TYPE_LEN = 2;
 
+/** The frame as its payload: the media type's length, the media type, the manifest's bytes. A media type longer than 65535 bytes is the `body` error. */
+export function encode(frame: Frame): Uint8Array {
+  const media_type = new TextEncoder().encode(frame.media_type);
+  if (media_type.length > 0xffff) {
+    throw new DecodeError("body");
+  }
+  const out = new Uint8Array(MEDIA_TYPE_LEN + media_type.length + frame.body.length);
+  out[0] = media_type.length >> 8;
+  out[1] = media_type.length & 0xff;
+  out.set(media_type, MEDIA_TYPE_LEN);
+  out.set(frame.body, MEDIA_TYPE_LEN + media_type.length);
+  return out;
+}
+
 /**
  * A frame out of its payload: the length, the media type, the rest.
  * Too short for the length, too short for the media type it names, or

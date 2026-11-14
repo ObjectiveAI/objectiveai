@@ -18,12 +18,20 @@ export class ExecuteStream<T> implements AsyncIterable<T> {
   readonly #scope: Scope;
   readonly #decode: Decode<T>;
 
-  constructor(scope: Scope, decode: Decode<T>) {
+  /**
+   * Over `scope`'s responses. `asked` is `true` for the one kind of
+   * stream whose caller also reads what the server asks on the scope,
+   * and answers it; absent, nobody does.
+   */
+  constructor(scope: Scope, decode: Decode<T>, asked = false) {
     this.#scope = scope;
     this.#decode = decode;
     // A stream reads its answers alone: the server's channel requests
-    // are read by nobody, and the server is told so.
-    scope.requestReceiver.abandon();
+    // are read by nobody, and the server is told so — unless the
+    // caller reads them itself.
+    if (!asked) {
+      scope.requestReceiver.abandon();
+    }
   }
 
   /** Read nothing more: the daemon is told, and its sends on the scope cost nothing. */
