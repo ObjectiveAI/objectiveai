@@ -15,7 +15,10 @@
 //! [`filetree`] answers one's tree, once; [`download`] sends the client
 //! a file or a directory out of one, [`upload`] puts files into one,
 //! and [`transfer`] copies out of one into an agent, a tool or another
-//! volume, the bytes never reaching the client. A
+//! volume, the bytes never reaching the client. [`fuse_serve`] serves
+//! one over FUSE to the caller, for as long as the caller holds the
+//! scope: how a container of another daemon's mounts a file or a
+//! directory of it. A
 //! volume is a [`Destination`](crate::daemon::transfer::Destination) of
 //! every other family's transfer too.
 //!
@@ -57,6 +60,7 @@ pub mod delete;
 pub mod download;
 pub mod edit;
 pub mod filetree;
+pub mod fuse_serve;
 pub mod get;
 pub mod list;
 pub mod stat;

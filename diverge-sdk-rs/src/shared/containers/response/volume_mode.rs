@@ -18,6 +18,7 @@ use crate::provider::endpoints::volumes::Mode;
 /// finish — with nothing fetched and nothing deployed for it. The
 /// mode the request meant is the request's to read back.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VolumeMode {
     /// The `volume_name` of the volume, as the request named it.

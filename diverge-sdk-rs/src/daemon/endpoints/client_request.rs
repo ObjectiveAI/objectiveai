@@ -278,6 +278,8 @@ pub enum ClientRequest<'a> {
     ImagesRead(images::read::client::request::Frame),
     /// Tag `157`. Build an image on a provider, from a Containerfile.
     ImagesBuild(images::build::client::request::Frame),
+    /// Tag `158`. Serve a volume over FUSE, through the daemon.
+    VolumesFuseServe(volumes::fuse_serve::client::request::Frame),
     /// Tag `146`. Hold another daemon's standalone tool under a name.
     ConnectedStandaloneToolsCreate(connected_standalone_tools::create::client::request::Frame),
     /// Tag `147`. Get one connected tool.
@@ -439,6 +441,7 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsMessage(frame) => frame.encode(out),
             ClientRequest::ImagesRead(frame) => frame.encode(out),
             ClientRequest::ImagesBuild(frame) => frame.encode(out),
+            ClientRequest::VolumesFuseServe(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsCreate(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsGet(frame) => frame.encode(out),
             ClientRequest::ConnectedStandaloneToolsList(frame) => frame.encode(out),
@@ -838,6 +841,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             157 => images::build::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesBuild)
                 .ok(),
+            158 => volumes::fuse_serve::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesFuseServe)
+                .ok(),
             146 => connected_standalone_tools::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ConnectedStandaloneToolsCreate)
                 .ok(),
@@ -1004,6 +1010,7 @@ impl fmt::Display for ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsMessage(_) => f.write_str("providers daemons message"),
             ClientRequest::ImagesRead(_) => f.write_str("images read"),
             ClientRequest::ImagesBuild(_) => f.write_str("images build"),
+            ClientRequest::VolumesFuseServe(_) => f.write_str("volumes fuse serve"),
             ClientRequest::ConnectedStandaloneToolsCreate(_) => f.write_str("connected standalone tools create"),
             ClientRequest::ConnectedStandaloneToolsGet(_) => f.write_str("connected standalone tools get"),
             ClientRequest::ConnectedStandaloneToolsList(_) => f.write_str("connected standalone tools list"),
@@ -1149,6 +1156,7 @@ pub fn tag(path: &str) -> Option<u8> {
         "providers/daemons/message" => Some(144),
         "images/read" => Some(145),
         "images/build" => Some(157),
+        "volumes/fuse_serve" => Some(158),
         "connected_standalone_tools/create" => Some(146),
         "connected_standalone_tools/get" => Some(147),
         "connected_standalone_tools/list" => Some(148),
@@ -1291,6 +1299,7 @@ impl ClientRequest<'_> {
             ClientRequest::ProvidersDaemonsMessage(_) => "providers/daemons/message",
             ClientRequest::ImagesRead(_) => "images/read",
             ClientRequest::ImagesBuild(_) => "images/build",
+            ClientRequest::VolumesFuseServe(_) => "volumes/fuse_serve",
             ClientRequest::ConnectedStandaloneToolsCreate(_) => "connected_standalone_tools/create",
             ClientRequest::ConnectedStandaloneToolsGet(_) => "connected_standalone_tools/get",
             ClientRequest::ConnectedStandaloneToolsList(_) => "connected_standalone_tools/list",

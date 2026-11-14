@@ -188,8 +188,9 @@
 //! | `155` | [`connected_standalone_tools::attach_agent_template`] |
 //! | `156` | [`connected_standalone_tools::detach_agent_template`] |
 //! | `157` | [`images::build`] |
+//! | `158` | [`volumes::fuse_serve`] |
 //!
-//! One hundred and fifty-seven, so far, the value `110` standing empty
+//! One hundred and fifty-eight, so far, the value `110` standing empty
 //! where an image's document was once its own request. Every one of them carries the optional
 //! member `relay` — see [`Relay`](crate::shared::relay::Relay) — by
 //! which a daemon serves it on another daemon, as an account it holds

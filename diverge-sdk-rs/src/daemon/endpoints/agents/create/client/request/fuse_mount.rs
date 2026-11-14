@@ -5,6 +5,7 @@ use crate::provider::endpoints::volumes::Mode;
 use serde::{Deserialize, Serialize};
 
 use crate::daemon::agent_log::Identity;
+use crate::daemon::endpoints::daemons::DaemonId;
 
 /// A file or a directory in a volume of some provider the daemon
 /// knows, mounted into the agent's container over FUSE: which
@@ -84,6 +85,42 @@ use crate::daemon::agent_log::Identity;
 /// entry can be created, overwritten by either method, renamed and
 /// deleted, and whose root alone is fixed.
 ///
+/// # A volume on another daemon
+///
+/// A mount may name a volume that is no provider of this daemon's:
+/// one on a remote daemon, named by [`daemon`](Self::daemon), this
+/// daemon's record of it, and reached beyond it along
+/// [`route`](Self::route). The provider and the volume are then that
+/// daemon's, named as that daemon names them. The rules:
+///
+/// 1. **One permission here.** Naming a remote daemon's volume takes
+///    the daemons grant's `relay` over the record `daemon` names — the
+///    one permission to use a remote daemon — and nothing else of this
+///    daemon's: it knows nothing of that daemon's providers or
+///    volumes, and judges none of them.
+/// 2. **The rest is the other daemon's.** At the run's start the
+///    daemon opens that daemon's
+///    [`volumes::fuse_serve`](crate::daemon::endpoints::volumes::fuse_serve)
+///    of the volume, as the account its record names, with `route` as
+///    the request's [`relay`](crate::shared::relay::Relay), and answers
+///    the container's asks from it. Whether that account may be
+///    served the volume — its `fuse_serve` grant there — and every
+///    `relay` along the route are each daemon's own to judge, as a
+///    relayed request of any kind is judged. A serve refused is the
+///    start's error.
+/// 3. **Fixed at the create.** The record and the route are part of
+///    the mount, and a mount is never changed, only added.
+/// 4. **The record is in use.** A remote daemon's record a mount names
+///    is not deleted while the agent or the tool that names it exists.
+///
+/// # A serve that ends ends the run
+///
+/// A mount is a promise that the container can read and write what it
+/// mounted. Where the mount's serve ends before the run does — the
+/// volume's provider gone, or the connection to the volume's daemon
+/// gone, at any hop — the run is ended as failed, its reason
+/// `mount_lost`, for a volume of this daemon's and of another's alike.
+///
 /// Nothing here says a mount may not change: the daemon forwards
 /// every mutation, the volume's provider allows what its volume
 /// allows, and the program in the container sees that provider's own
@@ -91,16 +128,34 @@ use crate::daemon::agent_log::Identity;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 pub struct FuseMount {
+    /// The remote daemon the volume is on, by the ID of this daemon's
+    /// record of it — and so the account of ours it is reached as.
+    /// Absent, the volume is a provider's of this daemon's own. An ID
+    /// no record has is the create's error; the caller must hold the
+    /// daemons grant's `relay` over the record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub daemon: Option<DaemonId>,
+    /// The remote-daemon records the serve is relayed through beyond
+    /// [`daemon`](Self::daemon), each by its ID on the daemon before
+    /// it: the volume is on the last. Empty — the default — the volume
+    /// is on `daemon`. Stated only with `daemon`: a route with no
+    /// daemon is the create's error.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub route: Vec<DaemonId>,
     /// Which provider holds the volume: the same object the create's
     /// [`Provider`](super::Provider) names one by, and an agent's log
     /// names one by — its `(issuer, subject)`. A provider the daemon
     /// does not accept by that identity is the create's error.
+    /// For a volume on another daemon, a provider of THAT daemon's,
+    /// which this daemon does not check.
     pub provider: Identity,
     /// Which of that provider's volumes, by the name its listing gives
     /// it, as the daemon lists that provider's volumes. A name the
     /// provider holds no volume by is the create's error. Naming it
     /// takes the `mount` grant over it: see
-    /// [`grant`](crate::daemon::grant).
+    /// [`grant`](crate::daemon::grant). For a volume on another
+    /// daemon, neither is checked here: `relay` over the daemon's
+    /// record is the grant, and the volume is that daemon's to find.
     pub volume_name: String,
     /// Where in that volume, as path components from the volume's
     /// root; empty is the volume itself. A file mount names a regular

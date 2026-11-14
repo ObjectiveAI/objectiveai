@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The actions over volumes that exist, which a grant reaches as far as
 /// its `within` says. Snake case on the wire: `"get"`, `"list"`,
 /// `"delete"`, `"edit"`, `"stat"`, `"download"`, `"upload"`,
-/// `"transfer"`, `"filetree"`, `"mount"`.
+/// `"transfer"`, `"filetree"`, `"mount"`, `"fuse_serve"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -50,4 +50,11 @@ pub enum Over {
     /// [`volumes::filetree`](crate::daemon::endpoints::volumes::filetree)
     /// does.
     Filetree,
+    /// Have one served over FUSE to the caller, as
+    /// [`volumes::fuse_serve`](crate::daemon::endpoints::volumes::fuse_serve)
+    /// does: what another daemon's account holds here so that its own
+    /// containers may mount from the volume. Its own action, implied
+    /// by no other: `mount` names a volume in a container of THIS
+    /// daemon's, and does not serve it to anyone.
+    FuseServe,
 }
