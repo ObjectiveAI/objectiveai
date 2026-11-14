@@ -45,13 +45,13 @@ RUN cargo build --release \
 # venv is made, as in the python image.
 FROM docker.io/library/python:3.13-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e
 
-# The harness, pinned to the commit that added `lone harness`, and
-# the runtime it imports on the way to its platform check. `--no-deps`
+# The harness, pinned to the commit that added `lone harness --endpoint`,
+# and the runtime it imports on the way to its platform check. `--no-deps`
 # and the explicit list, because `coremltools` has no manylinux wheel
 # for arm64: installing the distribution's full dependency set would
 # make this image unbuildable on the machine most likely to build it.
-# The turn itself needs macOS; see HARNESS.md.
-ARG LONE=https://github.com/AJ-Gonzalez/LoNE/archive/145437526224145d26a392b8dc6088fd3b78c831.tar.gz
+# A bundle turn needs macOS; an `endpoint` turn does not. See HARNESS.md.
+ARG LONE=https://github.com/AJ-Gonzalez/LoNE/archive/ed1179184fd24c607b067d645c5003d7068bc75a.tar.gz
 RUN python3 -m pip install --no-cache-dir --no-deps "lone-ane @ ${LONE}" \
     && python3 -m pip install --no-cache-dir typer numpy jinja2 tokenizers safetensors
 

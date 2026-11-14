@@ -12,7 +12,8 @@
 //! the agent value this image accepts (see [`main`]); `POST
 //! /register` is that value, told once for the container's life
 //! before any loop — a run before it is refused — and is when its
-//! bundle is checked for the manifest `lone convert` writes, answered
+//! source is checked: exactly one of `bundle` and `endpoint`, and a
+//! bundle's manifest `lone convert` writes; answered
 //! with the secrets this image takes, which are none; `POST /secrets`
 //! is their values, fed by the proxy once the registration is
 //! answered and again at every activation, held and read by nothing;
@@ -31,14 +32,15 @@
 //! runtime, and it may not be up at all until a request comes. So
 //! the server binds and waits, and the first thing to touch the
 //! proxy — the database, the MCP session — is `POST /run` itself.
-//! Registration touches the bundle's directory, never the proxy.
+//! Registration touches only a bundle's directory, never the proxy.
 //! Making the [`Client`] is no I/O.
 //!
 //! # What is an error, and what is not
 //!
 //! Anything that fails before the loop has said a single thing is a
 //! real error — a non-`2xx`, with a JSON reason, and no stream:
-//! arguments that are not a LoNE agent, a bundle that is not there, a
+//! arguments that are not a LoNE agent, a source that is not exactly
+//! one of `bundle` and `endpoint`, a bundle that is not there, a
 //! database that will not answer, a history that will not open, an
 //! MCP session that will not connect — and the first
 //! item of the loop itself, which is pulled before the response is

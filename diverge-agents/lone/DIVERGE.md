@@ -12,12 +12,22 @@
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Agent",
-    "description": "An agent that runs a local LoNE bundle instead of calling an\nupstream model.\n\nThe bundle is the model: a converted Core ML directory produced by\n`lone convert`, mounted into the container at `bundle`. Every turn\nruns `lone harness` against the conversation; nothing leaves the\ncontainer. A LoNE bundle carries its own tokenizer and chat\ntemplate, so the system prompt, the sampling fields and whether\nthe model thinks are the whole of what this agent can be told.\n\n# Secrets\n\nNone: the model is on disk, so there is no credential. The\ntemplate this agent is made from need declare no name, and a name\nit does declare is one the program never asks for.\n\n# The host\n\n`lone` targets Core ML and the Apple Neural Engine, and runs on\nmacOS only. The image therefore needs a host that provides them;\non a Linux provider the harness exits saying so. See the image's\n`/HARNESS.md`.",
+    "description": "An agent that runs a LoNE model instead of calling an upstream\nmodel: a converted bundle mounted into the container, or a\n`lone serve` endpoint on the network.\n\nExactly one source. A bundle is the model on disk: a converted\nCore ML directory produced by `lone convert`, mounted at `bundle`,\nand every turn runs `lone harness` inside the container. An\n`endpoint` is that same harness driven as a thin client against a\nLoNE `serve` on the network: nothing is loaded in the container,\nso there is no Core ML and no macOS. A LoNE bundle carries its own\ntokenizer and chat template, so the system prompt, the sampling\nfields and whether the model thinks are the whole of what this\nagent can be told.\n\n# Secrets\n\nNone: the model is on disk or on the network, so there is no\ncredential. The template this agent is made from need declare no\nname, and a name it does declare is one the program never asks for.\n\n# The host\n\nA bundle turn needs Core ML and the Apple Neural Engine, so macOS.\nAn endpoint turn does not: the image installs the harness without\nCore ML, so it builds and registers anywhere, and a Linux provider\nreaches a LoNE host on the network. See the image's `/HARNESS.md`.",
     "type": "object",
     "properties": {
       "bundle": {
-        "description": "The converted bundle's directory inside the container.\n\nMust hold the `manifest.json` `lone convert` writes. The\nregistration checks that before the agent counts as\nregistered; a missing bundle is refused where the caller can\nsee why.",
-        "type": "string"
+        "description": "The converted bundle's directory inside the container.\n\nMust hold the `manifest.json` `lone convert` writes. The\nregistration checks that before the agent counts as\nregistered; a missing bundle is refused where the caller can\nsee why. Exactly one of `bundle` and `endpoint` is required.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "endpoint": {
+        "description": "A LoNE `serve` base URL to run turns against, instead of a\nbundle.\n\n`lone harness --endpoint` posts the conversation and the tool\ndefinitions to `/v1/chat/completions` there; nothing is loaded\nin this container, so the turn needs neither Core ML nor macOS,\nand the server must reach a LoNE host on the network. Exactly\none of `bundle` and `endpoint` is required.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "system_prompt": {
         "description": "The system prompt, sent as the conversation's leading message.\n\nAbsent sends none, and the bundle's own template is the whole\nof the framing.",
@@ -27,7 +37,7 @@
         ]
       },
       "max_new_tokens": {
-        "description": "Cap on generated tokens for one turn, reasoning included.\n\nAbsent is the harness's 512; the bundle's context clamps it\nfurther when the conversation leaves less room.",
+        "description": "Cap on generated tokens for one turn, reasoning included.\n\nAbsent is the harness's 512; the model's context clamps it\nfurther when the conversation leaves less room.",
         "type": [
           "integer",
           "null"
@@ -75,9 +85,6 @@
         }
       }
     },
-    "required": [
-      "bundle"
-    ],
     "$defs": {
       "Template": {
         "description": "One tool container an agent's program depends on: everything the\ncaller needs to deploy it, as fields and not as words. A tool\ncontainer depends on nothing.\n\nA [`Container`](crate::shared::containers::request::Container) is an\nimage, two limits, mounts and arguments. The image, the limits and\nthe arguments are here, member for member; beside them the secrets\nthe image needs, by name alone — which of them the tool's program\ntakes, and in what mode, is its own answer at registration, and\ntheir values are the caller's, each resolved through the vault key\nthe agent that spawns the tool binds the same name to, fed at every\nactivation. The mounts are not the caller's volumes — a volume is\nnamed in the caller's own listing, and a tool that named one would\nbe dictating the caller's storage — but, for a transient tool alone,\nthe AGENT's own files and directories, each a path in the agent\ncontainer served live at a path in the tool container: the caller\nserves the agent container, a `containers::fuse_serve` of the path,\nand mounts the tool, a `fuse::mount` answered from it.\n[`mode`](Self::mode) says which of the two modes the dependency is —\na transient tool of the agent's run, with those mounts, or a service\nthe caller keeps, with a scope — see [`Mode`]. What the tool may ask\nof the caller is not here: the tool's own program declares it at its\nregistration, every time it starts, as a standalone tool's does —\nsee the `permissions` of the\n[`register`](crate::container_proxy::inside::register) answer.\n\nThere are no instructions. What a template cannot say — the provider\nthe tool runs on, the volumes it is given — is\nthe caller's, and the caller needs no prose to choose it. The\ndaemon's own tool templates are another thing: a record the daemon\nkeeps, named by a hash, made by a request; this is what an image\ndeclares and a caller deploys.\n\nThere is no name. A dependency is named by its ID: the lowercase\nhexadecimal SHA-256 of its [`canonical`](crate::shared::canonical)\nbytes — this template as compact JSON, absent members omitted, the\nimage's `references` absent too, every object key sorted at every\ndepth, the `arguments` and the `secrets` included, the names sorted\nbytewise, the `mode` and\nits members among the keys — sixty-four characters, which the caller\ncomputes over [`hashed`](Self::hashed). Two declarations with one id\nare one dependency, and a list that declares one twice is refused;\nthe same template deployed for the same agent, on whatever provider,\nis the same dependency, and the same service template declared under\nthe same scope key, by whatever agent, is the same service. The\ncaller labels the tool's MCP tools by the id when it merges lists,\nand the program knows which tool serves each by the keys under\n`_meta`, see [`shared::mcp`](crate::shared::mcp).",
@@ -253,21 +260,24 @@
 
 # LoNE
 
-An agent that runs a **LoNE bundle** — LFM3 / LFM2.5 converted for Core ML and the Apple Neural
-Engine — instead of calling an upstream model. The bundle is the model: every turn runs
-`lone harness` over the whole conversation, and the chunks it writes are the turn.
+An agent that runs a **LoNE model** — LFM3 / LFM2.5 converted for Core ML and the Apple Neural
+Engine — instead of calling an upstream model. Exactly one source: a `bundle` mounted in the
+container, or an `endpoint` naming a LoNE `serve` on the network. Every turn runs `lone harness`
+over the whole conversation, and the chunks it writes are the turn.
 
-`lone` targets Core ML and the ANE, so a turn needs **macOS**. The image installs the harness
-without Core ML (the manylinux wheel of `coremltools` does not exist for arm64), so it builds and
-registers anywhere; on a Linux provider a turn exits with
+A bundle turn needs **macOS** and Core ML. An endpoint turn does not: the harness posts the turn to
+`/v1/chat/completions`, so the image runs on a Linux provider and the LoNE host does the inference.
+The image installs the harness without Core ML (the manylinux wheel of `coremltools` does not exist
+for arm64), so it builds and registers anywhere; a *bundle* turn on a Linux provider exits with
 `lone targets the Apple Neural Engine and needs macOS` on stderr, which the loop reports as the
-turn raising. Running it on a host that has the ANE is the point.
+turn raising.
 
 ## Arguments
 
 | member | required | meaning |
 |---|---|---|
-| `bundle` | yes | the converted bundle's directory **inside the container**, holding the `manifest.json` `lone convert` writes. Checked at registration; a path without it is refused |
+| `bundle` | one of | the converted bundle's directory **inside the container**, holding the `manifest.json` `lone convert` writes. Checked at registration; a path without it is refused |
+| `endpoint` | one of | a LoNE `serve` base URL (`host:8082`, `…/v1`, or the full `/v1/chat/completions`). Nothing is loaded in the container and nothing local is checked; the server does the inference. Exactly one of `bundle` and `endpoint` is required |
 | `system_prompt` | no | the conversation's leading system message |
 | `max_new_tokens` | no | cap on generated tokens for one turn, reasoning included; absent is 512, and the bundle's context clamps it further |
 | `temperature` | no | sampling temperature; absent is greedy |
@@ -275,8 +285,8 @@ turn raising. Running it on a host that has the ANE is the point.
 | `thinking` | no | whether the model may think before answering; absent is the template's default (yes) |
 | `dependencies` | no | tool containers, as in every agent-loop image |
 
-Secrets: **none**. The model is on disk, so there is no credential, and the template this agent is
-made from need declare no name.
+Secrets: **none**. The model is on disk or on the network, so there is no credential, and the
+template this agent is made from need declare no name.
 
 ## The bundle
 
@@ -290,6 +300,18 @@ A full bundle is roughly twice the fp16 checkpoint because the decode and prefil
 their weights separately; `--decode-only` halves it at the cost of slow prompts. Nothing is
 installed at registration, so a bundle is mounted, not built into the image.
 
+## The endpoint
+
+On a LoNE host, serve the bundle to the network:
+
+```bash
+lone serve --bundle bundles/lfm3-1.7b --host 0.0.0.0 --port 8082
+```
+
+The agent's `endpoint` is that URL (`http://lfm3-host:8082`, or `…/v1`, or the full
+`/v1/chat/completions`). The container needs no mount and no Core ML; each turn is one HTTP POST.
+The host keeps the bundle loaded, and one request runs at a time.
+
 ## Minimal template body
 
 ```json
@@ -301,6 +323,20 @@ installed at registration, so a bundle is mounted, not built into the image.
   "arguments": { "bundle": "/models/lfm3-1.7b", "temperature": 0.0, "max_new_tokens": 512 }
 }
 ```
+
+Or, against a served bundle, with no mounts:
+
+```json
+{
+  "type": "agent",
+  "image": { "digest": "<digest>", "references": [{ "registry": "docker.io", "name": "diverge-local/lone" }] },
+  "memory": 8589934592,
+  "disk": 1073741824,
+  "arguments": { "endpoint": "http://lfm3-host:8082", "temperature": 0.0, "max_new_tokens": 512 }
+}
+```
+
+The bundle lives on the LoNE host in that mode; nothing is mounted into the agent.
 
 A template carries no mounts. Mount the bundle when the agent is made:
 
@@ -324,9 +360,10 @@ it.
 ## The turn
 
 The harness contract is the python image's (`diverge-agents/python/HARNESS.md`), carried to a
-bundle: `{input, tools, resources}` on stdin, `{"eval": <chunks>, "stdout": ""}` as the last stdout
-line. The history is replayed through the bundle's own chat template, and the generated turn is
-split into `assistant_reasoning`, `assistant_text_content` and `assistant_tool_call` chunks. Tool
+bundle or an endpoint: `{input, tools, resources}` on stdin, `{"eval": <chunks>, "stdout": ""}` as
+the last stdout line. The history is replayed through the bundle's own chat template (on the LoNE
+host, when the source is an endpoint), and the generated turn is split into `assistant_reasoning`,
+`assistant_text_content` and `assistant_tool_call` chunks. Tool
 calls are the template's own grammar, parsed back:
 
     <tool_call><function=name><parameter=k>v</parameter></function></tool_call>     LFM3
