@@ -1,0 +1,29 @@
+//! One turn of LoNE: `lone harness` run against the conversation, and
+//! its output read back as chunks.
+//!
+//! [`run`] is the whole of it: the [`Feed`] serialized onto the
+//! harness's stdin, the process waited for, the envelope taken from
+//! its last stdout line ([`process`]), and the envelope's value
+//! deserialized and checked ([`output()`]). No streaming — the
+//! harness answers once, when it ends — and no timeout: the turn runs
+//! as long as it runs, which on a cold bundle includes loading it.
+
+mod envelope;
+mod error;
+mod feed;
+mod output;
+mod process;
+
+pub use envelope::*;
+pub use error::*;
+pub use feed::*;
+pub use output::*;
+pub use process::*;
+
+use diverge_sdk::provider::endpoints::containers::agents::run::server::response::AgenticLoopChunk;
+
+/// Run the harness once, and read what it answered.
+pub async fn run(feed: &Feed<'_>) -> Result<Vec<AgenticLoopChunk>, Error> {
+    let envelope = invoke(feed).await?;
+    output(envelope)
+}

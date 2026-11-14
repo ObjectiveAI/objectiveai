@@ -15,7 +15,7 @@ Diverge runs agents and tools in containers, on your own machines.
 | `diverge-postgres` | the supervisor of the daemon's own Postgres |
 | `diverge-cli` | the `diverge` command line |
 | `diverge-sdk-rs`, `diverge-sdk-js` | the SDKs |
-| `diverge-agents` | the agent loop images: `cc`, `codex`, `hermes`, `openrouter`, `python` |
+| `diverge-agents` | the agent loop images: `cc`, `codex`, `hermes`, `lone`, `openrouter`, `python` |
 | `diverge-tools` | the tool images: `identity-diverge-network` |
 | `diverge-examples` | example agent and tool images |
 | `diverge-world`, `diverge-viewer` | the desktop apps |

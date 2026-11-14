@@ -1,0 +1,49 @@
+[package]
+name = "diverge-agentic-loop-lone"
+version = "2.3.0"
+edition = "2024"
+authors = ["Diverge <admin@diverge.network>"]
+description = "The LoNE agent container of the Diverge provider protocol"
+license = "MIT"
+repository = "https://github.com/divergenetwork/Diverge"
+homepage = "https://diverge.network"
+publish = false
+
+[dependencies]
+# Path-only: this crate rides the workspace and is never published, so
+# the SDKs are named by where they live rather than by version pins
+# version.sh would have to chase. The provider SDK is the vocabulary —
+# the chunks; the container SDK is the proxy beside this program — the
+# request, the chunks' way out, the MCP session, the database.
+diverge-sdk = { path = "../../diverge-sdk-rs" }
+# The loop's door: an HTTP server on the loopback the proxy forwards
+# to — `/run` as server-sent events, the queue's two verbs, the
+# schema. Default features carry the JSON extractor and the HTTP/1
+# server; SSE is axum's own.
+axum = { version = "0.8.9" }
+# `Stream` and its combinators, for the chunk stream the response is;
+# `join`, for the two listings a turn opens with.
+futures-util = { version = "0.3.33", default-features = false, features = ["std"] }
+# The MCP types the tool list, the resource list and the tool calls
+# are made of; the session itself is the container SDK's.
+rmcp = { version = "3.1.2", default-features = false, features = ["client", "transport-streamable-http-client-reqwest"] }
+# The agent's JSON Schema, derived from the agent types for
+# `--schema`.
+schemars = { version = "1.2.2" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
+# The runtime under the listener, and the harness process: `process`
+# to spawn `lone harness`, `io-util` to feed its stdin, `fs` to check
+# the bundle's manifest at registration. No `macros` — the runtime is
+# built in main, not attributed onto it.
+tokio = { version = "1.53.1", default-features = false, features = ["fs", "io-util", "net", "process", "rt-multi-thread", "sync"] }
+# The loop as a generator.
+async-stream = "0.3.6"
+# Deserialization failures that say WHERE — the harness's output is
+# the caller's, and a wrong shape wants a path.
+serde_path_to_error = "0.1.20"
+# The error type, in the api crate's idiom this ports.
+thiserror = "2.0.20"
+# The continuation's store: the caller's database, through the proxy's
+# loopback pgwire. `json` for the one jsonb column it keeps.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "json"] }
