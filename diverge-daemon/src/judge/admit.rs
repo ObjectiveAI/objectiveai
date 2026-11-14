@@ -352,12 +352,12 @@ impl Authenticator for Judging<'_> {
 /// The daemon's authenticator for reaching one remote daemon as one
 /// account of ours there, as a record of it names the two. The rules:
 ///
-/// 1. **Presenting.** The ID token of `ours`, one of the host's
+/// 1. **Presenting.** The access token of `ours`, one of the host's
 ///    identities, whatever the daemon's own `identity` is, and that
 ///    identity's key on this host.
 /// 2. **Verifying.** The answer's token is verified against the remote's
 ///    issuer's keys, that issuer trusted for this answer alone, and
-///    must name a key, which the handshake holds the remote to.
+///    must be bound to a key, which the handshake holds the remote to.
 /// 3. **The one answer.** The answer must be `remote`, and nothing else:
 ///    a record names the daemon it reaches.
 /// 4. **Nothing held.** Several records may reach the same remote, each

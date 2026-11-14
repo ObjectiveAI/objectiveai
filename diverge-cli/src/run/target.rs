@@ -30,7 +30,7 @@ pub struct Target<'a> {
 impl Target<'_> {
     /// The daemon dialled as the account, with the SDK's [`dial`]: the
     /// handshake made as its connector by a [`Presenter`] — the
-    /// account's ID token presented, refreshed where it must be, with
+    /// account's access token presented, refreshed where it must be, with
     /// the account's key on this host; the daemon's token verified
     /// against its issuer's keys and the daemon held to the key it
     /// names; and, where the document states the daemon's identity,

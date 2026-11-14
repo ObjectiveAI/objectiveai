@@ -42,12 +42,14 @@
 //!    identity with none — [`Error::NoIdToken`] — rather than one past
 //!    its time.
 //!
-//!    A handshake presents the **ID token**, never the access token:
-//!    OpenID Connect makes the ID token a signed JWT naming its issuer,
-//!    its subject and its expiry, which anyone checks against the
-//!    issuer's keys, while an access token's form is its issuer's
-//!    choice and may be opaque. The access token is kept for the
-//!    issuer's own APIs, and no handshake reads it.
+//!    A handshake presents the **access token**, bound to the
+//!    identity's key on this host as RFC 9449 — DPoP — binds one: the
+//!    one token an issuer writes a key's thumbprint into. It must be a
+//!    signed JWT naming its issuer, its subject and its expiry, as RFC
+//!    9068 lays one out, which anyone checks against the issuer's
+//!    keys; an issuer whose access tokens are opaque, or bound to no
+//!    key, is one no identity here is presented from. The ID token is
+//!    read at the login for the subject, and no handshake reads it.
 //! 5. **Signed out.** A refresh the issuer refuses as `invalid_grant`
 //!    — the token rotated away, revoked, or expired — is
 //!    [`Error::SignedOut`]. The file is kept, as user state is; a new
