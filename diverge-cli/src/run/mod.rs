@@ -137,7 +137,8 @@ pub enum Command {
     /// through the daemon.
     #[command(subcommand)]
     Events(events::Events),
-    /// The requests over images: an image's DIVERGE.md.
+    /// The requests over images: building one, pushing one, listing
+    /// the daemon's Stores, and reading one.
     #[command(subcommand)]
     Images(images::Images),
     /// The requests over the daemon's host's identities: its issuers,
