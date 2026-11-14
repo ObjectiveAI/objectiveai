@@ -230,6 +230,7 @@ request ever answers a token.
 ```bash
 diverge run identities list                         # -> {"listed":[{"issuer":…,"subject":…,"tags":[…]}, …]}
 diverge run identities list '{"issuers":["https://identity.diverge.network"],"any_tags":["peer"]}'
+diverge run identities get   '{"identity":{"issuer":"…","subject":"github.12345.daemon-a"}}'                  # {"found":{…}} | "not_found"
 diverge run identities tag   '{"identity":{"issuer":"…","subject":"github.12345.daemon-a"},"tags":["peer"]}'   # "tagged" | "not_found"
 diverge run identities untag '{"identity":{"issuer":"…","subject":"github.12345.daemon-a"},"tags":["peer"]}'   # "untagged"
 
@@ -263,7 +264,7 @@ diverge run identities list
 - Signing an identity in does not make the daemon present it: which identity the daemon presents
   stays `daemon.yaml`'s `identity`.
 - Grants: `{"identities":["login"]}` for an identity not yet on the host;
-  `{"identities":{"actions":["list","login"],"within":…}}` for those there (filter members `issuers`,
+  `{"identities":{"actions":["get","list","login"],"within":…}}` for those there (filter members `issuers`,
   `subjects`, `all_tags`, `any_tags`); the tagging shape for `tag`/`untag`.
 - This is not `diverge identities login` (no `run`), which signs in on the host the CLI runs on. See
   `diverge-config`.

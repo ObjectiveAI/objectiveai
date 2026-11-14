@@ -150,6 +150,7 @@ decodes.**
 |---|---|
 | `build` | `images build` on a provider the grant reaches (plus `mount` over the context volume, where one is named) |
 | `push` | `images push` to a provider the grant reaches |
+| `get` | `images get` of an image in the Store on a provider the grant reaches |
 | `list` | `images list`: only the Stores on reached providers are listed |
 
 Every action is judged by the provider alone, never by the image's digest. The Store on a provider is the
@@ -250,6 +251,7 @@ The identities signed in on the daemon's host.
 | Shape | Action | Allows |
 |---|---|---|
 | Make | `login` | `identities login` of an identity not on the host yet |
+| Over | `get` | `identities get` |
 | Over | `list` | `identities list` |
 | Over | `login` | `identities login` replacing an identity already on the host |
 | Tagging | `tag`, `untag` | `identities tag` / `untag` |

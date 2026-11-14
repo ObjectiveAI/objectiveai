@@ -297,6 +297,7 @@ the usual `run` flags and `relay`, and answer `"forbidden"` otherwise.
 ```bash
 diverge run identities list                                   # {"listed":[{"issuer":…,"subject":…,"tags":[…]}, …]}
 diverge run identities list --issuer https://identity.diverge.network   # also --subject; body: issuers, subjects, all_tags, any_tags
+diverge run identities get   '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-a"}}'                  # {"found":{…}} | "not_found"
 diverge run identities tag   '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-a"},"tags":["prod"]}'   # "tagged" | "not_found"
 diverge run identities untag '{"identity":{"issuer":"https://identity.diverge.network","subject":"github.12345.daemon-a"},"tags":["prod"]}'   # "untagged" | "not_found"
 diverge run identities login --issuer https://identity.diverge.network --subject github.12345.daemon-a --client-id diverge

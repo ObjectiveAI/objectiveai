@@ -170,6 +170,10 @@ diverge run images list --watch                            # stays open: added /
 
 - Body members, all optional: `providers`, `digests`, `created_from`, `created_to` (RFC 3339), `count`,
   `relay`.
+- One image, once: `diverge run images get '{"provider":{"issuer":"…","subject":"…"},"digest":"sha256:…"}'`
+  answers `{"found":{…}}` with the same members as a list line, `"not_found"` (no such provider on record,
+  or no such digest in its Store), `"forbidden"`, or `{"error":…}` (the provider is not connected now, has
+  no Store, or its listing is not whole yet). It needs the images grant's `get` action.
 - Each line is `{"added":{"provider":…,"digest":…,"description"?:…,"bytes":…,"created":…}}`, then
   `"listed"`. With `--watch`, `{"changed":…}` (a description edited) and `{"removed":…}` follow as they
   happen. Other answers: `"forbidden"`, `{"error":…}`.
@@ -432,8 +436,8 @@ template declares. Details and lifecycle are in `diverge-tools`; the entry shape
 
 ## Not verified
 
-- `images list` and `images push` are from the SDK, the daemon's handlers and the CLI; neither has been
-  run live. A push whose bytes a client supplies has no caller in this repository.
+- `images list`, `images get` and `images push` are from the SDK, the daemon's handlers and the CLI; none
+  has been run live. A push whose bytes a client supplies has no caller in this repository.
 - The provider protocol also has `images::edit`, `stat` and `delete` over the caller's Store, which the
   daemon does not expose. Deleting what the Store holds, or changing a description, is therefore not
   possible from the CLI.
