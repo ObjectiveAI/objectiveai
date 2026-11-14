@@ -197,6 +197,7 @@ daemons:
 | `default` | `local` | The name of the daemon a `run` dials when `--daemon` is absent. Also the daemon `diverge daemon stop` asks to stop. |
 | `daemons` | one daemon `local` | The daemons the CLI may dial, by a name of your choosing. |
 | `daemons.<name>.address` | — (required) | A WebSocket URL, or `host:port` dialled as `ws://<address>/`. |
+| `daemons.<name>.identity` | none | `{issuer, subject}`: the daemon's **own** identity, the `identity` in its `daemon.yaml`. Stated, the CLI connects only if that identity answers at the address and proves its key, so it reached the daemon it meant. Absent, the CLI accepts whichever identity answers with a valid token and key: it then knows it reached someone genuine, not whom. State it for any daemon not on this host. |
 | `daemons.<name>.default` | none | The account used when `--account` is absent. Absent, every `run` on this daemon must pass `--account`. |
 | `daemons.<name>.accounts` | none | The accounts the CLI may dial that daemon as, by a name of your choosing. |
 | `daemons.<name>.accounts.<name>.issuer` / `.subject` | — (required) | One of this root's signed-in identities. The CLI presents that identity's token; the daemon must hold an account (or an admin) for exactly that `(issuer, subject)`. |
@@ -234,6 +235,7 @@ daemon:
 | `daemon` | none | The daemon the viewer dials and as whom. **Absent, the viewer does not start.** |
 | `daemon.address` | — (required) | A WebSocket URL, or `host:port` (the viewer adds `ws://` and `/`). |
 | `daemon.issuer` / `daemon.subject` | — (required) | One of this root's signed-in identities; it must be an account or an admin of that daemon. What the viewer shows is what that account may see. |
+| `daemon.identity` | none | `{issuer, subject}`: the daemon's **own** identity. Stated, the world connects only if that identity answers and proves its key. Absent, whichever identity answers with a valid token and key is accepted. |
 | `daemon.redial` | `5` | `never`, or a whole number of seconds (at least `1`) the app waits before dialling again after a connection ends or a dial fails. |
 
 The viewer keeps its own files under `<root>/viewer/`.

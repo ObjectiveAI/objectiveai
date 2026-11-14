@@ -18,6 +18,7 @@ If you have not loaded the `diverge` skill in this task, load it first.
 <root>/
   daemon.yaml  provider.yaml  cli.yaml  viewer.yaml                  the documents (each optional)
   identities/<percent-encoded issuer>/<subject>.json                 signed-in identities (hold refresh tokens)
+  identities/<percent-encoded issuer>/<subject>.key                  each identity's private key on this host
   identity.diverge.network/<issuer>.<id>.json                        signed-in accounts at Diverge's own issuer (hold GitHub / Google tokens)
   daemon.log  provider.log                                           a started server's output, truncated at each start
   daemon.lock provider.lock                                          held while that server runs; holds its process id
@@ -193,7 +194,12 @@ Facts and pitfalls:
 ## Identities on this host: `diverge identities`
 
 An identity is one subject at one issuer, signed in once and kept signed in by its refresh token. All programs
-on a root share `<root>/identities/`. No command prints a token.
+on a root share `<root>/identities/`. No command prints a token or a private key.
+
+**Every identity has a key on its host.** `<subject>.key` is an Ed25519 private key that never leaves the
+host. Each ID token the issuer mints names its public half, and every connection made as the identity is
+signed with it, so a token copied off the wire or out of a log cannot be used by anyone else. A login makes
+the key when the identity has none; the same identity signed in on another host has a different key there.
 
 ### login
 
@@ -256,6 +262,26 @@ At every issuer:
 - The issuer must be reachable (its discovery document is fetched).
 - An identity whose refresh token was ended, or went unused past the issuer's refresh-token lifetime (30 days
   at `identity.diverge.network`), is *signed out*: its file stays, handshakes fail, and a new login fixes it.
+- **The issuer must write the key into the token.** `identity.diverge.network` does. An issuer that does not
+  answers tokens no Diverge program accepts, and the error says the issuer "answered an ID token that names
+  no key".
+- An identity signed in before keys existed gets one at its next token refresh, with no new login.
+
+### key generate
+
+```bash
+diverge identities key generate --issuer https://identity.diverge.network --subject github.12345.admin
+# {"generated":{"issuer":"…","subject":"github.12345.admin","jwk":{"kty":"OKP","crv":"Ed25519","x":"…"}}}
+diverge identities key generate --issuer … --subject … --overwrite      # replace the key it has
+```
+
+- Prints the **public** key only. The private key is written to `<subject>.key` and never printed.
+- An identity that already has a key keeps it, and the command fails saying so, unless `--overwrite` is given.
+- After `--overwrite` the old key is gone: tokens that named it are discarded and the next connection gets a
+  fresh token naming the new key. Running programs pick the new key up at their next connection; connections
+  already open stay open.
+- You rarely need this: a login makes the key. Use it to replace a key you believe was copied, or to make the
+  key before the login.
 
 ### list, remove
 
@@ -265,6 +291,8 @@ diverge identities list
 diverge identities remove --issuer https://identity.diverge.network --subject github.12345.old
 # {"removed":{"issuer":"…","subject":"github.12345.old"}}
 ```
+
+`remove` deletes the identity's key with it.
 
 Removing the identity a running daemon or provider presents (its `identity`) breaks every later handshake
 of that program. Removing one that `cli.yaml` or `viewer.yaml` names breaks that account.
@@ -396,7 +424,7 @@ then restart the provider. (Volumes themselves: skill `diverge-storage`.)
 | `no account was named, and the daemon … has no default` | `cli.yaml` has no default account for that daemon (this stops even `request-schema`) | Add an account and `default`, or pass `--account` |
 | `no daemon is named …` / `the daemon … has no account named …` | `--daemon` / `--account` name nothing in `cli.yaml` | `diverge cli config get` |
 | `the daemon could not be dialled: …` | Daemon down, or wrong `address` in `cli.yaml` | `diverge daemon start`, or fix the address |
-| `the handshake did not complete: …` | The account's identity is not signed in under this root, is signed out, the issuer is unreachable, or the daemon has no `identity` or its identity is not signed in under the daemon's root | `diverge identities list`; log in again; check `daemon.yaml` `identity` |
+| `the handshake did not complete: …` | The account's identity is not signed in under this root, is signed out, the issuer is unreachable or writes no key into its tokens, the daemon has no `identity` or its identity is not signed in under the daemon's root, or `cli.yaml` states a daemon `identity` that is not the one that answered | `diverge identities list`; log in again; check `daemon.yaml` `identity` and the daemon entry's `identity` in `cli.yaml` |
 | `the daemon closed the connection without answering: the account may be none of the daemon's` | The identity is neither in `admins` nor an account on that daemon | Add it to `admins` and restart, or have an admin create the account |
 | `the document is not one its program takes: <path>: …` | A `set`/`patch` result the type refuses | Fix the key or value at that path; nothing was written |
 | `the patch could not be applied: #<n> <op>: nothing is at …` | The path, or its parent, does not exist | Add the parent member whole |
