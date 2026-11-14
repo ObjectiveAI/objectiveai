@@ -9,7 +9,7 @@ import { Image } from "../../../../../../daemon/endpoints/images/list/server/res
  * A get's answer: the image as a list would report it, that there is
  * none, forbidden, or a failure. It is read from the listing of its
  * Store the daemon holds: a provider not connected now, with no Store,
- * or not yet listed whole is the failure.
+ * or whose listing failed is the failure.
  */
 export const Frame = z.union([
   /** The image, as the list reports it. Tag `0`. */

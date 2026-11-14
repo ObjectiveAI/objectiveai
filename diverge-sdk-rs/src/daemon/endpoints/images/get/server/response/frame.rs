@@ -29,7 +29,7 @@ use crate::daemon::endpoints::images::list::server::response::Image;
 /// there holds no image of the digest, and nothing is retried. An
 /// [`Error`](Self::Error) is the absence of an answer: the daemon could
 /// not look — the provider is not connected now, has no Store, or its
-/// listing is not whole yet.
+/// listing failed.
 ///
 /// # Forbidden
 ///

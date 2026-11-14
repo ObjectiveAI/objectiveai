@@ -173,7 +173,7 @@ diverge run images list --watch                            # stays open: added /
 - One image, once: `diverge run images get '{"provider":{"issuer":"…","subject":"…"},"digest":"sha256:…"}'`
   answers `{"found":{…}}` with the same members as a list line, `"not_found"` (no such provider on record,
   or no such digest in its Store), `"forbidden"`, or `{"error":…}` (the provider is not connected now, has
-  no Store, or its listing is not whole yet). It needs the images grant's `get` action.
+  no Store, or its listing failed). It needs the images grant's `get` action.
 - Each line is `{"added":{"provider":…,"digest":…,"description"?:…,"bytes":…,"created":…}}`, then
   `"listed"`. With `--watch`, `{"changed":…}` (a description edited) and `{"removed":…}` follow as they
   happen. Other answers: `"forbidden"`, `{"error":…}`.

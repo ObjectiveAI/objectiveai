@@ -11,8 +11,9 @@
 //! 2. **Not found** is a provider the daemon keeps no record of, or a
 //!    Store whose listing holds no image of the digest.
 //! 3. **A failure** is a provider that is not connected now, that has
-//!    no Store, or whose listing is not whole yet: the daemon could not
-//!    look.
+//!    no Store, or whose listing failed: the daemon could not look. A
+//!    listing still arriving is waited for, as a
+//!    [`volumes::get`](crate::daemon::endpoints::volumes::get) waits.
 //! 4. **What it is not.** It answers the list's row and nothing of the
 //!    image itself: [`read`](super::read) does that.
 //!
